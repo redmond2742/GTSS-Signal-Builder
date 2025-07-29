@@ -1,0 +1,81 @@
+Build a web app called GTSS Builder that allows users to configure and export traffic signal system data in a GTFS-like format (GTSS = General Traffic Signal Specification).
+💻 Frontend:
+Use React (with Vite or Next.js) or Vue 3 for the frontend.
+
+
+Display a tabbed or side navigation layout with the following sections:
+
+
+Agency Info
+
+
+Signal Locations
+
+
+Phases
+
+
+Detectors
+
+
+Preview & Export
+
+
+Each section should include a table-style editor to input rows of data and add/delete/update entries.
+
+
+Use local state or Pinia/Vuex/Redux as needed to manage form inputs and relationships between signals, phases, and detectors.
+
+
+📦 Backend:
+Use a simple Express.js (or Python Flask/FastAPI) server to:
+
+
+Accept a POST request containing all GTSS data.
+
+
+Convert each table (Agency, Signals, Phases, Detection) into a CSV file.
+
+
+Package all CSVs into a .zip file.
+
+
+Send it back for user download.
+
+
+📁 Data Schema:
+agency.txt
+Fields: AgencyID, Agency_Name, Agency_URL, Agency_timezone, Agency_Language, contact_person, contact_email
+
+
+signals.txt
+Fields: SignalID, AgencyID, Street_Name1, Street_Name2, Cnt_lat, Cnt_lon, Control_Type, Cabinet_Type, Cabinet_Lat, Cabinet_Lon, has_BatteryBackup, has_CCTV
+
+
+phases.txt
+Fields: Phase, SignalID, Movement_Type, is_pedestrian, is_overlap, channel_output, Compass_Bearing, Posted_Speed_Limit, vehicle_detection_ids, ped_audible_enabled
+
+
+detection.txt
+Fields: SignalID, Detector_Channel, Phase, Description, Purpose, Vehicle_Type, Lane, Det_Technology_Type, Length, Stopbar_Setback
+
+
+🧰 Requirements:
+Allow the user to add multiple signals and link them to phases and detectors.
+
+
+Validate required fields before export.
+
+
+Optional: Support saving/loading the GTSS configuration to local storage or JSON.
+
+
+Optional: Use Leaflet or Mapbox to visually place signals and cabinets on a map.
+
+
+🎁 Export:
+On clicking "Export", bundle all files into a ZIP and trigger a download in the browser.
+
+
+Each file should follow the naming convention: agency.txt, signals.txt, phases.txt, detection.txt
+
