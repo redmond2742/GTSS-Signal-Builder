@@ -1,0 +1,108 @@
+# GTSS Builder
+
+## Overview
+
+GTSS Builder is a web application for configuring and exporting traffic signal system data in a GTFS-like format (GTSS = General Traffic Signal Specification). The application allows users to manage agency information, signal locations, phases, and detectors through an intuitive tabbed interface, with the ability to export all data as a downloadable ZIP file containing CSV files.
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+## System Architecture
+
+The application follows a full-stack architecture with a clear separation between frontend and backend concerns:
+
+- **Frontend**: React-based single-page application built with Vite
+- **Backend**: Express.js REST API server
+- **Database**: PostgreSQL with Drizzle ORM for type-safe database operations
+- **Storage**: In-memory storage for development (with database schema ready for production)
+- **Build System**: Vite for frontend bundling, esbuild for backend compilation
+
+## Key Components
+
+### Frontend Architecture
+- **Framework**: React 18 with TypeScript
+- **Build Tool**: Vite with hot module replacement
+- **Routing**: Wouter for lightweight client-side routing
+- **State Management**: Zustand for global state management
+- **UI Components**: Radix UI primitives with shadcn/ui styling
+- **Styling**: Tailwind CSS with CSS variables for theming
+- **Forms**: React Hook Form with Zod validation
+- **HTTP Client**: TanStack Query for server state management
+
+### Backend Architecture
+- **Framework**: Express.js with TypeScript
+- **Database ORM**: Drizzle ORM with PostgreSQL dialect
+- **Validation**: Zod schemas for runtime type checking
+- **File Processing**: Archiver for ZIP file generation
+- **Session Management**: PostgreSQL session store ready for implementation
+
+### Database Schema
+The application uses four main entities:
+- **Agencies**: Organization information (ID, name, contact details, timezone)
+- **Signals**: Traffic signal locations (coordinates, street intersections, equipment details)
+- **Phases**: Signal timing phases (movement types, pedestrian settings, detection)
+- **Detectors**: Detection equipment (channels, types, positioning)
+
+### API Structure
+RESTful API endpoints for each entity:
+- `GET/POST /api/agency` - Agency information management
+- `GET/POST/PUT/DELETE /api/signals/:id` - Signal CRUD operations
+- `GET/POST/PUT/DELETE /api/phases/:id` - Phase CRUD operations
+- `GET/POST/PUT/DELETE /api/detectors/:id` - Detector CRUD operations
+- `POST /api/export` - Generate and download GTSS package
+
+## Data Flow
+
+1. **User Input**: Forms collect and validate data using React Hook Form + Zod
+2. **State Management**: Zustand stores maintain local state for immediate UI updates
+3. **API Communication**: TanStack Query handles server synchronization and caching
+4. **Data Persistence**: Express routes validate and store data via Drizzle ORM
+5. **Export Process**: Backend generates CSV files from stored data and packages them into ZIP
+6. **File Download**: Client receives and downloads the generated package
+
+## External Dependencies
+
+### Frontend Dependencies
+- **UI Framework**: React, Radix UI primitives for accessibility
+- **Styling**: Tailwind CSS, class-variance-authority for component variants
+- **Forms & Validation**: React Hook Form, Zod, @hookform/resolvers
+- **HTTP & State**: TanStack Query for server state management
+- **Routing**: Wouter for lightweight routing
+- **Date Handling**: date-fns for date formatting
+
+### Backend Dependencies
+- **Database**: @neondatabase/serverless (Neon PostgreSQL)
+- **ORM**: Drizzle ORM with drizzle-kit for migrations
+- **File Processing**: archiver for ZIP file creation
+- **Session Store**: connect-pg-simple for PostgreSQL sessions
+- **Validation**: Shared Zod schemas between frontend and backend
+
+### Development Dependencies
+- **Build Tools**: Vite, esbuild, TypeScript
+- **Linting & Code Quality**: TypeScript compiler for type checking
+- **Development Server**: Custom Vite middleware integration
+
+## Deployment Strategy
+
+### Development
+- **Frontend**: Vite dev server with HMR on port 5173
+- **Backend**: tsx for TypeScript execution with nodemon-like reloading
+- **Database**: Neon PostgreSQL (serverless) for development
+- **Environment**: NODE_ENV=development with development-specific middleware
+
+### Production
+- **Frontend**: Static build output served by Express
+- **Backend**: Compiled JavaScript bundle via esbuild
+- **Database**: Production PostgreSQL instance via DATABASE_URL
+- **Deployment**: Single server deployment with static file serving
+
+### Key Architectural Decisions
+
+1. **Monorepo Structure**: Frontend, backend, and shared code in single repository for easier development and type sharing
+2. **In-Memory Storage**: Development uses memory storage with interface design allowing easy database integration
+3. **Type Safety**: End-to-end TypeScript with shared schemas between frontend and backend
+4. **Component Architecture**: Modular UI components with shadcn/ui for consistency
+5. **State Management**: Zustand chosen for simplicity over Redux complexity
+6. **Validation Strategy**: Zod schemas shared between client and server for consistency
+7. **Build Strategy**: Separate frontend and backend builds with Express serving both
