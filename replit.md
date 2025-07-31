@@ -36,6 +36,8 @@ Preferred communication style: Simple, everyday language.
 ✓ Removed success toast notifications from Visual Phase Editor for streamlined workflow
 ✓ Added display of existing phases for signal below Close button in Visual Phase Editor
 ✓ Flipped compass bearing calculation by 180° to represent traffic flow direction instead of raw geometric bearing
+✓ Enhanced agency coordinate integration - all signal maps now use saved agency lat/lon as center point
+✓ Simplified signal modal map picker to prioritize agency coordinates over complex city name mapping
 
 ## System Architecture
 
