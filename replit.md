@@ -28,6 +28,8 @@ Preferred communication style: Simple, everyday language.
 ✓ Implemented rapid multi-phase creation workflow - add up to 8 phases without closing dialog
 ✓ Enhanced agency form with state detection and location picker using IP geolocation
 ✓ Added map-based city selection with reverse geocoding for accurate agency location setup
+✓ Integrated location picker directly into agency config with tabbed interface
+✓ Added auto-population of agency name and ID based on selected map location
 
 ## System Architecture
 
