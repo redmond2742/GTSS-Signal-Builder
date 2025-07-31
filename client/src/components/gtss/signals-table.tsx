@@ -9,13 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, Map, List } from "lucide-react";
+import { Plus, Edit, Trash2, Map, List, Navigation } from "lucide-react";
 import SignalModal from "./signal-modal";
+import BulkSignalModal from "./bulk-signal-modal";
 import { SignalsMap } from "@/components/ui/signals-map";
 
 export default function SignalsTable() {
   const [editingSignal, setEditingSignal] = useState<Signal | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const { signals, setSignals, addSignal, updateSignal, deleteSignal } = useGTSSStore();
   const { toast } = useToast();
 
@@ -85,10 +87,16 @@ export default function SignalsTable() {
             <CardTitle className="text-lg font-semibold text-grey-800">Signal Locations</CardTitle>
             <p className="text-sm text-grey-600">Manage traffic signal installation locations</p>
           </div>
-          <Button onClick={handleAdd} className="bg-primary-600 hover:bg-primary-700">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Signal
-          </Button>
+          <div className="flex space-x-2">
+            <Button onClick={() => setShowBulkModal(true)} variant="outline" className="border-primary-200 text-primary-700 hover:bg-primary-50">
+              <Navigation className="w-4 h-4 mr-2" />
+              Bulk Add
+            </Button>
+            <Button onClick={handleAdd} className="bg-primary-600 hover:bg-primary-700">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Signal
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <Tabs defaultValue="list" className="w-full">
@@ -219,6 +227,12 @@ export default function SignalsTable() {
         <SignalModal
           signal={editingSignal}
           onClose={handleModalClose}
+        />
+      )}
+      
+      {showBulkModal && (
+        <BulkSignalModal
+          onClose={() => setShowBulkModal(false)}
         />
       )}
     </div>
