@@ -46,110 +46,67 @@ function MapBounds({ signals }: { signals: Signal[] }) {
   return null;
 }
 
-function QuickEditPopup({ signal, onUpdate, onEdit }: { 
+function QuickEditPopup({ signal, onUpdate }: { 
   signal: Signal; 
   onUpdate?: (updates: Partial<Signal>) => void;
-  onEdit: () => void;
 }) {
-  const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     signalId: signal.signalId,
     streetName1: signal.streetName1,
     streetName2: signal.streetName2,
   });
 
-  const handleSave = () => {
-    onUpdate?.(formData);
-    setIsEditing(false);
+  const handleInputChange = (field: keyof typeof formData, value: string) => {
+    const newData = { ...formData, [field]: value };
+    setFormData(newData);
+    // Auto-save on change
+    onUpdate?.(newData);
   };
-
-  const handleCancel = () => {
-    setFormData({
-      signalId: signal.signalId,
-      streetName1: signal.streetName1,
-      streetName2: signal.streetName2,
-    });
-    setIsEditing(false);
-  };
-
-  if (isEditing) {
-    return (
-      <div className="p-3 min-w-64">
-        <h4 className="font-semibold text-sm mb-3">Quick Edit Signal</h4>
-        <div className="space-y-2">
-          <div>
-            <label className="text-xs text-grey-600 block mb-1">Signal ID</label>
-            <Input
-              value={formData.signalId}
-              onChange={(e) => setFormData(prev => ({ ...prev, signalId: e.target.value }))}
-              className="text-xs h-7"
-              placeholder="Signal ID"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-grey-600 block mb-1">Street 1</label>
-            <Input
-              value={formData.streetName1}
-              onChange={(e) => setFormData(prev => ({ ...prev, streetName1: e.target.value }))}
-              className="text-xs h-7"
-              placeholder="Main Street"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-grey-600 block mb-1">Street 2</label>
-            <Input
-              value={formData.streetName2}
-              onChange={(e) => setFormData(prev => ({ ...prev, streetName2: e.target.value }))}
-              className="text-xs h-7"
-              placeholder="First Avenue"
-            />
-          </div>
-          <div className="flex gap-2 pt-2">
-            <Button onClick={handleSave} size="sm" className="text-xs h-7 flex-1">
-              <Check className="w-3 h-3 mr-1" />
-              Save
-            </Button>
-            <Button onClick={handleCancel} variant="outline" size="sm" className="text-xs h-7 flex-1">
-              <X className="w-3 h-3 mr-1" />
-              Cancel
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="p-2">
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="font-semibold text-sm">{signal.signalId}</h4>
-        <Button 
-          onClick={() => setIsEditing(true)} 
-          variant="ghost" 
-          size="sm" 
-          className="text-xs h-6 w-6 p-0"
-        >
-          <Edit className="w-3 h-3" />
-        </Button>
-      </div>
-      <p className="text-xs text-grey-600 mb-1">
-        {signal.streetName1} & {signal.streetName2}
-      </p>
-      <p className="text-xs text-grey-500">
-        Control: {signal.controlType}
-      </p>
-      <p className="text-xs text-grey-500">
-        Coordinates: {signal.cntLat.toFixed(4)}, {signal.cntLon.toFixed(4)}
-      </p>
-      {signal.cabinetType && (
-        <p className="text-xs text-grey-500">
-          Cabinet: {signal.cabinetType}
-        </p>
-      )}
-      <div className="pt-2">
-        <Button onClick={onEdit} variant="outline" size="sm" className="text-xs h-6 w-full">
-          Full Edit
-        </Button>
+    <div className="p-3 min-w-64">
+      <h4 className="font-semibold text-sm mb-3">Signal Details</h4>
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs text-grey-600 block mb-1">Signal ID</label>
+          <Input
+            value={formData.signalId}
+            onChange={(e) => handleInputChange('signalId', e.target.value)}
+            className="text-xs h-7"
+            placeholder="Optional Signal ID"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-grey-600 block mb-1">Street 1</label>
+          <Input
+            value={formData.streetName1}
+            onChange={(e) => handleInputChange('streetName1', e.target.value)}
+            className="text-xs h-7"
+            placeholder="Main Street"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-grey-600 block mb-1">Street 2</label>
+          <Input
+            value={formData.streetName2}
+            onChange={(e) => handleInputChange('streetName2', e.target.value)}
+            className="text-xs h-7"
+            placeholder="First Avenue"
+          />
+        </div>
+        <div className="pt-1 space-y-1">
+          <p className="text-xs text-grey-500">
+            Control: {signal.controlType}
+          </p>
+          <p className="text-xs text-grey-500">
+            Location: {signal.cntLat.toFixed(4)}, {signal.cntLon.toFixed(4)}
+          </p>
+          {signal.cabinetType && (
+            <p className="text-xs text-grey-500">
+              Cabinet: {signal.cabinetType}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -184,7 +141,6 @@ export function SignalsMap({ signals, onSignalSelect, onSignalUpdate, className 
               <QuickEditPopup
                 signal={signal}
                 onUpdate={(updates) => onSignalUpdate?.(signal.signalId, updates)}
-                onEdit={() => onSignalSelect?.(signal)}
               />
             </Popup>
           </Marker>

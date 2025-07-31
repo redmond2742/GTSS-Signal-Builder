@@ -153,9 +153,9 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                 name="signalId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Signal ID *</FormLabel>
+                    <FormLabel>Signal ID</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., SIG_001" {...field} />
+                      <Input placeholder="Optional (e.g., SIG_001)" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

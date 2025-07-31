@@ -64,6 +64,8 @@ export const insertAgencySchema = createInsertSchema(agencies).omit({
 
 export const insertSignalSchema = createInsertSchema(signals).omit({
   id: true,
+}).extend({
+  signalId: z.string().optional(), // Make signal ID optional when creating
 });
 
 export const insertPhaseSchema = createInsertSchema(phases).omit({

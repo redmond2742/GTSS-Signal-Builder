@@ -38,6 +38,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/signals", async (req, res) => {
     try {
       const validatedData = insertSignalSchema.parse(req.body);
+      
+      // Auto-generate Signal ID if not provided
+      if (!validatedData.signalId || validatedData.signalId.trim() === "") {
+        const existingSignals = await storage.getSignals();
+        const signalCount = existingSignals.length + 1;
+        validatedData.signalId = `SIG_${signalCount.toString().padStart(3, '0')}`;
+      }
+      
       const signal = await storage.createSignal(validatedData);
       res.json(signal);
     } catch (error) {
