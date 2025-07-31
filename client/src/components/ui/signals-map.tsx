@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import { Signal } from "@shared/schema";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Check, X, Edit } from "lucide-react";
+import { useGTSSStore } from "@/store/gtss-store";
 import "leaflet/dist/leaflet.css";
 
 // Fix for default markers in react-leaflet
@@ -119,9 +120,21 @@ function QuickEditPopup({ signal, onUpdate, onSignalSelect }: {
 }
 
 export function SignalsMap({ signals, onSignalSelect, onSignalUpdate, className }: SignalsMapProps) {
-  // Default center (center of US) if no signals
-  const defaultCenter: [number, number] = [39.8283, -98.5795];
-  const center = signals.length > 0 ? [signals[0].cntLat, signals[0].cntLon] as [number, number] : defaultCenter;
+  const agency = useGTSSStore((state) => state.agency);
+  
+  // Use agency coordinates as starting point for map center
+  const center: [number, number] = useMemo(() => {
+    // First priority: use agency coordinates if available
+    if (agency?.agencyLat && agency?.agencyLon) {
+      return [agency.agencyLat, agency.agencyLon];
+    }
+    // Second priority: center on existing signals
+    if (signals.length > 0) {
+      return [signals[0].cntLat, signals[0].cntLon];
+    }
+    // Default: center of US
+    return [39.8283, -98.5795];
+  }, [agency?.agencyLat, agency?.agencyLon, signals]);
 
   return (
     <div className={className}>

@@ -148,6 +148,17 @@ export default function AgencyForm() {
         
         form.setValue("agencyName", agencyName);
         form.setValue("agencyId", agencyId);
+        
+        // Update store with coordinates for map centering
+        if (agency) {
+          setAgency({
+            ...agency,
+            agencyId,
+            agencyName,
+            agencyLat: locationInfo.lat,
+            agencyLon: locationInfo.lon
+          });
+        }
       }
     } catch (error) {
       console.error("Geocoding failed:", error);
@@ -226,15 +237,75 @@ export default function AgencyForm() {
         <CardContent className="p-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Location Selection Tabs */}
-              <Tabs defaultValue="manual" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="manual">Manual Entry</TabsTrigger>
-                  <TabsTrigger value="map">Location Picker</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="manual" className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Integrated Location Picker */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-medium">Agency Location</h3>
+                    <p className="text-sm text-grey-600">
+                      Select your agency's location. This will be used as the center point for signal maps.
+                    </p>
+                  </div>
+                  <Button 
+                    type="button"
+                    onClick={handleGetUserLocation}
+                    disabled={isGeocodingUserLocation}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Crosshair className="w-4 h-4 mr-2" />
+                    {isGeocodingUserLocation ? "Locating..." : "Use My Location"}
+                  </Button>
+                </div>
+
+                <div className="h-80 relative">
+                  <MapContainer
+                    center={mapCenter}
+                    zoom={selectedLocation ? 12 : 6}
+                    style={{ height: "100%", width: "100%" }}
+                    className="rounded-lg border"
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    
+                    <LocationPicker onLocationSelect={handleLocationClick} />
+                    
+                    {selectedLocation && (
+                      <Marker position={[selectedLocation.lat, selectedLocation.lon]} />
+                    )}
+                  </MapContainer>
+                </div>
+
+                {selectedLocation && (
+                  <Card className="bg-green-50 border-green-200">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-green-800">Selected Location</div>
+                          <div className="text-sm text-green-700">
+                            {selectedLocation.city && selectedLocation.state 
+                              ? `${selectedLocation.city}, ${selectedLocation.state}`
+                              : selectedLocation.displayName
+                            }
+                          </div>
+                          <div className="text-xs text-green-600">
+                            {selectedLocation.lat.toFixed(6)}, {selectedLocation.lon.toFixed(6)}
+                          </div>
+                        </div>
+                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          <MapPin className="w-3 h-3 mr-1" />
+                          Auto-populated
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              {/* Agency Information Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
                 name="agencyId"
@@ -363,74 +434,7 @@ export default function AgencyForm() {
                 />
               </div>
 
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="map" className="space-y-4">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-grey-600">
-                        Click on the map to select your agency's location. This will auto-populate the agency name and ID.
-                      </p>
-                      <Button 
-                        type="button"
-                        onClick={handleGetUserLocation}
-                        disabled={isGeocodingUserLocation}
-                        variant="outline"
-                        size="sm"
-                      >
-                        <Crosshair className="w-4 h-4 mr-2" />
-                        {isGeocodingUserLocation ? "Locating..." : "Use My Location"}
-                      </Button>
-                    </div>
-
-                    <div className="h-96 relative">
-                      <MapContainer
-                        center={mapCenter}
-                        zoom={6}
-                        style={{ height: "100%", width: "100%" }}
-                        className="rounded-lg border"
-                      >
-                        <TileLayer
-                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        />
-                        
-                        <LocationPicker onLocationSelect={handleLocationClick} />
-                        
-                        {selectedLocation && (
-                          <Marker position={[selectedLocation.lat, selectedLocation.lon]} />
-                        )}
-                      </MapContainer>
-                    </div>
-
-                    {selectedLocation && (
-                      <Card>
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="font-medium">Selected Location</div>
-                              <div className="text-sm text-grey-600">
-                                {selectedLocation.city && selectedLocation.state 
-                                  ? `${selectedLocation.city}, ${selectedLocation.state}`
-                                  : selectedLocation.displayName
-                                }
-                              </div>
-                              <div className="text-xs text-grey-500">
-                                {selectedLocation.lat.toFixed(6)}, {selectedLocation.lon.toFixed(6)}
-                              </div>
-                            </div>
-                            <Badge variant="secondary" className="bg-green-100 text-green-800">
-                              <MapPin className="w-3 h-3 mr-1" />
-                              Auto-populated
-                            </Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
-                </TabsContent>
-              </Tabs>
+              </div>
 
               <div className="flex justify-end">
                 <Button 

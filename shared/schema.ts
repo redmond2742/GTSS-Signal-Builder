@@ -12,6 +12,8 @@ export const agencies = pgTable("agencies", {
   agencyLanguage: text("agency_language").default("en"),
   contactPerson: text("contact_person"),
   contactEmail: text("contact_email"),
+  agencyLat: real("agency_lat"),
+  agencyLon: real("agency_lon"),
 });
 
 export const signals = pgTable("signals", {

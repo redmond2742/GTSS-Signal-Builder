@@ -30,6 +30,8 @@ Preferred communication style: Simple, everyday language.
 ✓ Added map-based city selection with reverse geocoding for accurate agency location setup
 ✓ Integrated location picker directly into agency config with tabbed interface
 ✓ Added auto-population of agency name and ID based on selected map location
+✓ Built location picker directly into agency config (removed tabs) with "Use My Location" button
+✓ Updated signal maps to use agency coordinates as center point for better map positioning
 
 ## System Architecture
 
