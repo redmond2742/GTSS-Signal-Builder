@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Edit, Trash2, Map } from "lucide-react";
+import { Plus, Edit, Trash2, Map, Copy, AlertTriangle } from "lucide-react";
 import PhaseModal from "./phase-modal";
 import VisualPhaseEditor from "./visual-phase-editor";
 
@@ -63,8 +63,45 @@ export default function PhasesTable() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this phase?")) {
-      deletePhaseMutation.mutate(id);
+    const confirmed = confirm("⚠️ WARNING: Are you sure you want to permanently delete this phase?\n\nThis action cannot be undone and will remove all phase configuration data.\n\nType 'DELETE' in the next prompt to confirm.");
+    if (confirmed) {
+      const doubleConfirm = prompt("Type 'DELETE' to confirm phase deletion:");
+      if (doubleConfirm === "DELETE") {
+        deletePhaseMutation.mutate(id);
+      }
+    }
+  };
+
+  const handleDuplicate = async (phase: Phase) => {
+    try {
+      const duplicateData: InsertPhase = {
+        signalId: phase.signalId,
+        phase: phase.phase + 1, // Increment phase number
+        movementType: phase.movementType,
+        isPedestrian: phase.isPedestrian,
+        isOverlap: phase.isOverlap,
+        compassBearing: phase.compassBearing,
+        channelOutput: phase.channelOutput,
+        postedSpeedLimit: phase.postedSpeedLimit,
+        vehicleDetectionIds: phase.vehicleDetectionIds,
+        pedAudibleEnabled: phase.pedAudibleEnabled,
+      };
+
+      const response = await apiRequest("POST", "/api/phases", duplicateData);
+      const newPhase = await response.json();
+      addPhase(newPhase);
+      queryClient.invalidateQueries({ queryKey: ["/api/phases"] });
+      
+      toast({
+        title: "Success",
+        description: `Phase duplicated as Phase ${duplicateData.phase}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to duplicate phase",
+        variant: "destructive",
+      });
     }
   };
 
@@ -183,22 +220,34 @@ export default function PhasesTable() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-grey-600">{phase.compassBearing || "—"}°</TableCell>
-                      <TableCell className="space-x-2">
+                      <TableCell className="space-x-1">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleEdit(phase)}
                           className="text-primary-600 hover:text-primary-700"
+                          title="Edit phase"
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(phase.id)}
-                          className="text-red-600 hover:text-red-700"
-                          disabled={deletePhaseMutation.isPending}
+                          onClick={() => handleDuplicate(phase)}
+                          className="text-green-600 hover:text-green-700"
+                          title="Duplicate phase"
                         >
+                          <Copy className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(phase.id)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          disabled={deletePhaseMutation.isPending}
+                          title="⚠️ Delete phase (requires confirmation)"
+                        >
+                          <AlertTriangle className="w-3 h-3 mr-1" />
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </TableCell>

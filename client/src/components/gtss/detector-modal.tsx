@@ -19,7 +19,7 @@ interface DetectorModalProps {
 }
 
 export default function DetectorModal({ detector, onClose }: DetectorModalProps) {
-  const { signals, addDetector, updateDetector } = useGTSSStore();
+  const { signals, phases, addDetector, updateDetector } = useGTSSStore();
   const { toast } = useToast();
 
   const createDetectorMutation = useMutation({
@@ -115,11 +115,8 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-screen overflow-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
+          <DialogTitle>
             {detector ? "Edit Detector" : "Add Detector"}
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="w-4 h-4" />
-            </Button>
           </DialogTitle>
         </DialogHeader>
         
@@ -171,15 +168,38 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Phase *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="1"
-                        max="8"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                      />
-                    </FormControl>
+                    <Select 
+                      onValueChange={(value) => field.onChange(parseInt(value))} 
+                      defaultValue={field.value?.toString()}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select phase" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {(() => {
+                          const selectedSignalId = form.watch("signalId");
+                          if (selectedSignalId) {
+                            // Show phases from the selected signal
+                            const signalPhases = phases.filter(p => p.signalId === selectedSignalId);
+                            if (signalPhases.length > 0) {
+                              return signalPhases.map((phase) => (
+                                <SelectItem key={phase.id} value={phase.phase.toString()}>
+                                  Phase {phase.phase} - {phase.movementType}
+                                </SelectItem>
+                              ));
+                            }
+                          }
+                          // Fallback to generic phase numbers
+                          return [1, 2, 3, 4, 5, 6, 7, 8].map((phaseNum) => (
+                            <SelectItem key={phaseNum} value={phaseNum.toString()}>
+                              Phase {phaseNum}
+                            </SelectItem>
+                          ));
+                        })()}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

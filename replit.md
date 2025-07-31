@@ -38,6 +38,10 @@ Preferred communication style: Simple, everyday language.
 ✓ Flipped compass bearing calculation by 180° to represent traffic flow direction instead of raw geometric bearing
 ✓ Enhanced agency coordinate integration - all signal maps now use saved agency lat/lon as center point
 ✓ Simplified signal modal map picker to prioritize agency coordinates over complex city name mapping
+✓ Added duplicate phase button with auto-incremented phase numbers for rapid phase creation
+✓ Enhanced delete button security with double confirmation (warning + typed "DELETE" confirmation)
+✓ Added smart phase dropdown in detector modal showing actual phases from selected signal
+✓ Removed duplicate X close buttons from detector modal for cleaner interface
 
 ## System Architecture
 
