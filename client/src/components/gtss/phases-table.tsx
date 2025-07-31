@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Phase } from "@shared/schema";
+import { Phase, InsertPhase } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
@@ -9,14 +9,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Plus, Edit, Trash2, Map } from "lucide-react";
 import PhaseModal from "./phase-modal";
+import VisualPhaseEditor from "./visual-phase-editor";
 
 export default function PhasesTable() {
   const [editingPhase, setEditingPhase] = useState<Phase | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showVisualEditor, setShowVisualEditor] = useState(false);
   const [filterSignal, setFilterSignal] = useState<string>("all");
-  const { signals, phases, setPhases, deletePhase } = useGTSSStore();
+  const { signals, phases, setPhases, deletePhase, addPhase } = useGTSSStore();
   const { toast } = useToast();
 
   const { data: phasesData, isLoading } = useQuery<Phase[]>({
@@ -75,6 +78,33 @@ export default function PhasesTable() {
     setEditingPhase(null);
   };
 
+  const handleVisualEditorClose = () => {
+    setShowVisualEditor(false);
+  };
+
+  const handleBulkPhasesCreate = async (phases: InsertPhase[]) => {
+    try {
+      for (const phaseData of phases) {
+        const response = await apiRequest("POST", "/api/phases", phaseData);
+        const phase = await response.json();
+        addPhase(phase);
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/phases"] });
+      toast({
+        title: "Success",
+        description: `Created ${phases.length} phases successfully`,
+      });
+      setShowVisualEditor(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create some phases",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getSignalInfo = (signalId: string) => {
     const signal = signals.find(s => s.signalId === signalId);
     return signal ? `${signal.signalId} - ${signal.streetName1} & ${signal.streetName2}` : signalId;
@@ -110,6 +140,16 @@ export default function PhasesTable() {
               <Plus className="w-4 h-4 mr-2" />
               Add Phase
             </Button>
+            {filterSignal !== "all" && (
+              <Button 
+                onClick={() => setShowVisualEditor(true)} 
+                variant="outline"
+                className="border-green-600 text-green-600 hover:bg-green-50"
+              >
+                <Map className="w-4 h-4 mr-2" />
+                Visual Editor
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -181,6 +221,21 @@ export default function PhasesTable() {
           onClose={handleModalClose}
           preSelectedSignalId={filterSignal !== "all" ? filterSignal : undefined}
         />
+      )}
+
+      {showVisualEditor && filterSignal !== "all" && (
+        <Dialog open onOpenChange={handleVisualEditorClose}>
+          <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden p-0">
+            <DialogHeader className="p-6 pb-0">
+              <DialogTitle>Visual Phase Editor</DialogTitle>
+            </DialogHeader>
+            <VisualPhaseEditor
+              signal={signals.find(s => s.signalId === filterSignal)!}
+              onPhasesCreate={handleBulkPhasesCreate}
+              onClose={handleVisualEditorClose}
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

@@ -117,11 +117,8 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-screen overflow-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
+          <DialogTitle>
             {phase ? "Edit Phase" : "Add Phase"}
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="w-4 h-4" />
-            </Button>
           </DialogTitle>
         </DialogHeader>
         

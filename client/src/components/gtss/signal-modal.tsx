@@ -137,11 +137,8 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-screen overflow-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
+          <DialogTitle>
             {signal ? "Edit Signal Location" : "Add Signal Location"}
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="w-4 h-4" />
-            </Button>
           </DialogTitle>
         </DialogHeader>
         

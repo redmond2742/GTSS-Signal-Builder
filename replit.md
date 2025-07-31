@@ -19,6 +19,9 @@ Preferred communication style: Simple, everyday language.
 ✓ Removed toast success messages from bulk signal creation (table display is sufficient)
 ✓ Renamed application from "Traffic Signal Config" to "OpenSignal"
 ✓ Enhanced Phase dialog to pre-select signal when one is already filtered/selected
+✓ Fixed duplicate close buttons (X) in all dialog boxes - now only shows system default
+✓ Added Visual Phase Editor with interactive map-based bearing selection and phase configuration
+✓ Implemented click-to-draw phase directions with automatic bearing calculation
 
 ## System Architecture
 

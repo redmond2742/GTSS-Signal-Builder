@@ -188,16 +188,11 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-screen overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <span>Bulk Add Signal Locations</span>
-              <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-                {pendingSignals.length} locations
-              </Badge>
-            </div>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="w-4 h-4" />
-            </Button>
+          <DialogTitle className="flex items-center space-x-3">
+            <span>Bulk Add Signal Locations</span>
+            <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+              {pendingSignals.length} locations
+            </Badge>
           </DialogTitle>
         </DialogHeader>
         
