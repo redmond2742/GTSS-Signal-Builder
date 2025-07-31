@@ -45,6 +45,7 @@ function MapClickHandler({ onLocationAdd }: { onLocationAdd: (lat: number, lon: 
 export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
   const { agency, addSignal } = useGTSSStore();
   const { toast } = useToast();
+  const signalHooks = useSignals();
   const [pendingSignals, setPendingSignals] = useState<PendingSignal[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -154,16 +155,11 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
         hasCctv: false,
       }));
 
-      // Create all signals
-      const createdSignals: Signal[] = [];
+      // Create all signals using localStorage
       for (const signalData of signalsToCreate) {
-        const response = await apiRequest("POST", "/api/signals", signalData);
-        const signal = await response.json();
-        createdSignals.push(signal);
-        addSignal(signal);
+        const created = signalHooks.create(signalData);
+        addSignal(created);
       }
-
-      queryClient.invalidateQueries({ queryKey: ["/api/signals"] });
       
 
       

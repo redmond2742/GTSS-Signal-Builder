@@ -23,52 +23,7 @@ interface SignalModalProps {
 export default function SignalModal({ signal, onClose }: SignalModalProps) {
   const { agency, addSignal, updateSignal } = useGTSSStore();
   const { toast } = useToast();
-
-  const createSignalMutation = useMutation({
-    mutationFn: async (data: InsertSignal) => {
-      const response = await apiRequest("POST", "/api/signals", data);
-      return response.json();
-    },
-    onSuccess: (data: Signal) => {
-      addSignal(data);
-      queryClient.invalidateQueries({ queryKey: ["/api/signals"] });
-      toast({
-        title: "Success",
-        description: "Signal created successfully",
-      });
-      onClose();
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to create signal",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateSignalMutation = useMutation({
-    mutationFn: async (data: InsertSignal) => {
-      const response = await apiRequest("PUT", `/api/signals/${signal?.signalId}`, data);
-      return response.json();
-    },
-    onSuccess: (data: Signal) => {
-      updateSignal(signal!.signalId, data);
-      queryClient.invalidateQueries({ queryKey: ["/api/signals"] });
-      toast({
-        title: "Success",
-        description: "Signal updated successfully",
-      });
-      onClose();
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update signal",
-        variant: "destructive",
-      });
-    },
-  });
+  const signalHooks = useSignals();
 
   const form = useForm<InsertSignal>({
     resolver: zodResolver(insertSignalSchema),
@@ -126,10 +81,29 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
   }, [signal, form, agency]);
 
   const onSubmit = (data: InsertSignal) => {
-    if (signal) {
-      updateSignalMutation.mutate(data);
-    } else {
-      createSignalMutation.mutate(data);
+    try {
+      if (signal) {
+        const updated = signalHooks.update(signal.signalId, data);
+        updateSignal(signal.signalId, updated);
+        toast({
+          title: "Success",
+          description: "Signal updated successfully",
+        });
+      } else {
+        const created = signalHooks.create(data);
+        addSignal(created);
+        toast({
+          title: "Success",
+          description: "Signal created successfully",
+        });
+      }
+      onClose();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: signal ? "Failed to update signal" : "Failed to create signal",
+        variant: "destructive",
+      });
     }
   };
 
