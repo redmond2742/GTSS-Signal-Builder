@@ -101,9 +101,10 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
   const [isDrawMode, setIsDrawMode] = useState(true);
 
   const handlePhaseAdd = (bearing: number) => {
+    const nextPhaseNumber = Math.max(0, ...pendingPhases.map(p => p.phase)) + 1;
     const newPhase: PendingPhase = {
       id: `phase_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      phase: pendingPhases.length + 1,
+      phase: nextPhaseNumber <= 8 ? nextPhaseNumber : 1,
       bearing,
       movementType: "Through",
       isPedestrian: false,
@@ -304,6 +305,18 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
               </div>
 
               <div>
+                <Label className="text-xs">Phase Number</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="8"
+                  value={editingPhase.phase}
+                  onChange={(e) => handlePhaseUpdate(editingPhase.id, { phase: parseInt(e.target.value) || 1 })}
+                  className="h-8"
+                />
+              </div>
+
+              <div>
                 <Label className="text-xs">Bearing (degrees)</Label>
                 <Input
                   type="number"
@@ -373,8 +386,21 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
             <Save className="w-4 h-4 mr-2" />
             Create {pendingPhases.length} Phases
           </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              setPendingPhases([]);
+              setEditingPhase(null);
+            }}
+            disabled={pendingPhases.length === 0}
+            className="w-full" 
+            size="sm"
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Clear All
+          </Button>
           <Button variant="outline" onClick={onClose} className="w-full" size="sm">
-            Cancel
+            Close
           </Button>
         </div>
       </div>
