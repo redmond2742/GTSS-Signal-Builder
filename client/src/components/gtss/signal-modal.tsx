@@ -12,7 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MapPicker } from "@/components/ui/map";
+import { X, MapPin, Edit3 } from "lucide-react";
 
 interface SignalModalProps {
   signal: Signal | null;
@@ -202,45 +204,104 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="cntLat"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Center Latitude *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="any"
-                        placeholder="40.7589"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            </div>
 
-              <FormField
-                control={form.control}
-                name="cntLon"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Center Longitude *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="any"
-                        placeholder="-73.9851"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            {/* Location Selection Section */}
+            <div className="col-span-2 space-y-4">
+              <h3 className="text-lg font-medium text-grey-800 border-b border-grey-200 pb-2">Intersection Location</h3>
+              
+              <Tabs defaultValue="map" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="map" className="text-sm">
+                    <MapPin className="w-4 h-4 mr-2" />
+                    Map Selection
+                  </TabsTrigger>
+                  <TabsTrigger value="manual" className="text-sm">
+                    <Edit3 className="w-4 h-4 mr-2" />
+                    Manual Entry
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="map" className="space-y-4">
+                  <div className="text-sm text-grey-600 mb-3">
+                    Click on the map to select the intersection location
+                  </div>
+                  <MapPicker
+                    center={(() => {
+                      if (!agency) return [39.8283, -98.5795]; // Center of US
+                      
+                      // Map common US timezones to approximate coordinates
+                      const timezoneCoords: Record<string, [number, number]> = {
+                        "America/New_York": [40.7589, -73.9851], // NYC
+                        "America/Chicago": [41.8781, -87.6298], // Chicago
+                        "America/Denver": [39.7392, -104.9903], // Denver
+                        "America/Los_Angeles": [34.0522, -118.2437], // LA
+                        "America/Phoenix": [33.4484, -112.0740], // Phoenix
+                        "America/Anchorage": [61.2181, -149.9003], // Anchorage
+                        "Pacific/Honolulu": [21.3099, -157.8581], // Honolulu
+                      };
+                      
+                      return timezoneCoords[agency.agencyTimezone] || [39.8283, -98.5795];
+                    })()}
+                    selectedPosition={form.watch("cntLat") && form.watch("cntLon") ? [form.watch("cntLat"), form.watch("cntLon")] : undefined}
+                    onLocationSelect={(lat, lng) => {
+                      form.setValue("cntLat", lat);
+                      form.setValue("cntLon", lng);
+                    }}
+                    className="w-full"
+                  />
+                  <div className="text-xs text-grey-500 flex items-center gap-4">
+                    <span>Selected: {form.watch("cntLat").toFixed(6)}, {form.watch("cntLon").toFixed(6)}</span>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="manual" className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="cntLat"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Center Latitude *</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="any"
+                              placeholder="40.7589"
+                              {...field}
+                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="cntLon"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Center Longitude *</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="any"
+                              placeholder="-73.9851"
+                              {...field}
+                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
               <FormField
                 control={form.control}
