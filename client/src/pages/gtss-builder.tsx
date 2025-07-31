@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLoadFromStorage } from "@/lib/localStorageHooks";
 import { TrafficCone, Building, MapPin, Shuffle, Target, FolderOutput, Save, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,9 @@ const tabTitles = {
 export default function GTSSBuilder() {
   const [activeTab, setActiveTab] = useState<TabType>("agency");
   const { signals, phases, detectors } = useGTSSStore();
+  
+  // Load data from localStorage on mount
+  useLoadFromStorage();
 
   const getCounts = () => ({
     signals: signals.length,

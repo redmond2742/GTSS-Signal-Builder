@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
 import { Signal } from "@shared/schema";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useSignals } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,41 +17,9 @@ export default function SignalsTable() {
   const [editingSignal, setEditingSignal] = useState<Signal | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
-  const { signals, setSignals, addSignal, updateSignal, deleteSignal } = useGTSSStore();
+  const { signals } = useGTSSStore();
   const { toast } = useToast();
-
-  const { data: signalsData, isLoading } = useQuery<Signal[]>({
-    queryKey: ["/api/signals"],
-  });
-
-  const deleteSignalMutation = useMutation({
-    mutationFn: async (signalId: string) => {
-      await apiRequest("DELETE", `/api/signals/${signalId}`);
-    },
-    onSuccess: (_, signalId) => {
-      deleteSignal(signalId);
-      queryClient.invalidateQueries({ queryKey: ["/api/signals"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/phases"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/detectors"] });
-      toast({
-        title: "Success",
-        description: "Signal deleted successfully",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to delete signal",
-        variant: "destructive",
-      });
-    },
-  });
-
-  useEffect(() => {
-    if (signalsData) {
-      setSignals(signalsData);
-    }
-  }, [signalsData, setSignals]);
+  const signalHooks = useSignals();
 
   const handleEdit = (signal: Signal) => {
     setEditingSignal(signal);
@@ -61,7 +28,19 @@ export default function SignalsTable() {
 
   const handleDelete = (signalId: string) => {
     if (confirm("Are you sure you want to delete this signal? This will also delete all related phases and detectors.")) {
-      deleteSignalMutation.mutate(signalId);
+      try {
+        signalHooks.delete(signalId);
+        toast({
+          title: "Success",
+          description: "Signal deleted successfully",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete signal",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -75,9 +54,7 @@ export default function SignalsTable() {
     setEditingSignal(null);
   };
 
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
+
 
   return (
     <div className="max-w-6xl">
@@ -159,7 +136,7 @@ export default function SignalsTable() {
                               size="sm"
                               onClick={() => handleDelete(signal.signalId)}
                               className="text-red-600 hover:text-red-700"
-                              disabled={deleteSignalMutation.isPending}
+    disabled={false}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>

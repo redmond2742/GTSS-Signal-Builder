@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
 import { Detector } from "@shared/schema";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useDetectors } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,39 +13,9 @@ import DetectorModal from "./detector-modal";
 export default function DetectorsTable() {
   const [editingDetector, setEditingDetector] = useState<Detector | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const { detectors, setDetectors, deleteDetector } = useGTSSStore();
+  const { detectors } = useGTSSStore();
   const { toast } = useToast();
-
-  const { data: detectorsData, isLoading } = useQuery<Detector[]>({
-    queryKey: ["/api/detectors"],
-  });
-
-  const deleteDetectorMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/detectors/${id}`);
-    },
-    onSuccess: (_, id) => {
-      deleteDetector(id);
-      queryClient.invalidateQueries({ queryKey: ["/api/detectors"] });
-      toast({
-        title: "Success",
-        description: "Detector deleted successfully",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to delete detector",
-        variant: "destructive",
-      });
-    },
-  });
-
-  useEffect(() => {
-    if (detectorsData) {
-      setDetectors(detectorsData);
-    }
-  }, [detectorsData, setDetectors]);
+  const detectorHooks = useDetectors();
 
   const handleEdit = (detector: Detector) => {
     setEditingDetector(detector);
@@ -55,7 +24,19 @@ export default function DetectorsTable() {
 
   const handleDelete = (id: string) => {
     if (confirm("Are you sure you want to delete this detector?")) {
-      deleteDetectorMutation.mutate(id);
+      try {
+        detectorHooks.delete(id);
+        toast({
+          title: "Success",
+          description: "Detector deleted successfully",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete detector",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -69,9 +50,7 @@ export default function DetectorsTable() {
     setEditingDetector(null);
   };
 
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
+
 
   return (
     <div className="max-w-6xl">
@@ -132,7 +111,7 @@ export default function DetectorsTable() {
                           size="sm"
                           onClick={() => handleDelete(detector.id)}
                           className="text-red-600 hover:text-red-700"
-                          disabled={deleteDetectorMutation.isPending}
+disabled={false}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>

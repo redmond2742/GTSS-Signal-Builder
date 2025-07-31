@@ -1,9 +1,8 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
 import { insertDetectorSchema, type InsertDetector, type Detector } from "@shared/schema";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useDetectors } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,52 +20,7 @@ interface DetectorModalProps {
 export default function DetectorModal({ detector, onClose }: DetectorModalProps) {
   const { signals, phases, addDetector, updateDetector } = useGTSSStore();
   const { toast } = useToast();
-
-  const createDetectorMutation = useMutation({
-    mutationFn: async (data: InsertDetector) => {
-      const response = await apiRequest("POST", "/api/detectors", data);
-      return response.json();
-    },
-    onSuccess: (data: Detector) => {
-      addDetector(data);
-      queryClient.invalidateQueries({ queryKey: ["/api/detectors"] });
-      toast({
-        title: "Success",
-        description: "Detector created successfully",
-      });
-      onClose();
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to create detector",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateDetectorMutation = useMutation({
-    mutationFn: async (data: InsertDetector) => {
-      const response = await apiRequest("PUT", `/api/detectors/${detector?.id}`, data);
-      return response.json();
-    },
-    onSuccess: (data: Detector) => {
-      updateDetector(detector!.id, data);
-      queryClient.invalidateQueries({ queryKey: ["/api/detectors"] });
-      toast({
-        title: "Success",
-        description: "Detector updated successfully",
-      });
-      onClose();
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update detector",
-        variant: "destructive",
-      });
-    },
-  });
+  const detectorHooks = useDetectors();
 
   const form = useForm<InsertDetector>({
     resolver: zodResolver(insertDetectorSchema),
@@ -102,10 +56,29 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
   }, [detector, form]);
 
   const onSubmit = (data: InsertDetector) => {
-    if (detector) {
-      updateDetectorMutation.mutate(data);
-    } else {
-      createDetectorMutation.mutate(data);
+    try {
+      if (detector) {
+        const updated = detectorHooks.update(detector.id, data);
+        updateDetector(detector.id, updated);
+        toast({
+          title: "Success",
+          description: "Detector updated successfully",
+        });
+      } else {
+        const created = detectorHooks.create(data);
+        addDetector(created);
+        toast({
+          title: "Success", 
+          description: "Detector created successfully",
+        });
+      }
+      onClose();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: detector ? "Failed to update detector" : "Failed to create detector",
+        variant: "destructive",
+      });
     }
   };
 

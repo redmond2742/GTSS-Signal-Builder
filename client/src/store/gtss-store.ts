@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Agency, Signal, Phase, Detector } from '@shared/schema';
+import { agencyStorage, signalStorage, phaseStorage, detectorStorage } from '@/lib/localStorage';
 
 interface GTSSStore {
   agency: Agency | null;
@@ -22,13 +23,16 @@ interface GTSSStore {
   addDetector: (detector: Detector) => void;
   updateDetector: (id: string, detector: Detector) => void;
   deleteDetector: (id: string) => void;
+  
+  // Load from localStorage
+  loadFromStorage: () => void;
 }
 
 export const useGTSSStore = create<GTSSStore>((set) => ({
-  agency: null,
-  signals: [],
-  phases: [],
-  detectors: [],
+  agency: agencyStorage.get(),
+  signals: signalStorage.getAll(),
+  phases: phaseStorage.getAll(),
+  detectors: detectorStorage.getAll(),
   
   setAgency: (agency) => set({ agency }),
   
@@ -60,4 +64,11 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
   deleteDetector: (id) => set((state) => ({
     detectors: state.detectors.filter(d => d.id !== id)
   })),
+  
+  loadFromStorage: () => set({
+    agency: agencyStorage.get(),
+    signals: signalStorage.getAll(),
+    phases: phaseStorage.getAll(),
+    detectors: detectorStorage.getAll(),
+  }),
 }));

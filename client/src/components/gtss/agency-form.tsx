@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQuery, useMutation } from "@tanstack/react-query";
 import { insertAgencySchema, type InsertAgency, type Agency } from "@shared/schema";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { agencyStorage } from "@/lib/localStorage";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,31 +39,22 @@ export default function AgencyForm() {
   const [isGeocodingUserLocation, setIsGeocodingUserLocation] = useState(false);
   const [mapCenter, setMapCenter] = useState<[number, number]>([39.8283, -98.5795]);
 
-  const { data: agencyData, isLoading } = useQuery<Agency>({
-    queryKey: ["/api/agency"],
-  });
-
-  const createOrUpdateAgencyMutation = useMutation({
-    mutationFn: async (data: InsertAgency) => {
-      const response = await apiRequest("POST", "/api/agency", data);
-      return response.json();
-    },
-    onSuccess: (data: Agency) => {
-      setAgency(data);
-      queryClient.invalidateQueries({ queryKey: ["/api/agency"] });
+  const saveAgency = (data: InsertAgency) => {
+    try {
+      const savedAgency = agencyStorage.save(data);
+      setAgency(savedAgency);
       toast({
         title: "Success",
         description: "Agency information saved successfully",
       });
-    },
-    onError: () => {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to save agency information",
         variant: "destructive",
       });
-    },
-  });
+    }
+  };
 
   const form = useForm<InsertAgency>({
     resolver: zodResolver(insertAgencySchema),
@@ -80,22 +70,21 @@ export default function AgencyForm() {
   });
 
   useEffect(() => {
-    if (agencyData) {
-      setAgency(agencyData);
+    if (agency) {
       form.reset({
-        agencyId: agencyData.agencyId,
-        agencyName: agencyData.agencyName,
-        agencyUrl: agencyData.agencyUrl ?? "",
-        agencyTimezone: agencyData.agencyTimezone,
-        agencyLanguage: agencyData.agencyLanguage ?? "en",
-        contactPerson: agencyData.contactPerson ?? "",
-        contactEmail: agencyData.contactEmail ?? "",
+        agencyId: agency.agencyId,
+        agencyName: agency.agencyName,
+        agencyUrl: agency.agencyUrl ?? "",
+        agencyTimezone: agency.agencyTimezone,
+        agencyLanguage: agency.agencyLanguage ?? "en",
+        contactPerson: agency.contactPerson ?? "",
+        contactEmail: agency.contactEmail ?? "",
       });
     }
-  }, [agencyData, setAgency, form]);
+  }, [agency, form]);
 
   const onSubmit = (data: InsertAgency) => {
-    createOrUpdateAgencyMutation.mutate(data);
+    saveAgency(data);
   };
 
   const generateAgencyId = (state: string, agencyName: string): string => {
@@ -222,9 +211,7 @@ export default function AgencyForm() {
 
 
 
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
+
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -440,9 +427,9 @@ export default function AgencyForm() {
                 <Button 
                   type="submit" 
                   className="bg-primary-600 hover:bg-primary-700"
-                  disabled={createOrUpdateAgencyMutation.isPending}
+  disabled={false}
                 >
-                  {createOrUpdateAgencyMutation.isPending ? "Saving..." : "Save Agency Information"}
+                  Save Agency Information
                 </Button>
               </div>
             </form>

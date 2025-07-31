@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
 import { Phase, InsertPhase } from "@shared/schema";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { usePhases } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,39 +18,9 @@ export default function PhasesTable() {
   const [showModal, setShowModal] = useState(false);
   const [showVisualEditor, setShowVisualEditor] = useState(false);
   const [filterSignal, setFilterSignal] = useState<string>("all");
-  const { signals, phases, setPhases, deletePhase, addPhase } = useGTSSStore();
+  const { signals, phases } = useGTSSStore();
   const { toast } = useToast();
-
-  const { data: phasesData, isLoading } = useQuery<Phase[]>({
-    queryKey: ["/api/phases"],
-  });
-
-  const deletePhaseMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/phases/${id}`);
-    },
-    onSuccess: (_, id) => {
-      deletePhase(id);
-      queryClient.invalidateQueries({ queryKey: ["/api/phases"] });
-      toast({
-        title: "Success",
-        description: "Phase deleted successfully",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to delete phase",
-        variant: "destructive",
-      });
-    },
-  });
-
-  useEffect(() => {
-    if (phasesData) {
-      setPhases(phasesData);
-    }
-  }, [phasesData, setPhases]);
+  const phaseHooks = usePhases();
 
   const filteredPhases = filterSignal === "all" 
     ? phases 
@@ -67,7 +36,19 @@ export default function PhasesTable() {
     if (confirmed) {
       const doubleConfirm = prompt("Type 'DELETE' to confirm phase deletion:");
       if (doubleConfirm === "DELETE") {
-        deletePhaseMutation.mutate(id);
+        try {
+          phaseHooks.delete(id);
+          toast({
+            title: "Success",
+            description: "Phase deleted successfully",
+          });
+        } catch (error) {
+          toast({
+            title: "Error",
+            description: "Failed to delete phase",
+            variant: "destructive",
+          });
+        }
       }
     }
   };
@@ -87,10 +68,7 @@ export default function PhasesTable() {
         pedAudibleEnabled: phase.pedAudibleEnabled,
       };
 
-      const response = await apiRequest("POST", "/api/phases", duplicateData);
-      const newPhase = await response.json();
-      addPhase(newPhase);
-      queryClient.invalidateQueries({ queryKey: ["/api/phases"] });
+      const newPhase = phaseHooks.save(duplicateData);
       
       toast({
         title: "Success",
@@ -122,12 +100,8 @@ export default function PhasesTable() {
   const handleBulkPhasesCreate = async (phases: InsertPhase[]) => {
     try {
       for (const phaseData of phases) {
-        const response = await apiRequest("POST", "/api/phases", phaseData);
-        const phase = await response.json();
-        addPhase(phase);
+        phaseHooks.save(phaseData);
       }
-      
-      queryClient.invalidateQueries({ queryKey: ["/api/phases"] });
       // Don't show toast or close the visual editor to allow rapid phase creation
     } catch (error) {
       toast({
@@ -143,9 +117,7 @@ export default function PhasesTable() {
     return signal ? `${signal.signalId} - ${signal.streetName1} & ${signal.streetName2}` : signalId;
   };
 
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
+
 
   return (
     <div className="max-w-6xl">
@@ -244,7 +216,7 @@ export default function PhasesTable() {
                           size="sm"
                           onClick={() => handleDelete(phase.id)}
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          disabled={deletePhaseMutation.isPending}
+disabled={false}
                           title="⚠️ Delete phase (requires confirmation)"
                         >
                           <AlertTriangle className="w-3 h-3 mr-1" />

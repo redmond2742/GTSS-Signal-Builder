@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { insertSignalSchema, type InsertSignal, type Signal } from "@shared/schema";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useSignals } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";

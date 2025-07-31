@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useExport } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,44 +23,23 @@ export default function ExportPanel() {
   const { agency, signals, phases, detectors } = useGTSSStore();
   const { toast } = useToast();
 
-  const exportMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch("/api/export", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ includeFiles }),
-      });
-      
-      if (!response.ok) {
-        throw new Error("Export failed");
-      }
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${packageName}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    },
-    onSuccess: () => {
+  const { exportAsZip } = useExport();
+
+  const handleExport = async () => {
+    try {
+      await exportAsZip();
       toast({
         title: "Success",
         description: "GTSS package exported successfully",
       });
-    },
-    onError: () => {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to export GTSS package",
         variant: "destructive",
       });
-    },
-  });
+    }
+  };
 
   const getValidationStatus = () => {
     const issues = [];
@@ -96,7 +75,7 @@ export default function ExportPanel() {
   const validationIssues = getValidationStatus();
   const hasErrors = validationIssues.some(issue => issue.type === "error");
 
-  const handleExport = () => {
+  const handleExportValidated = async () => {
     if (hasErrors) {
       toast({
         title: "Validation Error",
@@ -105,7 +84,7 @@ export default function ExportPanel() {
       });
       return;
     }
-    exportMutation.mutate();
+    await handleExport();
   };
 
   return (
@@ -247,12 +226,12 @@ export default function ExportPanel() {
                 Export will create a ZIP file with CSV files following GTSS specification
               </div>
               <Button 
-                onClick={handleExport}
-                disabled={hasErrors || exportMutation.isPending}
+                onClick={handleExportValidated}
+                disabled={hasErrors}
                 className="bg-primary-600 hover:bg-primary-700 text-lg px-8 py-3"
               >
                 <Download className="w-5 h-5 mr-3" />
-                {exportMutation.isPending ? "Generating..." : "Generate & Download GTSS Package"}
+                Generate & Download GTSS Package
               </Button>
             </div>
           </div>
