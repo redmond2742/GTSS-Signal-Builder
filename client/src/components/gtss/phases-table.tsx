@@ -179,6 +179,7 @@ export default function PhasesTable() {
         <PhaseModal
           phase={editingPhase}
           onClose={handleModalClose}
+          preSelectedSignalId={filterSignal !== "all" ? filterSignal : undefined}
         />
       )}
     </div>

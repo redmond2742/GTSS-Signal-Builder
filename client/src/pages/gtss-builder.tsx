@@ -69,7 +69,7 @@ export default function GTSSBuilder() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-grey-800">GTSS Builder</h1>
-              <p className="text-sm text-grey-500">Traffic Signal Config</p>
+              <p className="text-sm text-grey-500">OpenSignal</p>
             </div>
           </div>
         </div>

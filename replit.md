@@ -16,6 +16,9 @@ Preferred communication style: Simple, everyday language.
 ✓ Added "Edit Full Details" button in map popup for comprehensive signal editing
 ✓ Enhanced map popup with inline editing for Signal ID and street names
 ✓ Implemented auto-save functionality for quick edits in map popup
+✓ Removed toast success messages from bulk signal creation (table display is sufficient)
+✓ Renamed application from "Traffic Signal Config" to "OpenSignal"
+✓ Enhanced Phase dialog to pre-select signal when one is already filtered/selected
 
 ## System Architecture
 

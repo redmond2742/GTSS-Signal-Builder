@@ -17,9 +17,10 @@ import { X } from "lucide-react";
 interface PhaseModalProps {
   phase: Phase | null;
   onClose: () => void;
+  preSelectedSignalId?: string;
 }
 
-export default function PhaseModal({ phase, onClose }: PhaseModalProps) {
+export default function PhaseModal({ phase, onClose, preSelectedSignalId }: PhaseModalProps) {
   const { signals, addPhase, updatePhase } = useGTSSStore();
   const { toast } = useToast();
 
@@ -73,7 +74,7 @@ export default function PhaseModal({ phase, onClose }: PhaseModalProps) {
     resolver: zodResolver(insertPhaseSchema),
     defaultValues: {
       phase: 1,
-      signalId: "",
+      signalId: preSelectedSignalId || "",
       movementType: "Through",
       isPedestrian: false,
       isOverlap: false,

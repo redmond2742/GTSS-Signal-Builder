@@ -166,10 +166,7 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
 
       queryClient.invalidateQueries({ queryKey: ["/api/signals"] });
       
-      toast({
-        title: "Success",
-        description: `Created ${createdSignals.length} signal locations`,
-      });
+
       
       onClose();
     } catch (error) {
