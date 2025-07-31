@@ -32,6 +32,7 @@ Preferred communication style: Simple, everyday language.
 ✓ Added auto-population of agency name and ID based on selected map location
 ✓ Built location picker directly into agency config (removed tabs) with "Use My Location" button
 ✓ Updated signal maps to use agency coordinates as center point for better map positioning
+✓ Enhanced Visual Phase Editor to remain open after creating phases for rapid multi-phase creation
 
 ## System Architecture
 

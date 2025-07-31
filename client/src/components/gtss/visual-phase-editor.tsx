@@ -148,6 +148,10 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
     }));
     
     onPhasesCreate(phasesToCreate);
+    
+    // Reset for next batch of phases but keep dialog open
+    setPendingPhases([]);
+    setEditingPhase(null);
   };
 
   return (
