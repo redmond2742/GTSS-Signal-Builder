@@ -192,29 +192,31 @@ export default function SignalsTable() {
                         Click markers for details
                       </div>
                     </div>
-                    <SignalsMap 
-                      signals={signals}
-                      onSignalSelect={(signal) => handleEdit(signal)}
-                      onSignalUpdate={async (signalId, updates) => {
-                        try {
-                          const response = await apiRequest("PUT", `/api/signals/${signalId}`, updates);
-                          const updatedSignal = await response.json();
-                          updateSignal(signalId, updatedSignal);
-                          queryClient.invalidateQueries({ queryKey: ["/api/signals"] });
-                          toast({
-                            title: "Success",
-                            description: "Signal updated successfully",
-                          });
-                        } catch (error) {
-                          toast({
-                            title: "Error", 
-                            description: "Failed to update signal",
-                            variant: "destructive",
-                          });
-                        }
-                      }}
-                      className="w-full"
-                    />
+                    {!showModal && !showBulkModal && (
+                      <SignalsMap 
+                        signals={signals}
+                        onSignalSelect={(signal) => handleEdit(signal)}
+                        onSignalUpdate={async (signalId, updates) => {
+                          try {
+                            const response = await apiRequest("PUT", `/api/signals/${signalId}`, updates);
+                            const updatedSignal = await response.json();
+                            updateSignal(signalId, updatedSignal);
+                            queryClient.invalidateQueries({ queryKey: ["/api/signals"] });
+                            toast({
+                              title: "Success",
+                              description: "Signal updated successfully",
+                            });
+                          } catch (error) {
+                            toast({
+                              title: "Error", 
+                              description: "Failed to update signal",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                        className="w-full"
+                      />
+                    )}
                   </div>
                 )}
               </div>

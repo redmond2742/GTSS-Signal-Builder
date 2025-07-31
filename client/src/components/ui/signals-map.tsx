@@ -46,9 +46,10 @@ function MapBounds({ signals }: { signals: Signal[] }) {
   return null;
 }
 
-function QuickEditPopup({ signal, onUpdate }: { 
+function QuickEditPopup({ signal, onUpdate, onSignalSelect }: { 
   signal: Signal; 
   onUpdate?: (updates: Partial<Signal>) => void;
+  onSignalSelect?: (signal: Signal) => void;
 }) {
   const [formData, setFormData] = useState({
     signalId: signal.signalId,
@@ -107,6 +108,11 @@ function QuickEditPopup({ signal, onUpdate }: {
             </p>
           )}
         </div>
+        <div className="pt-2">
+          <Button onClick={() => onSignalSelect?.(signal)} variant="outline" size="sm" className="text-xs h-6 w-full">
+            Edit Full Details
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -141,6 +147,7 @@ export function SignalsMap({ signals, onSignalSelect, onSignalUpdate, className 
               <QuickEditPopup
                 signal={signal}
                 onUpdate={(updates) => onSignalUpdate?.(signal.signalId, updates)}
+                onSignalSelect={onSignalSelect}
               />
             </Popup>
           </Marker>

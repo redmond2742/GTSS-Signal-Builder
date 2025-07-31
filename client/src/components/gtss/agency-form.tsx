@@ -49,7 +49,7 @@ export default function AgencyForm() {
       agencyId: "",
       agencyName: "",
       agencyUrl: "",
-      agencyTimezone: "America/New_York",
+      agencyTimezone: "America/Los_Angeles",
       agencyLanguage: "en",
       contactPerson: "",
       contactEmail: "",

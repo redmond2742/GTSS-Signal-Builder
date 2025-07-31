@@ -8,6 +8,15 @@ GTSS Builder is a web application for configuring and exporting traffic signal s
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (January 31, 2025)
+
+✓ Changed default timezone from America/New_York to America/Los_Angeles
+✓ Added bulk signal creation feature with dedicated map interface
+✓ Fixed map layout issues - hides map when modal dialogs are open
+✓ Added "Edit Full Details" button in map popup for comprehensive signal editing
+✓ Enhanced map popup with inline editing for Signal ID and street names
+✓ Implemented auto-save functionality for quick edits in map popup
+
 ## System Architecture
 
 The application follows a full-stack architecture with a clear separation between frontend and backend concerns:
