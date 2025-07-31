@@ -230,7 +230,31 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                     center={(() => {
                       if (!agency) return [39.8283, -98.5795]; // Center of US
                       
-                      // Map common US timezones to approximate coordinates
+                      // Map agency names to common locations for better accuracy
+                      const agencyName = agency.agencyName.toLowerCase();
+                      
+                      // Major city mappings based on agency name patterns
+                      if (agencyName.includes('new york') || agencyName.includes('nyc')) return [40.7589, -73.9851];
+                      if (agencyName.includes('los angeles') || agencyName.includes('la ')) return [34.0522, -118.2437];
+                      if (agencyName.includes('chicago')) return [41.8781, -87.6298];
+                      if (agencyName.includes('houston')) return [29.7604, -95.3698];
+                      if (agencyName.includes('phoenix')) return [33.4484, -112.0740];
+                      if (agencyName.includes('philadelphia')) return [39.9526, -75.1652];
+                      if (agencyName.includes('san antonio')) return [29.4241, -98.4936];
+                      if (agencyName.includes('san diego')) return [32.7157, -117.1611];
+                      if (agencyName.includes('dallas')) return [32.7767, -96.7970];
+                      if (agencyName.includes('san jose')) return [37.3382, -121.8863];
+                      if (agencyName.includes('austin')) return [30.2672, -97.7431];
+                      if (agencyName.includes('seattle')) return [47.6062, -122.3321];
+                      if (agencyName.includes('denver')) return [39.7392, -104.9903];
+                      if (agencyName.includes('washington')) return [38.9072, -77.0369];
+                      if (agencyName.includes('boston')) return [42.3601, -71.0589];
+                      if (agencyName.includes('atlanta')) return [33.7490, -84.3880];
+                      if (agencyName.includes('miami')) return [25.7617, -80.1918];
+                      if (agencyName.includes('orlando')) return [28.5383, -81.3792];
+                      if (agencyName.includes('tampa')) return [27.9506, -82.4572];
+                      
+                      // Fallback to timezone-based coordinates
                       const timezoneCoords: Record<string, [number, number]> = {
                         "America/New_York": [40.7589, -73.9851], // NYC
                         "America/Chicago": [41.8781, -87.6298], // Chicago
@@ -244,9 +268,29 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                       return timezoneCoords[agency.agencyTimezone] || [39.8283, -98.5795];
                     })()}
                     selectedPosition={form.watch("cntLat") && form.watch("cntLon") ? [form.watch("cntLat"), form.watch("cntLon")] : undefined}
-                    onLocationSelect={(lat, lng) => {
+                    onLocationSelect={async (lat, lng) => {
                       form.setValue("cntLat", lat);
                       form.setValue("cntLon", lng);
+                      
+                      // Auto-populate street names using reverse geocoding
+                      try {
+                        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+                        const data = await response.json();
+                        
+                        if (data.address) {
+                          const streetName = data.address.road || data.address.street || "";
+                          const intersectingStreet = data.address.neighbourhood || data.address.suburb || "";
+                          
+                          if (streetName) {
+                            form.setValue("streetName1", streetName);
+                          }
+                          if (intersectingStreet && intersectingStreet !== streetName) {
+                            form.setValue("streetName2", intersectingStreet);
+                          }
+                        }
+                      } catch (error) {
+                        console.log("Geocoding failed, manual entry required");
+                      }
                     }}
                     className="w-full"
                   />

@@ -134,10 +134,6 @@ export default function GTSSBuilder() {
               <p className="text-grey-500">{tabTitles[activeTab].desc}</p>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="flex items-center space-x-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
-                <span className="text-amber-600">⚠</span>
-                <span className="text-sm text-amber-700">Validation status</span>
-              </div>
               <Button className="bg-primary-600 hover:bg-primary-700">
                 <FolderOutput className="w-4 h-4 mr-2" />
                 Export GTSS
