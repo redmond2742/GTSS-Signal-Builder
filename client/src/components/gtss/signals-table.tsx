@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Edit, Trash2, Map, List } from "lucide-react";
 import SignalModal from "./signal-modal";
+import { SignalsMap } from "@/components/ui/signals-map";
 
 export default function SignalsTable() {
   const [editingSignal, setEditingSignal] = useState<Signal | null>(null);
@@ -164,13 +165,32 @@ export default function SignalsTable() {
             </TabsContent>
             
             <TabsContent value="map" className="mt-0">
-              <div className="h-96 bg-grey-50 border border-grey-200 rounded-lg m-6 flex items-center justify-center">
-                <div className="text-center text-grey-500">
-                  <Map className="w-12 h-12 mx-auto mb-3 text-grey-400" />
-                  <h3 className="font-medium mb-1">Map View</h3>
-                  <p className="text-sm">Interactive map showing signal locations</p>
-                  <p className="text-xs mt-2 text-grey-400">Map functionality coming soon</p>
-                </div>
+              <div className="p-6">
+                {signals.length === 0 ? (
+                  <div className="h-96 bg-grey-50 border border-grey-200 rounded-lg flex items-center justify-center">
+                    <div className="text-center text-grey-500">
+                      <Map className="w-12 h-12 mx-auto mb-3 text-grey-400" />
+                      <h3 className="font-medium mb-1">No Signals to Display</h3>
+                      <p className="text-sm">Add signal locations to see them on the map</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-grey-600">
+                        Showing {signals.length} signal{signals.length !== 1 ? 's' : ''} on map
+                      </p>
+                      <div className="text-xs text-grey-500">
+                        Click markers for details
+                      </div>
+                    </div>
+                    <SignalsMap 
+                      signals={signals}
+                      onSignalSelect={(signal) => handleEdit(signal)}
+                      className="w-full"
+                    />
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
