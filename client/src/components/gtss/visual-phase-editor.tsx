@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import { useMapEvents } from "react-leaflet/hooks";
-import { Signal, InsertPhase } from "@shared/schema";
+import { Signal, InsertPhase, Phase } from "@shared/schema";
+import { useGTSSStore } from "@/store/gtss-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -65,7 +66,7 @@ function BearingDrawer({
   return null;
 }
 
-// Calculate bearing between two points
+// Calculate bearing between two points (flipped 180 degrees for traffic flow direction)
 function calculateBearing(start: L.LatLng, end: L.LatLng): number {
   const startLat = start.lat * Math.PI / 180;
   const startLng = start.lng * Math.PI / 180;
@@ -79,6 +80,9 @@ function calculateBearing(start: L.LatLng, end: L.LatLng): number {
 
   let bearing = Math.atan2(y, x) * 180 / Math.PI;
   bearing = (bearing + 360) % 360; // Normalize to 0-360
+  
+  // Flip bearing by 180 degrees to represent traffic flow direction
+  bearing = (bearing + 180) % 360;
 
   return Math.round(bearing);
 }
@@ -96,9 +100,13 @@ function getBearingEndpoint(signal: Signal, bearing: number, distance: number = 
 }
 
 export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: VisualPhaseEditorProps) {
+  const { phases } = useGTSSStore();
   const [pendingPhases, setPendingPhases] = useState<PendingPhase[]>([]);
   const [editingPhase, setEditingPhase] = useState<PendingPhase | null>(null);
   const [isDrawMode, setIsDrawMode] = useState(true);
+  
+  // Get existing phases for this signal
+  const existingPhases = phases.filter(phase => phase.signalId === signal.signalId);
 
   const handlePhaseAdd = (bearing: number) => {
     const nextPhaseNumber = Math.max(0, ...pendingPhases.map(p => p.phase)) + 1;
@@ -406,6 +414,33 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
           <Button variant="outline" onClick={onClose} className="w-full" size="sm">
             Close
           </Button>
+          
+          {/* Existing Phases for this Signal */}
+          {existingPhases.length > 0 && (
+            <Card className="mt-4">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Existing Phases ({existingPhases.length})</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {existingPhases.map((phase) => (
+                  <div 
+                    key={phase.id}
+                    className="p-2 border rounded bg-gray-50"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-medium">Phase {phase.phase}</div>
+                      <div className="text-xs text-gray-500">{phase.compassBearing}°</div>
+                    </div>
+                    <div className="text-xs text-gray-600">
+                      {phase.movementType}
+                      {phase.isPedestrian && " • Pedestrian"}
+                      {phase.isOverlap && " • Overlap"}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

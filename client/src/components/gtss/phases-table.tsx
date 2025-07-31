@@ -91,11 +91,7 @@ export default function PhasesTable() {
       }
       
       queryClient.invalidateQueries({ queryKey: ["/api/phases"] });
-      toast({
-        title: "Success",
-        description: `Created ${phases.length} phases successfully. Visual editor remains open for additional phases.`,
-      });
-      // Don't close the visual editor to allow rapid phase creation
+      // Don't show toast or close the visual editor to allow rapid phase creation
     } catch (error) {
       toast({
         title: "Error",

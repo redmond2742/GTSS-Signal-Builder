@@ -33,6 +33,9 @@ Preferred communication style: Simple, everyday language.
 ✓ Built location picker directly into agency config (removed tabs) with "Use My Location" button
 ✓ Updated signal maps to use agency coordinates as center point for better map positioning
 ✓ Enhanced Visual Phase Editor to remain open after creating phases for rapid multi-phase creation
+✓ Removed success toast notifications from Visual Phase Editor for streamlined workflow
+✓ Added display of existing phases for signal below Close button in Visual Phase Editor
+✓ Flipped compass bearing calculation by 180° to represent traffic flow direction instead of raw geometric bearing
 
 ## System Architecture
 
