@@ -90,13 +90,13 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
         signalId: detector.signalId,
         detectorChannel: detector.detectorChannel,
         phase: detector.phase,
-        description: detector.description || "",
+        description: detector.description ?? "",
         purpose: detector.purpose,
-        vehicleType: detector.vehicleType || "",
-        lane: detector.lane || "",
+        vehicleType: detector.vehicleType ?? "",
+        lane: detector.lane ?? "",
         detTechnologyType: detector.detTechnologyType,
-        length: detector.length || undefined,
-        stopbarSetback: detector.stopbarSetback || undefined,
+        length: detector.length ?? undefined,
+        stopbarSetback: detector.stopbarSetback ?? undefined,
       });
     }
   }, [detector, form]);
@@ -248,7 +248,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">All Vehicles</SelectItem>
+                        <SelectItem value="All">All Vehicles</SelectItem>
                         <SelectItem value="Passenger">Passenger</SelectItem>
                         <SelectItem value="Commercial">Commercial</SelectItem>
                         <SelectItem value="Transit">Transit</SelectItem>
