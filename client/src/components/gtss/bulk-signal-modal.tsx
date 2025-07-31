@@ -118,11 +118,6 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
     }
 
     setPendingSignals(prev => [...prev, newSignal]);
-    
-    toast({
-      title: "Location Added",
-      description: `Signal location ${pendingSignals.length + 1} marked on map`,
-    });
   };
 
   const handleRemoveSignal = (signalId: string) => {

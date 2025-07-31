@@ -227,7 +227,7 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                     center={(() => {
                       if (!agency) return [39.8283, -98.5795]; // Center of US
                       
-                      // Map agency names to common locations for better accuracy
+                      // First try to geocode agency name for more accurate location
                       const agencyName = agency.agencyName.toLowerCase();
                       
                       // Major city mappings based on agency name patterns
@@ -250,16 +250,82 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                       if (agencyName.includes('miami')) return [25.7617, -80.1918];
                       if (agencyName.includes('orlando')) return [28.5383, -81.3792];
                       if (agencyName.includes('tampa')) return [27.9506, -82.4572];
+                      if (agencyName.includes('san francisco') || agencyName.includes('sf')) return [37.7749, -122.4194];
+                      if (agencyName.includes('portland')) return [45.5152, -122.6784];
+                      if (agencyName.includes('las vegas')) return [36.1699, -115.1398];
+                      if (agencyName.includes('baltimore')) return [39.2904, -76.6122];
+                      if (agencyName.includes('milwaukee')) return [43.0389, -87.9065];
+                      if (agencyName.includes('detroit')) return [42.3314, -83.0458];
+                      if (agencyName.includes('nashville')) return [36.1627, -86.7816];
+                      if (agencyName.includes('memphis')) return [35.1495, -90.0490];
+                      if (agencyName.includes('louisville')) return [38.2527, -85.7585];
+                      if (agencyName.includes('oklahoma')) return [35.4676, -97.5164];
+                      if (agencyName.includes('charlotte')) return [35.2271, -80.8431];
+                      if (agencyName.includes('jacksonville')) return [30.3322, -81.6557];
+                      if (agencyName.includes('indianapolis')) return [39.7684, -86.1581];
+                      if (agencyName.includes('columbus')) return [39.9612, -82.9988];
+                      if (agencyName.includes('fort worth')) return [32.7555, -97.3308];
+                      if (agencyName.includes('el paso')) return [31.7619, -106.4850];
+                      
+                      // Enhanced geographic keyword matching
+                      if (agencyName.includes('california') || agencyName.includes('ca')) return [36.7783, -119.4179];
+                      if (agencyName.includes('texas') || agencyName.includes('tx')) return [31.9686, -99.9018];
+                      if (agencyName.includes('florida') || agencyName.includes('fl')) return [27.7663, -82.6404];
+                      if (agencyName.includes('new york') || agencyName.includes('ny')) return [42.1657, -74.9481];
+                      if (agencyName.includes('pennsylvania') || agencyName.includes('pa')) return [41.2033, -77.1945];
+                      if (agencyName.includes('illinois') || agencyName.includes('il')) return [40.3363, -89.0022];
+                      if (agencyName.includes('ohio') || agencyName.includes('oh')) return [40.3888, -82.7649];
+                      if (agencyName.includes('georgia') || agencyName.includes('ga')) return [33.0406, -83.6431];
+                      if (agencyName.includes('north carolina') || agencyName.includes('nc')) return [35.5397, -79.8431];
+                      if (agencyName.includes('michigan') || agencyName.includes('mi')) return [43.3266, -84.5361];
+                      if (agencyName.includes('virginia') || agencyName.includes('va')) return [37.7693, -78.2057];
+                      if (agencyName.includes('washington') || agencyName.includes('wa')) return [47.0379, -120.8015];
+                      if (agencyName.includes('arizona') || agencyName.includes('az')) return [33.7298, -111.4312];
+                      if (agencyName.includes('massachusetts') || agencyName.includes('ma')) return [42.2081, -71.0275];
+                      if (agencyName.includes('tennessee') || agencyName.includes('tn')) return [35.7478, -86.7123];
+                      if (agencyName.includes('indiana') || agencyName.includes('in')) return [39.8494, -86.2583];
+                      if (agencyName.includes('missouri') || agencyName.includes('mo')) return [38.4561, -92.2884];
+                      if (agencyName.includes('maryland') || agencyName.includes('md')) return [39.0639, -76.8021];
+                      if (agencyName.includes('wisconsin') || agencyName.includes('wi')) return [44.2619, -89.6165];
+                      if (agencyName.includes('minnesota') || agencyName.includes('mn')) return [45.6945, -93.9002];
+                      if (agencyName.includes('colorado') || agencyName.includes('co')) return [39.0598, -105.3111];
+                      if (agencyName.includes('alabama') || agencyName.includes('al')) return [32.3617, -86.7904];
+                      if (agencyName.includes('louisiana') || agencyName.includes('la')) return [31.1695, -91.8678];
+                      if (agencyName.includes('kentucky') || agencyName.includes('ky')) return [37.6681, -84.6701];
+                      if (agencyName.includes('oregon') || agencyName.includes('or')) return [44.5722, -122.0709];
+                      if (agencyName.includes('oklahoma') || agencyName.includes('ok')) return [35.5653, -96.9289];
+                      if (agencyName.includes('connecticut') || agencyName.includes('ct')) return [41.5978, -72.7554];
+                      if (agencyName.includes('utah') || agencyName.includes('ut')) return [40.1500, -111.8624];
+                      if (agencyName.includes('iowa') || agencyName.includes('ia')) return [42.0115, -93.2105];
+                      if (agencyName.includes('nevada') || agencyName.includes('nv')) return [38.3135, -117.0554];
+                      if (agencyName.includes('arkansas') || agencyName.includes('ar')) return [34.9697, -92.3731];
+                      if (agencyName.includes('mississippi') || agencyName.includes('ms')) return [32.7767, -89.6678];
+                      if (agencyName.includes('kansas') || agencyName.includes('ks')) return [38.5266, -96.7265];
+                      if (agencyName.includes('new mexico') || agencyName.includes('nm')) return [34.8405, -106.2485];
+                      if (agencyName.includes('nebraska') || agencyName.includes('ne')) return [41.1254, -98.2681];
+                      if (agencyName.includes('west virginia') || agencyName.includes('wv')) return [38.4912, -80.9540];
+                      if (agencyName.includes('idaho') || agencyName.includes('id')) return [44.2405, -114.4788];
+                      if (agencyName.includes('hawaii') || agencyName.includes('hi')) return [21.0943, -157.4983];
+                      if (agencyName.includes('new hampshire') || agencyName.includes('nh')) return [43.4525, -71.5639];
+                      if (agencyName.includes('maine') || agencyName.includes('me')) return [44.6939, -69.3819];
+                      if (agencyName.includes('rhode island') || agencyName.includes('ri')) return [41.6809, -71.5118];
+                      if (agencyName.includes('montana') || agencyName.includes('mt')) return [47.0527, -110.2140];
+                      if (agencyName.includes('delaware') || agencyName.includes('de')) return [39.3185, -75.5071];
+                      if (agencyName.includes('south dakota') || agencyName.includes('sd')) return [44.2998, -99.4388];
+                      if (agencyName.includes('north dakota') || agencyName.includes('nd')) return [47.5289, -99.7840];
+                      if (agencyName.includes('alaska') || agencyName.includes('ak')) return [61.2181, -149.9003];
+                      if (agencyName.includes('vermont') || agencyName.includes('vt')) return [44.0459, -72.7107];
+                      if (agencyName.includes('wyoming') || agencyName.includes('wy')) return [42.7559, -107.3025];
                       
                       // Fallback to timezone-based coordinates
                       const timezoneCoords: Record<string, [number, number]> = {
-                        "America/New_York": [40.7589, -73.9851], // NYC
-                        "America/Chicago": [41.8781, -87.6298], // Chicago
-                        "America/Denver": [39.7392, -104.9903], // Denver
-                        "America/Los_Angeles": [34.0522, -118.2437], // LA
-                        "America/Phoenix": [33.4484, -112.0740], // Phoenix
-                        "America/Anchorage": [61.2181, -149.9003], // Anchorage
-                        "Pacific/Honolulu": [21.3099, -157.8581], // Honolulu
+                        "America/New_York": [40.7589, -73.9851],
+                        "America/Chicago": [41.8781, -87.6298],
+                        "America/Denver": [39.7392, -104.9903],
+                        "America/Los_Angeles": [34.0522, -118.2437],
+                        "America/Phoenix": [33.4484, -112.0740],
+                        "America/Anchorage": [61.2181, -149.9003],
+                        "Pacific/Honolulu": [21.3099, -157.8581],
                       };
                       
                       return timezoneCoords[agency.agencyTimezone] || [39.8283, -98.5795];

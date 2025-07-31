@@ -22,6 +22,8 @@ Preferred communication style: Simple, everyday language.
 ✓ Fixed duplicate close buttons (X) in all dialog boxes - now only shows system default
 ✓ Added Visual Phase Editor with interactive map-based bearing selection and phase configuration
 ✓ Implemented click-to-draw phase directions with automatic bearing calculation
+✓ Enhanced agency-based map centering with comprehensive city/state geographic detection
+✓ Removed intrusive "Location Added" toast messages from bulk signal creation for better UX
 
 ## System Architecture
 
