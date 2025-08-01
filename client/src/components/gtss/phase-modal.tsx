@@ -37,7 +37,6 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
       compassBearing: undefined,
       postedSpeedLimit: undefined,
       numberOfLanes: 1,
-      pedAudibleEnabled: false,
     },
   });
 
@@ -53,7 +52,6 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
         compassBearing: phase.compassBearing || undefined,
         postedSpeedLimit: phase.postedSpeedLimit || undefined,
         numberOfLanes: phase.numberOfLanes || 1,
-        pedAudibleEnabled: phase.pedAudibleEnabled,
       });
     }
   }, [phase, form]);
@@ -269,23 +267,6 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                         />
                       </FormControl>
                       <FormLabel>Is Overlap Phase</FormLabel>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="pedAudibleEnabled"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center space-x-3">
-                      <FormControl>
-                        <Switch
-                          checked={field.value || false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel>Pedestrian Audible Enabled</FormLabel>
                       <FormMessage />
                     </FormItem>
                   )}
