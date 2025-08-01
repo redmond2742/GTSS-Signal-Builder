@@ -1,9 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
 import { insertPhaseSchema, type InsertPhase, type Phase } from "@shared/schema";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { usePhases } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,59 +20,15 @@ interface PhaseModalProps {
 }
 
 export default function PhaseModal({ phase, onClose, preSelectedSignalId }: PhaseModalProps) {
-  const { signals, addPhase, updatePhase } = useGTSSStore();
+  const { signals } = useGTSSStore();
   const { toast } = useToast();
-
-  const createPhaseMutation = useMutation({
-    mutationFn: async (data: InsertPhase) => {
-      const response = await apiRequest("POST", "/api/phases", data);
-      return response.json();
-    },
-    onSuccess: (data: Phase) => {
-      addPhase(data);
-      queryClient.invalidateQueries({ queryKey: ["/api/phases"] });
-      toast({
-        title: "Success",
-        description: "Phase created successfully",
-      });
-      onClose();
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to create phase",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updatePhaseMutation = useMutation({
-    mutationFn: async (data: InsertPhase) => {
-      const response = await apiRequest("PUT", `/api/phases/${phase?.id}`, data);
-      return response.json();
-    },
-    onSuccess: (data: Phase) => {
-      updatePhase(phase!.id, data);
-      queryClient.invalidateQueries({ queryKey: ["/api/phases"] });
-      toast({
-        title: "Success",
-        description: "Phase updated successfully",
-      });
-      onClose();
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update phase",
-        variant: "destructive",
-      });
-    },
-  });
+  const phaseHooks = usePhases();
+  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<InsertPhase>({
     resolver: zodResolver(insertPhaseSchema),
     defaultValues: {
-      phase: 1,
+      phase: 2,
       signalId: preSelectedSignalId || "",
       movementType: "Through",
       isPedestrian: false,
@@ -103,15 +58,33 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
     }
   }, [phase, form]);
 
-  const onSubmit = (data: InsertPhase) => {
-    if (phase) {
-      updatePhaseMutation.mutate(data);
-    } else {
-      createPhaseMutation.mutate(data);
+  const onSubmit = async (data: InsertPhase) => {
+    setIsLoading(true);
+    try {
+      if (phase) {
+        phaseHooks.update(phase.id, data);
+        toast({
+          title: "Success",
+          description: "Phase updated successfully",
+        });
+      } else {
+        phaseHooks.save(data);
+        toast({
+          title: "Success",
+          description: "Phase created successfully",
+        });
+      }
+      onClose();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: phase ? "Failed to update phase" : "Failed to create phase",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
-
-  const isLoading = createPhaseMutation.isPending || updatePhaseMutation.isPending;
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -202,7 +175,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                   <FormItem>
                     <FormLabel>Channel Output</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., CH_01" {...field} />
+                      <Input placeholder="e.g., CH_01" {...field} value={field.value || ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -265,7 +238,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                   <FormItem>
                     <FormLabel>Vehicle Detection IDs</FormLabel>
                     <FormControl>
-                      <Input placeholder="DET_01,DET_02" {...field} />
+                      <Input placeholder="DET_01,DET_02" {...field} value={field.value || ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -280,7 +253,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                     <FormItem className="flex items-center space-x-3">
                       <FormControl>
                         <Switch
-                          checked={field.value}
+                          checked={field.value || false}
                           onCheckedChange={field.onChange}
                         />
                       </FormControl>
@@ -297,7 +270,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                     <FormItem className="flex items-center space-x-3">
                       <FormControl>
                         <Switch
-                          checked={field.value}
+                          checked={field.value || false}
                           onCheckedChange={field.onChange}
                         />
                       </FormControl>
@@ -314,7 +287,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                     <FormItem className="flex items-center space-x-3">
                       <FormControl>
                         <Switch
-                          checked={field.value}
+                          checked={field.value || false}
                           onCheckedChange={field.onChange}
                         />
                       </FormControl>

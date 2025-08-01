@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { X, MapPin, Target } from "lucide-react";
-import approachImage from "@assets/generated_images/Single_approach_detector_placement_diagram_1778b27b.png";
+// Removed image import for simplified interface
 
 interface DetectorModalProps {
   detector: Detector | null;
@@ -131,76 +131,75 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Approach Detector Placement Diagram */}
+            {/* Detector Type Selection */}
             <div className="bg-gray-50 p-4 rounded-lg border">
               <h3 className="text-lg font-medium mb-3 flex items-center">
                 <Target className="w-5 h-5 mr-2 text-blue-600" />
-                Detector Placement Guide
+                Detector Type Quick Setup
               </h3>
-              <div className="relative inline-block w-full">
-                <img 
-                  src={approachImage} 
-                  alt="Traffic approach detector placement diagram"
-                  className="w-full max-w-2xl mx-auto rounded border shadow-sm"
-                />
-                {/* Clickable overlay zones */}
-                <div className="absolute inset-0 max-w-2xl mx-auto">
-                  {/* Stop bar detector (near intersection) */}
-                  <button
-                    type="button"
-                    onClick={(e) => handleZoneClick('stopbar', e)}
-                    className={`absolute top-[40%] right-[15%] w-10 h-10 rounded border-2 ${
-                      selectedZone === 'stopbar' 
-                        ? 'bg-red-500 border-red-600 animate-pulse' 
-                        : 'bg-red-400/80 border-red-500 hover:bg-red-500'
-                    } flex items-center justify-center text-white text-xs font-bold transition-colors`}
-                    title="Click for Stop Bar Detector"
-                  >
-                    <MapPin className="w-5 h-5" />
-                  </button>
-                  
-                  {/* Advanced loop detector (middle distance) */}
-                  <button
-                    type="button"
-                    onClick={(e) => handleZoneClick('advance', e)}
-                    className={`absolute top-[40%] left-[50%] w-10 h-10 rounded border-2 ${
-                      selectedZone === 'advance' 
-                        ? 'bg-green-500 border-green-600 animate-pulse' 
-                        : 'bg-green-400/80 border-green-500 hover:bg-green-500'
-                    } flex items-center justify-center text-white text-xs font-bold transition-colors`}
-                    title="Click for Advanced Loop Detector"
-                  >
-                    <Target className="w-5 h-5" />
-                  </button>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={(e) => handleZoneClick('stopbar', e)}
+                  className={`p-4 rounded-lg border-2 transition-colors ${
+                    selectedZone === 'stopbar' 
+                      ? 'bg-red-100 border-red-500 text-red-700' 
+                      : 'bg-white border-gray-200 hover:border-red-300 hover:bg-red-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-center mb-2">
+                    <div className="w-8 h-8 bg-red-500 rounded flex items-center justify-center">
+                      <MapPin className="w-4 h-4 text-white" />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <h4 className="font-medium">Stop Bar</h4>
+                    <p className="text-xs text-gray-600 mt-1">Presence detection at stop line</p>
+                    <p className="text-xs text-gray-500">4ft setback, 6ft length</p>
+                  </div>
+                </button>
 
-                  {/* Count detector (far upstream) */}
-                  <button
-                    type="button"
-                    onClick={(e) => handleZoneClick('count', e)}
-                    className={`absolute top-[40%] left-[20%] w-10 h-10 rounded border-2 ${
-                      selectedZone === 'count' 
-                        ? 'bg-blue-500 border-blue-600 animate-pulse' 
-                        : 'bg-blue-400/80 border-blue-500 hover:bg-blue-500'
-                    } flex items-center justify-center text-white text-xs font-bold transition-colors`}
-                    title="Click for Count Detector"
-                  >
-                    <div className="w-3 h-3 bg-white rounded-full"></div>
-                  </button>
-                </div>
-              </div>
-              <div className="mt-3 flex justify-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-red-500 rounded"></div>
-                  <span className="text-sm text-gray-600">Stop Bar</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-green-500 rounded"></div> 
-                  <span className="text-sm text-gray-600">Advanced Loop</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded"></div>
-                  <span className="text-sm text-gray-600">Count Detector</span>
-                </div>
+                <button
+                  type="button"
+                  onClick={(e) => handleZoneClick('advance', e)}
+                  className={`p-4 rounded-lg border-2 transition-colors ${
+                    selectedZone === 'advance' 
+                      ? 'bg-green-100 border-green-500 text-green-700' 
+                      : 'bg-white border-gray-200 hover:border-green-300 hover:bg-green-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-center mb-2">
+                    <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center">
+                      <Target className="w-4 h-4 text-white" />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <h4 className="font-medium">Advanced Loop</h4>
+                    <p className="text-xs text-gray-600 mt-1">Advance detection upstream</p>
+                    <p className="text-xs text-gray-500">250ft setback, 25ft length</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => handleZoneClick('count', e)}
+                  className={`p-4 rounded-lg border-2 transition-colors ${
+                    selectedZone === 'count' 
+                      ? 'bg-blue-100 border-blue-500 text-blue-700' 
+                      : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-center mb-2">
+                    <div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center">
+                      <div className="w-3 h-3 bg-white rounded-full"></div>
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <h4 className="font-medium">Count Detector</h4>
+                    <p className="text-xs text-gray-600 mt-1">Traffic counting far upstream</p>
+                    <p className="text-xs text-gray-500">500ft setback, 6ft length</p>
+                  </div>
+                </button>
               </div>
               {selectedZone && (
                 <div className="mt-3 p-3 rounded border bg-blue-50">
