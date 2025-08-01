@@ -36,7 +36,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
       channelOutput: "",
       compassBearing: undefined,
       postedSpeedLimit: undefined,
-      vehicleDetectionIds: "",
+      numberOfLanes: 1,
       pedAudibleEnabled: false,
     },
   });
@@ -52,7 +52,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
         channelOutput: phase.channelOutput || "",
         compassBearing: phase.compassBearing || undefined,
         postedSpeedLimit: phase.postedSpeedLimit || undefined,
-        vehicleDetectionIds: phase.vehicleDetectionIds || "",
+        numberOfLanes: phase.numberOfLanes || 1,
         pedAudibleEnabled: phase.pedAudibleEnabled,
       });
     }
@@ -233,12 +233,23 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
 
               <FormField
                 control={form.control}
-                name="vehicleDetectionIds"
+                name="numberOfLanes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Vehicle Detection IDs</FormLabel>
+                    <FormLabel>Number of Lanes *</FormLabel>
                     <FormControl>
-                      <Input placeholder="DET_01,DET_02" {...field} value={field.value || ""} />
+                      <Input
+                        type="number"
+                        min="1"
+                        max="8"
+                        placeholder="1"
+                        {...field}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          field.onChange(value ? parseInt(value) : 1);
+                        }}
+                        value={field.value || 1}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -246,23 +257,6 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
               />
 
               <div className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="isPedestrian"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center space-x-3">
-                      <FormControl>
-                        <Switch
-                          checked={field.value || false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel>Is Pedestrian Phase</FormLabel>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
                 <FormField
                   control={form.control}
                   name="isOverlap"

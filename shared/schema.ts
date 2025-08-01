@@ -42,7 +42,7 @@ export const phases = pgTable("phases", {
   channelOutput: text("channel_output"),
   compassBearing: integer("compass_bearing"),
   postedSpeedLimit: integer("posted_speed_limit"),
-  vehicleDetectionIds: text("vehicle_detection_ids"),
+  numberOfLanes: integer("number_of_lanes").default(1),
   pedAudibleEnabled: boolean("ped_audible_enabled").default(false),
 });
 
