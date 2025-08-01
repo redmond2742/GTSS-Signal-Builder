@@ -8,8 +8,20 @@ GTSS Builder is a web application for configuring and exporting traffic signal s
 
 Preferred communication style: Simple, everyday language.
 
-## Recent Changes (January 31, 2025)
+## Recent Changes (February 1, 2025)
 
+✓ **MAJOR ARCHITECTURE CHANGE**: Complete conversion from server-based APIs to localStorage
+✓ Built comprehensive localStorage service with full CRUD operations for all data types
+✓ Created custom localStorage hooks to replace React Query patterns throughout application
+✓ Converted all major components to use browser-based storage: agency, signals, phases, detectors, export
+✓ Removed all React Query dependencies and QueryClientProvider from main App component
+✓ Fixed all modal components (signal, detector, bulk signal) to use localStorage instead of API calls
+✓ Application now works entirely in browser without requiring any server or database
+✓ All traffic signal data persists locally in user's browser across sessions
+✓ Maintained all existing functionality while eliminating server dependency
+✓ Created comprehensive README.md with installation instructions and GitHub deployment guide
+
+## Previous Major Features (January 2025)
 ✓ Changed default timezone from America/New_York to America/Los_Angeles
 ✓ Added bulk signal creation feature with dedicated map interface
 ✓ Fixed map layout issues - hides map when modal dialogs are open
@@ -45,13 +57,13 @@ Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-The application follows a full-stack architecture with a clear separation between frontend and backend concerns:
+The application follows a client-side architecture optimized for browser-based operation:
 
 - **Frontend**: React-based single-page application built with Vite
-- **Backend**: Express.js REST API server
-- **Database**: PostgreSQL with Drizzle ORM for type-safe database operations
-- **Storage**: In-memory storage for development (with database schema ready for production)
-- **Build System**: Vite for frontend bundling, esbuild for backend compilation
+- **Storage**: Browser localStorage with custom service layer and React hooks
+- **Data Persistence**: Client-side JSON serialization with automatic type conversion
+- **Build System**: Vite for frontend bundling, esbuild for backend compilation (development only)
+- **Server**: Express.js server used only for development hosting (not required for production)
 
 ## Key Components
 
@@ -65,12 +77,12 @@ The application follows a full-stack architecture with a clear separation betwee
 - **Forms**: React Hook Form with Zod validation
 - **HTTP Client**: TanStack Query for server state management
 
-### Backend Architecture
-- **Framework**: Express.js with TypeScript
-- **Database ORM**: Drizzle ORM with PostgreSQL dialect
-- **Validation**: Zod schemas for runtime type checking
-- **File Processing**: Archiver for ZIP file generation
-- **Session Management**: PostgreSQL session store ready for implementation
+### Data Management Architecture
+- **localStorage Service**: Custom TypeScript service with full CRUD operations
+- **React Integration**: Custom hooks (useAgency, useSignals, usePhases, useDetectors)
+- **Data Validation**: Zod schemas for runtime type checking and serialization
+- **File Processing**: Client-side ZIP generation using browser APIs
+- **Type Safety**: End-to-end TypeScript with shared schemas
 
 ### Database Schema
 The application uses four main entities:
