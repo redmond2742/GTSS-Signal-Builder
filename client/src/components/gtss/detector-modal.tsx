@@ -25,6 +25,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
   const detectorHooks = useDetectors();
   const [selectedZone, setSelectedZone] = useState<'stopbar' | 'advance' | 'count' | null>(null);
   const [selectedSignalId, setSelectedSignalId] = useState<string>(detector?.signalId || "");
+  const [lockedValues, setLockedValues] = useState({ length: false, stopbarSetback: false });
 
   const form = useForm<InsertDetector>({
     resolver: zodResolver(insertDetectorSchema),
@@ -34,9 +35,9 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
       phase: 2,
       description: "",
       purpose: "Advance",
-      vehicleType: "",
+      vehicleType: "Vehicle",
       lane: "",
-      detTechnologyType: "Loop",
+      detTechnologyType: "Inductance Loop",
       length: undefined,
       stopbarSetback: undefined,
     },
@@ -69,25 +70,25 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
     
     // Auto-configure detector based on zone
     if (zone === 'stopbar') {
-      form.setValue('purpose', 'Presence');
-      form.setValue('stopbarSetback', 4.0);
-      form.setValue('length', 6.0);
+      form.setValue('purpose', 'Stop Bar');
+      if (!lockedValues.stopbarSetback) form.setValue('stopbarSetback', 4.0);
+      if (!lockedValues.length) form.setValue('length', 6.0);
       toast({
         title: "Stop Bar Detector Selected",
         description: "Configured for presence detection at stop bar",
       });
     } else if (zone === 'advance') {
-      form.setValue('purpose', 'Advance');
-      form.setValue('stopbarSetback', 250.0);
-      form.setValue('length', 25.0);
+      form.setValue('purpose', 'Advanced Loop');
+      if (!lockedValues.stopbarSetback) form.setValue('stopbarSetback', 250.0);
+      if (!lockedValues.length) form.setValue('length', 25.0);
       toast({
         title: "Advanced Loop Selected", 
         description: "Configured for advance detection",
       });
     } else {
-      form.setValue('purpose', 'Count');
-      form.setValue('stopbarSetback', 500.0);
-      form.setValue('length', 6.0);
+      form.setValue('purpose', 'Count Detector');
+      if (!lockedValues.stopbarSetback) form.setValue('stopbarSetback', 500.0);
+      if (!lockedValues.length) form.setValue('length', 6.0);
       toast({
         title: "Count Detector Selected",
         description: "Configured for traffic counting",
@@ -329,11 +330,11 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Advance">Advance</SelectItem>
                         <SelectItem value="Stop Bar">Stop Bar</SelectItem>
+                        <SelectItem value="Advanced Loop">Advanced Loop</SelectItem>
+                        <SelectItem value="Count Detector">Count Detector</SelectItem>
                         <SelectItem value="Extension">Extension</SelectItem>
                         <SelectItem value="Dilemma Zone">Dilemma Zone</SelectItem>
-                        <SelectItem value="Count">Count</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -354,7 +355,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Loop">Inductive Loop</SelectItem>
+                        <SelectItem value="Inductance Loop">Inductance Loop</SelectItem>
                         <SelectItem value="Video">Video Detection</SelectItem>
                         <SelectItem value="Radar">Radar</SelectItem>
                         <SelectItem value="Microwave">Microwave</SelectItem>
@@ -379,6 +380,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="Vehicle">Vehicle</SelectItem>
                         <SelectItem value="All">All Vehicles</SelectItem>
                         <SelectItem value="Passenger">Passenger</SelectItem>
                         <SelectItem value="Commercial">Commercial</SelectItem>
@@ -435,6 +437,8 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                         onChange={(e) => {
                           const value = e.target.value;
                           field.onChange(value ? parseFloat(value) : undefined);
+                          // Lock the value when manually changed
+                          setLockedValues(prev => ({ ...prev, length: true }));
                         }}
                         value={field.value || ""}
                       />
@@ -460,6 +464,8 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                         onChange={(e) => {
                           const value = e.target.value;
                           field.onChange(value ? parseFloat(value) : undefined);
+                          // Lock the value when manually changed
+                          setLockedValues(prev => ({ ...prev, stopbarSetback: true }));
                         }}
                         value={field.value || ""}
                       />
