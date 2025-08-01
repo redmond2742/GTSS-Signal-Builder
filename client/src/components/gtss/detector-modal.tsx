@@ -20,10 +20,11 @@ interface DetectorModalProps {
 }
 
 export default function DetectorModal({ detector, onClose }: DetectorModalProps) {
-  const { signals, phases, addDetector, updateDetector } = useGTSSStore();
+  const { signals, phases } = useGTSSStore();
   const { toast } = useToast();
   const detectorHooks = useDetectors();
   const [selectedZone, setSelectedZone] = useState<'stopbar' | 'advance' | 'count' | null>(null);
+  const [selectedSignalId, setSelectedSignalId] = useState<string>(detector?.signalId || "");
 
   const form = useForm<InsertDetector>({
     resolver: zodResolver(insertDetectorSchema),
@@ -55,8 +56,12 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
         length: detector.length ?? undefined,
         stopbarSetback: detector.stopbarSetback ?? undefined,
       });
+      setSelectedSignalId(detector.signalId);
     }
   }, [detector, form]);
+
+  // Update available phases when signal ID changes
+  const availablePhases = phases.filter(phase => phase.signalId === selectedSignalId);
 
   const handleZoneClick = (zone: 'stopbar' | 'advance' | 'count', event: React.MouseEvent) => {
     event.preventDefault();
@@ -131,6 +136,40 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Signal ID Selection */}
+            <div className="bg-blue-50 p-4 rounded-lg border">
+              <FormField
+                control={form.control}
+                name="signalId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-lg font-medium">Select Signal *</FormLabel>
+                    <Select 
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        setSelectedSignalId(value);
+                      }} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a signal" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {signals.map((signal) => (
+                          <SelectItem key={signal.id} value={signal.signalId}>
+                            {signal.signalId} - {signal.streetName1} & {signal.streetName2}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             {/* Detector Type Selection */}
             <div className="bg-gray-50 p-4 rounded-lg border">
               <h3 className="text-lg font-medium mb-3 flex items-center">
@@ -220,31 +259,6 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="signalId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Signal ID *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select signal" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {signals.map((signal) => (
-                          <SelectItem key={signal.signalId} value={signal.signalId}>
-                            {signal.signalId} - {signal.streetName1} & {signal.streetName2}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               <FormField
                 control={form.control}
                 name="detectorChannel"
