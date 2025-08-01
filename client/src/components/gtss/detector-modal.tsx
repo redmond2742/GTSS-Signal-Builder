@@ -63,6 +63,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
 
   // Update available phases when signal ID changes
   const availablePhases = phases.filter(phase => phase.signalId === selectedSignalId);
+  const isSignalSelected = selectedSignalId && selectedSignalId !== "";
 
   const handleZoneClick = (zone: 'stopbar' | 'advance' | 'count', event: React.MouseEvent) => {
     event.preventDefault();
@@ -73,26 +74,14 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
       form.setValue('purpose', 'Stop Bar');
       if (!lockedValues.stopbarSetback) form.setValue('stopbarSetback', 4.0);
       if (!lockedValues.length) form.setValue('length', 6.0);
-      toast({
-        title: "Stop Bar Detector Selected",
-        description: "Configured for presence detection at stop bar",
-      });
     } else if (zone === 'advance') {
       form.setValue('purpose', 'Advanced Loop');
       if (!lockedValues.stopbarSetback) form.setValue('stopbarSetback', 250.0);
       if (!lockedValues.length) form.setValue('length', 25.0);
-      toast({
-        title: "Advanced Loop Selected", 
-        description: "Configured for advance detection",
-      });
     } else {
       form.setValue('purpose', 'Count Detector');
       if (!lockedValues.stopbarSetback) form.setValue('stopbarSetback', 500.0);
       if (!lockedValues.length) form.setValue('length', 6.0);
-      toast({
-        title: "Count Detector Selected",
-        description: "Configured for traffic counting",
-      });
     }
   };
 
@@ -172,7 +161,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
             </div>
 
             {/* Detector Type Selection */}
-            <div className="bg-gray-50 p-4 rounded-lg border">
+            <div className={`bg-gray-50 p-4 rounded-lg border ${!isSignalSelected ? 'opacity-50' : ''}`}>
               <h3 className="text-lg font-medium mb-3 flex items-center">
                 <Target className="w-5 h-5 mr-2 text-blue-600" />
                 Detector Type Quick Setup
@@ -180,15 +169,20 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <button
                   type="button"
+                  disabled={!isSignalSelected}
                   onClick={(e) => handleZoneClick('stopbar', e)}
                   className={`p-4 rounded-lg border-2 transition-colors ${
-                    selectedZone === 'stopbar' 
+                    !isSignalSelected 
+                      ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                      : selectedZone === 'stopbar' 
                       ? 'bg-red-100 border-red-500 text-red-700' 
                       : 'bg-white border-gray-200 hover:border-red-300 hover:bg-red-50'
                   }`}
                 >
                   <div className="flex items-center justify-center mb-2">
-                    <div className="w-8 h-8 bg-red-500 rounded flex items-center justify-center">
+                    <div className={`w-8 h-8 rounded flex items-center justify-center ${
+                      !isSignalSelected ? 'bg-gray-400' : 'bg-red-500'
+                    }`}>
                       <MapPin className="w-4 h-4 text-white" />
                     </div>
                   </div>
@@ -201,15 +195,20 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
 
                 <button
                   type="button"
+                  disabled={!isSignalSelected}
                   onClick={(e) => handleZoneClick('advance', e)}
                   className={`p-4 rounded-lg border-2 transition-colors ${
-                    selectedZone === 'advance' 
+                    !isSignalSelected 
+                      ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                      : selectedZone === 'advance' 
                       ? 'bg-green-100 border-green-500 text-green-700' 
                       : 'bg-white border-gray-200 hover:border-green-300 hover:bg-green-50'
                   }`}
                 >
                   <div className="flex items-center justify-center mb-2">
-                    <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center">
+                    <div className={`w-8 h-8 rounded flex items-center justify-center ${
+                      !isSignalSelected ? 'bg-gray-400' : 'bg-green-500'
+                    }`}>
                       <Target className="w-4 h-4 text-white" />
                     </div>
                   </div>
@@ -222,15 +221,20 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
 
                 <button
                   type="button"
+                  disabled={!isSignalSelected}
                   onClick={(e) => handleZoneClick('count', e)}
                   className={`p-4 rounded-lg border-2 transition-colors ${
-                    selectedZone === 'count' 
+                    !isSignalSelected 
+                      ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                      : selectedZone === 'count' 
                       ? 'bg-blue-100 border-blue-500 text-blue-700' 
                       : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50'
                   }`}
                 >
                   <div className="flex items-center justify-center mb-2">
-                    <div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center">
+                    <div className={`w-8 h-8 rounded flex items-center justify-center ${
+                      !isSignalSelected ? 'bg-gray-400' : 'bg-blue-500'
+                    }`}>
                       <div className="w-3 h-3 bg-white rounded-full"></div>
                     </div>
                   </div>
@@ -241,22 +245,6 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                   </div>
                 </button>
               </div>
-              {selectedZone && (
-                <div className="mt-3 p-3 rounded border bg-blue-50">
-                  <Badge variant="outline" className="mb-2">
-                    {selectedZone === 'stopbar' ? 'Stop Bar Detector' : 
-                     selectedZone === 'advance' ? 'Advanced Loop Detector' : 'Count Detector'}
-                  </Badge>
-                  <p className="text-sm text-gray-600">
-                    {selectedZone === 'stopbar' 
-                      ? 'Configured for presence detection near the stop bar (4ft setback, 6ft length)'
-                      : selectedZone === 'advance'
-                      ? 'Configured for advance detection upstream (250ft setback, 25ft length)'
-                      : 'Configured for traffic counting far upstream (500ft setback, 6ft length)'
-                    }
-                  </p>
-                </div>
-              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -267,7 +255,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                   <FormItem>
                     <FormLabel>Detector Channel *</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., CH_01" {...field} />
+                      <Input placeholder="e.g., CH_01" {...field} disabled={!isSignalSelected} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -283,6 +271,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                     <Select 
                       onValueChange={(value) => field.onChange(parseInt(value))} 
                       defaultValue={field.value?.toString()}
+                      disabled={!isSignalSelected}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -323,7 +312,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Purpose *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!isSignalSelected}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select purpose" />
@@ -348,7 +337,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Technology Type *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!isSignalSelected}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select technology" />
@@ -373,7 +362,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Vehicle Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!isSignalSelected}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select vehicle type" />
@@ -398,23 +387,16 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                 name="lane"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Lane</FormLabel>
+                    <FormLabel>Lane Number</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Left, Through, Right" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Detector description" {...field} />
+                      <Input 
+                        type="number"
+                        min="1"
+                        max="8"
+                        placeholder="e.g., 1, 2, 3" 
+                        {...field} 
+                        disabled={!isSignalSelected}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -434,6 +416,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                         min="0"
                         placeholder="6.0"
                         {...field}
+                        disabled={!isSignalSelected}
                         onChange={(e) => {
                           const value = e.target.value;
                           field.onChange(value ? parseFloat(value) : undefined);
@@ -461,6 +444,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                         min="0"
                         placeholder="4.0"
                         {...field}
+                        disabled={!isSignalSelected}
                         onChange={(e) => {
                           const value = e.target.value;
                           field.onChange(value ? parseFloat(value) : undefined);
@@ -468,6 +452,24 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                           setLockedValues(prev => ({ ...prev, stopbarSetback: true }));
                         }}
                         value={field.value || ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Detector description" 
+                        {...field} 
+                        disabled={!isSignalSelected}
                       />
                     </FormControl>
                     <FormMessage />
