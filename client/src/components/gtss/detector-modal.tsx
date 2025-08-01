@@ -10,7 +10,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { X, MapPin, Target } from "lucide-react";
+import intersectionImage from "@assets/generated_images/Traffic_intersection_approach_diagram_3594ed2f.png";
 
 interface DetectorModalProps {
   detector: Detector | null;
@@ -21,6 +23,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
   const { signals, phases, addDetector, updateDetector } = useGTSSStore();
   const { toast } = useToast();
   const detectorHooks = useDetectors();
+  const [selectedZone, setSelectedZone] = useState<'stopbar' | 'advance' | null>(null);
 
   const form = useForm<InsertDetector>({
     resolver: zodResolver(insertDetectorSchema),
@@ -55,6 +58,30 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
     }
   }, [detector, form]);
 
+  const handleZoneClick = (zone: 'stopbar' | 'advance', event: React.MouseEvent) => {
+    event.preventDefault();
+    setSelectedZone(zone);
+    
+    // Auto-configure detector based on zone
+    if (zone === 'stopbar') {
+      form.setValue('purpose', 'Presence');
+      form.setValue('stopbarSetback', 4.0);
+      form.setValue('length', 6.0);
+      toast({
+        title: "Stop Bar Detector Selected",
+        description: "Configured for presence detection at stop bar",
+      });
+    } else {
+      form.setValue('purpose', 'Advance');
+      form.setValue('stopbarSetback', 250.0);
+      form.setValue('length', 25.0);
+      toast({
+        title: "Advanced Loop Selected", 
+        description: "Configured for advance detection",
+      });
+    }
+  };
+
   const onSubmit = async (data: InsertDetector) => {
     setIsLoading(true);
     try {
@@ -87,7 +114,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-screen overflow-auto">
+      <DialogContent className="max-w-6xl max-h-screen overflow-auto">
         <DialogHeader>
           <DialogTitle>
             {detector ? "Edit Detector" : "Add Detector"}
@@ -96,6 +123,98 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Intersection Approach Diagram */}
+            <div className="bg-gray-50 p-4 rounded-lg border">
+              <h3 className="text-lg font-medium mb-3 flex items-center">
+                <Target className="w-5 h-5 mr-2 text-blue-600" />
+                Detector Placement Guide
+              </h3>
+              <div className="relative inline-block">
+                <img 
+                  src={intersectionImage} 
+                  alt="Intersection approach diagram"
+                  className="w-full max-w-md mx-auto rounded border shadow-sm"
+                />
+                {/* Clickable overlay zones */}
+                <div className="absolute inset-0 max-w-md mx-auto">
+                  {/* Stop bar zones (near intersection) */}
+                  <button
+                    type="button"
+                    onClick={(e) => handleZoneClick('stopbar', e)}
+                    className={`absolute top-[45%] left-[35%] w-8 h-8 rounded-full border-2 ${
+                      selectedZone === 'stopbar' 
+                        ? 'bg-red-500 border-red-600 animate-pulse' 
+                        : 'bg-red-400/70 border-red-500 hover:bg-red-500'
+                    } flex items-center justify-center text-white text-xs font-bold transition-colors`}
+                    title="Click for Stop Bar Detector"
+                  >
+                    <MapPin className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => handleZoneClick('stopbar', e)}
+                    className={`absolute top-[45%] right-[35%] w-8 h-8 rounded-full border-2 ${
+                      selectedZone === 'stopbar' 
+                        ? 'bg-red-500 border-red-600 animate-pulse' 
+                        : 'bg-red-400/70 border-red-500 hover:bg-red-500'
+                    } flex items-center justify-center text-white text-xs font-bold transition-colors`}
+                    title="Click for Stop Bar Detector"
+                  >
+                    <MapPin className="w-4 h-4" />
+                  </button>
+                  
+                  {/* Advanced loop zones (away from intersection) */}
+                  <button
+                    type="button"
+                    onClick={(e) => handleZoneClick('advance', e)}
+                    className={`absolute top-[20%] left-[45%] w-8 h-8 rounded-full border-2 ${
+                      selectedZone === 'advance' 
+                        ? 'bg-green-500 border-green-600 animate-pulse' 
+                        : 'bg-green-400/70 border-green-500 hover:bg-green-500'
+                    } flex items-center justify-center text-white text-xs font-bold transition-colors`}
+                    title="Click for Advanced Loop Detector"
+                  >
+                    <Target className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => handleZoneClick('advance', e)}
+                    className={`absolute bottom-[20%] left-[45%] w-8 h-8 rounded-full border-2 ${
+                      selectedZone === 'advance' 
+                        ? 'bg-green-500 border-green-600 animate-pulse' 
+                        : 'bg-green-400/70 border-green-500 hover:bg-green-500'
+                    } flex items-center justify-center text-white text-xs font-bold transition-colors`}
+                    title="Click for Advanced Loop Detector"
+                  >
+                    <Target className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="mt-3 flex justify-center space-x-6">
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  <span className="text-sm text-gray-600">Stop Bar Detection</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div> 
+                  <span className="text-sm text-gray-600">Advanced Loop Detection</span>
+                </div>
+              </div>
+              {selectedZone && (
+                <div className="mt-3 p-3 rounded border bg-blue-50">
+                  <Badge variant="outline" className="mb-2">
+                    {selectedZone === 'stopbar' ? 'Stop Bar Detector' : 'Advanced Loop Detector'}
+                  </Badge>
+                  <p className="text-sm text-gray-600">
+                    {selectedZone === 'stopbar' 
+                      ? 'Configured for presence detection near the stop bar (4ft setback, 6ft length)'
+                      : 'Configured for advance detection upstream (250ft setback, 25ft length)'
+                    }
+                  </p>
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
