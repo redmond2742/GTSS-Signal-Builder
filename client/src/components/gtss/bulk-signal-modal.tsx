@@ -157,8 +157,8 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
 
       // Create all signals using localStorage
       for (const signalData of signalsToCreate) {
-        const created = signalHooks.create(signalData);
-        addSignal(created);
+        const created = signalHooks.save(signalData);
+        // addSignal is already called in the hook, no need to call it again
       }
       
 

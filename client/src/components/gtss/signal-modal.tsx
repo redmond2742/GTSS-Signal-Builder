@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertSignalSchema, type InsertSignal, type Signal } from "@shared/schema";
@@ -35,12 +35,9 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
       cntLat: 39.8283,
       cntLon: -98.5795,
       controlType: "Traffic Signal",
-      isIntersection: true,
-      milepost: 0,
-      intersectionRadius: 15,
-      instrumentApproach: "",
-      equipment: "",
-      numDirections: 4,
+      cabinetType: "",
+      hasBatteryBackup: false,
+      hasCctv: false,
     },
   });
 
@@ -54,12 +51,11 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
         cntLat: signal.cntLat,
         cntLon: signal.cntLon,
         controlType: signal.controlType,
-        isIntersection: signal.isIntersection,
-        milepost: signal.milepost,
-        intersectionRadius: signal.intersectionRadius,
-        instrumentApproach: signal.instrumentApproach,
-        equipment: signal.equipment,
-        numDirections: signal.numDirections,
+        cabinetType: signal.cabinetType || "",
+        cabinetLat: signal.cabinetLat || undefined,
+        cabinetLon: signal.cabinetLon || undefined,
+        hasBatteryBackup: signal.hasBatteryBackup || false,
+        hasCctv: signal.hasCctv || false,
       });
     } else {
       form.reset({
@@ -70,28 +66,24 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
         cntLat: agency?.agencyLat || 39.8283,
         cntLon: agency?.agencyLon || -98.5795,
         controlType: "Traffic Signal",
-        isIntersection: true,
-        milepost: 0,
-        intersectionRadius: 15,
-        instrumentApproach: "",
-        equipment: "",
-        numDirections: 4,
+        cabinetType: "",
+        hasBatteryBackup: false,
+        hasCctv: false,
       });
     }
   }, [signal, form, agency]);
 
-  const onSubmit = (data: InsertSignal) => {
+  const onSubmit = async (data: InsertSignal) => {
+    setIsLoading(true);
     try {
       if (signal) {
-        const updated = signalHooks.update(signal.signalId, data);
-        updateSignal(signal.signalId, updated);
+        signalHooks.update(signal.signalId, data);
         toast({
           title: "Success",
           description: "Signal updated successfully",
         });
       } else {
-        const created = signalHooks.create(data);
-        addSignal(created);
+        signalHooks.save(data);
         toast({
           title: "Success",
           description: "Signal created successfully",
@@ -104,10 +96,12 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
         description: signal ? "Failed to update signal" : "Failed to create signal",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const isLoading = createSignalMutation.isPending || updateSignalMutation.isPending;
+  const [isLoading, setIsLoading] = useState(false);
 
   // Calculate map center based on agency coordinates or fallback
   const getMapCenter = (): [number, number] => {
