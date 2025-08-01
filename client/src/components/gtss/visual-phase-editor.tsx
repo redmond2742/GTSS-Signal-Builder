@@ -109,10 +109,14 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
   const existingPhases = phases.filter(phase => phase.signalId === signal.signalId);
 
   const handlePhaseAdd = (bearing: number) => {
-    const nextPhaseNumber = Math.max(0, ...pendingPhases.map(p => p.phase)) + 1;
+    // Use even numbers: 2, 4, 6, 8 for phase numbering
+    const existingPhaseNumbers = [...pendingPhases.map(p => p.phase), ...existingPhases.map(p => p.phase)];
+    const evenNumbers = [2, 4, 6, 8];
+    const nextPhaseNumber = evenNumbers.find(num => !existingPhaseNumbers.includes(num)) || 2;
+    
     const newPhase: PendingPhase = {
       id: `phase_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      phase: nextPhaseNumber <= 8 ? nextPhaseNumber : 1,
+      phase: nextPhaseNumber,
       bearing,
       movementType: "Through",
       isPedestrian: false,

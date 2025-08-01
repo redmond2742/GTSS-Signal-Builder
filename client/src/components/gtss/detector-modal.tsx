@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertDetectorSchema, type InsertDetector, type Detector } from "@shared/schema";
@@ -27,7 +27,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
     defaultValues: {
       signalId: "",
       detectorChannel: "",
-      phase: 1,
+      phase: 2,
       description: "",
       purpose: "Advance",
       vehicleType: "",
@@ -55,18 +55,17 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
     }
   }, [detector, form]);
 
-  const onSubmit = (data: InsertDetector) => {
+  const onSubmit = async (data: InsertDetector) => {
+    setIsLoading(true);
     try {
       if (detector) {
-        const updated = detectorHooks.update(detector.id, data);
-        updateDetector(detector.id, updated);
+        detectorHooks.update(detector.id, data);
         toast({
           title: "Success",
           description: "Detector updated successfully",
         });
       } else {
-        const created = detectorHooks.create(data);
-        addDetector(created);
+        detectorHooks.save(data);
         toast({
           title: "Success", 
           description: "Detector created successfully",
@@ -79,10 +78,12 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
         description: detector ? "Failed to update detector" : "Failed to create detector",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const isLoading = createDetectorMutation.isPending || updateDetectorMutation.isPending;
+  const [isLoading, setIsLoading] = useState(false);
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -164,8 +165,8 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                               ));
                             }
                           }
-                          // Fallback to generic phase numbers
-                          return [1, 2, 3, 4, 5, 6, 7, 8].map((phaseNum) => (
+                          // Fallback to even phase numbers (2, 4, 6, 8)
+                          return [2, 4, 6, 8].map((phaseNum) => (
                             <SelectItem key={phaseNum} value={phaseNum.toString()}>
                               Phase {phaseNum}
                             </SelectItem>
