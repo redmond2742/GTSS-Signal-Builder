@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X, MapPin, Target } from "lucide-react";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { X, MapPin, Target, Trash2 } from "lucide-react";
 // Removed image import for simplified interface
 
 interface DetectorModalProps {
@@ -110,6 +111,17 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDelete = () => {
+    if (detector && confirm("Are you sure you want to delete this detector?")) {
+      detectorHooks.delete(detector.id);
+      toast({
+        title: "Success",
+        description: "Detector deleted successfully",
+      });
+      onClose();
     }
   };
 
@@ -396,6 +408,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                         placeholder="e.g., 1, 2, 3" 
                         {...field} 
                         disabled={!isSignalSelected}
+                        value={field.value || ""}
                       />
                     </FormControl>
                     <FormMessage />
@@ -470,6 +483,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                         placeholder="Detector description" 
                         {...field} 
                         disabled={!isSignalSelected}
+                        value={field.value || ""}
                       />
                     </FormControl>
                     <FormMessage />
@@ -478,17 +492,69 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
               />
             </div>
 
-            <div className="flex justify-end space-x-3 pt-4 border-t border-grey-200">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                className="bg-primary-600 hover:bg-primary-700"
-                disabled={isLoading}
-              >
-                {isLoading ? "Saving..." : (detector ? "Save Changes" : "Create Detector")}
-              </Button>
+            {/* Map section */}
+            {isSignalSelected && (
+              <div className="bg-gray-50 p-4 rounded-lg border">
+                <h3 className="text-lg font-medium mb-3 flex items-center">
+                  <MapPin className="w-5 h-5 mr-2 text-blue-600" />
+                  Signal Location
+                </h3>
+                <div className="h-64 rounded-lg overflow-hidden border">
+                  {(() => {
+                    const selectedSignal = signals.find(s => s.signalId === selectedSignalId);
+                    return selectedSignal ? (
+                      <MapContainer
+                        center={[selectedSignal.cntLat, selectedSignal.cntLon]}
+                        zoom={18}
+                        style={{ height: "100%", width: "100%" }}
+                      >
+                        <TileLayer
+                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                        <Marker position={[selectedSignal.cntLat, selectedSignal.cntLon]}>
+                          <Popup>
+                            <div className="text-center">
+                              <div className="font-medium">{selectedSignal.signalId}</div>
+                              <div className="text-xs text-gray-600">
+                                {selectedSignal.streetName1} & {selectedSignal.streetName2}
+                              </div>
+                            </div>
+                          </Popup>
+                        </Marker>
+                      </MapContainer>
+                    ) : null;
+                  })()}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-between space-x-3 pt-4 border-t border-grey-200">
+              <div>
+                {detector && (
+                  <Button 
+                    type="button" 
+                    variant="destructive" 
+                    onClick={handleDelete}
+                    className="flex items-center space-x-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete Detector</span>
+                  </Button>
+                )}
+              </div>
+              <div className="flex space-x-3">
+                <Button type="button" variant="outline" onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="bg-primary-600 hover:bg-primary-700"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Saving..." : (detector ? "Save Changes" : "Create Detector")}
+                </Button>
+              </div>
             </div>
           </form>
         </Form>

@@ -103,17 +103,21 @@ function getBearingEndpoint(signal: Signal, bearing: number, distance: number = 
 }
 
 export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: VisualPhaseEditorProps) {
-  const { phases } = useGTSSStore();
+  const { phases, signals } = useGTSSStore();
   const phaseHooks = usePhases();
   const { toast } = useToast();
+  const [selectedSignalId, setSelectedSignalId] = useState<string>(signal.signalId);
   const [pendingPhases, setPendingPhases] = useState<PendingPhase[]>([]);
   const [editingPhase, setEditingPhase] = useState<PendingPhase | null>(null);
   const [isDrawMode, setIsDrawMode] = useState(true);
   const [editingExistingPhase, setEditingExistingPhase] = useState<Phase | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   
-  // Get existing phases for this signal
-  const existingPhases = phases.filter(phase => phase.signalId === signal.signalId);
+  // Get currently selected signal
+  const selectedSignal = signals.find(s => s.signalId === selectedSignalId) || signal;
+  
+  // Get existing phases for the selected signal
+  const existingPhases = phases.filter(phase => phase.signalId === selectedSignalId);
 
   const handleExistingPhaseEdit = (phase: Phase) => {
     setEditingExistingPhase(phase);
@@ -226,10 +230,22 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
       {/* Map Section */}
       <div className="flex-1 relative">
         <div className="absolute top-4 left-4 z-[1000] bg-white p-3 rounded-lg shadow-lg border">
+          <div className="mb-3">
+            <Label className="text-sm font-medium mb-2 block">Select Signal</Label>
+            <Select value={selectedSignalId} onValueChange={setSelectedSignalId}>
+              <SelectTrigger className="w-64">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {signals.map((sig) => (
+                  <SelectItem key={sig.signalId} value={sig.signalId}>
+                    {sig.signalId} - {sig.streetName1} & {sig.streetName2}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex items-center space-x-3">
-            <div className="text-sm font-medium">
-              {signal.signalId} - {signal.streetName1} & {signal.streetName2}
-            </div>
             <Badge variant={isDrawMode ? "default" : "secondary"}>
               {isDrawMode ? "Click to draw phase directions" : "Edit mode"}
             </Badge>
@@ -240,10 +256,11 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
         </div>
 
         <MapContainer
-          center={[signal.cntLat, signal.cntLon]}
+          center={[selectedSignal.cntLat, selectedSignal.cntLon]}
           zoom={18}
           style={{ height: "100%", width: "100%" }}
           className="rounded-lg border"
+          key={selectedSignalId}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -251,12 +268,12 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
           />
           
           {/* Signal location marker */}
-          <Marker position={[signal.cntLat, signal.cntLon]}>
+          <Marker position={[selectedSignal.cntLat, selectedSignal.cntLon]}>
             <Popup>
               <div className="text-center">
-                <div className="font-medium">{signal.signalId}</div>
+                <div className="font-medium">{selectedSignal.signalId}</div>
                 <div className="text-xs text-grey-600">
-                  {signal.streetName1} & {signal.streetName2}
+                  {selectedSignal.streetName1} & {selectedSignal.streetName2}
                 </div>
               </div>
             </Popup>
@@ -266,12 +283,12 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
           {pendingPhases.map((phase) => {
             // Reverse the bearing by 180 degrees for line display to match traffic flow direction
             const reversedBearing = (phase.bearing + 180) % 360;
-            const endPoint = getBearingEndpoint(signal, reversedBearing, 0.002);
+            const endPoint = getBearingEndpoint(selectedSignal, reversedBearing, 0.002);
             return (
               <Polyline
                 key={`line-${phase.id}`}
                 positions={[
-                  [signal.cntLat, signal.cntLon],
+                  [selectedSignal.cntLat, selectedSignal.cntLon],
                   endPoint
                 ]}
                 color="#3b82f6"
@@ -286,12 +303,12 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
             if (phase.compassBearing) {
               // Reverse the bearing by 180 degrees for line display to match traffic flow direction
               const reversedBearing = (phase.compassBearing + 180) % 360;
-              const endPoint = getBearingEndpoint(signal, reversedBearing, 0.002);
+              const endPoint = getBearingEndpoint(selectedSignal, reversedBearing, 0.002);
               return (
                 <Polyline
                   key={`existing-line-${phase.id}`}
                   positions={[
-                    [signal.cntLat, signal.cntLon],
+                    [selectedSignal.cntLat, selectedSignal.cntLon],
                     endPoint
                   ]}
                   color="#10b981"
@@ -305,7 +322,7 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
 
           {/* Phase bearing markers */}
           {pendingPhases.map((phase) => {
-            const [endLat, endLon] = getBearingEndpoint(signal, phase.bearing);
+            const [endLat, endLon] = getBearingEndpoint(selectedSignal, phase.bearing);
             return (
               <Marker 
                 key={phase.id} 
@@ -327,7 +344,7 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
 
           {isDrawMode && (
             <BearingDrawer 
-              signal={signal}
+              signal={selectedSignal}
               pendingPhases={pendingPhases}
               onPhaseAdd={handlePhaseAdd}
             />

@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
+import { X, Trash2, MapPin } from "lucide-react";
 
 interface PhaseModalProps {
   phase: Phase | null;
@@ -81,6 +82,17 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDelete = () => {
+    if (phase && confirm("Are you sure you want to delete this phase?")) {
+      phaseHooks.delete(phase.id);
+      toast({
+        title: "Success",
+        description: "Phase deleted successfully",
+      });
+      onClose();
     }
   };
 
@@ -264,17 +276,89 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
               </div>
             </div>
 
-            <div className="flex justify-end space-x-3 pt-4 border-t border-grey-200">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                className="bg-primary-600 hover:bg-primary-700"
-                disabled={isLoading}
-              >
-                {isLoading ? "Saving..." : (phase ? "Save Changes" : "Create Phase")}
-              </Button>
+            {/* Map section with bearing visualization */}
+            {form.watch("signalId") && form.watch("compassBearing") && (
+              <div className="bg-gray-50 p-4 rounded-lg border">
+                <h3 className="text-lg font-medium mb-3 flex items-center">
+                  <MapPin className="w-5 h-5 mr-2 text-blue-600" />
+                  Phase Direction Visualization
+                </h3>
+                <div className="h-64 rounded-lg overflow-hidden border">
+                  {(() => {
+                    const selectedSignal = signals.find(s => s.signalId === form.watch("signalId"));
+                    const bearing = form.watch("compassBearing");
+                    
+                    if (!selectedSignal || !bearing) return null;
+                    
+                    // Calculate end point for bearing line (reversed for traffic flow direction)
+                    const reversedBearing = (bearing + 180) % 360;
+                    const distance = 0.002; // degrees
+                    const bearingRad = (reversedBearing * Math.PI) / 180;
+                    const endLat = selectedSignal.cntLat + distance * Math.cos(bearingRad);
+                    const endLon = selectedSignal.cntLon + distance * Math.sin(bearingRad);
+                    
+                    return (
+                      <MapContainer
+                        center={[selectedSignal.cntLat, selectedSignal.cntLon]}
+                        zoom={18}
+                        style={{ height: "100%", width: "100%" }}
+                      >
+                        <TileLayer
+                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                        <Marker position={[selectedSignal.cntLat, selectedSignal.cntLon]}>
+                          <Popup>
+                            <div className="text-center">
+                              <div className="font-medium">{selectedSignal.signalId}</div>
+                              <div className="text-xs text-gray-600">
+                                {selectedSignal.streetName1} & {selectedSignal.streetName2}
+                              </div>
+                            </div>
+                          </Popup>
+                        </Marker>
+                        <Polyline
+                          positions={[
+                            [selectedSignal.cntLat, selectedSignal.cntLon],
+                            [endLat, endLon]
+                          ]}
+                          color="#10b981"
+                          weight={3}
+                          opacity={0.8}
+                        />
+                      </MapContainer>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-between space-x-3 pt-4 border-t border-grey-200">
+              <div>
+                {phase && (
+                  <Button 
+                    type="button" 
+                    variant="destructive" 
+                    onClick={handleDelete}
+                    className="flex items-center space-x-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete Phase</span>
+                  </Button>
+                )}
+              </div>
+              <div className="flex space-x-3">
+                <Button type="button" variant="outline" onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="bg-primary-600 hover:bg-primary-700"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Saving..." : (phase ? "Save Changes" : "Create Phase")}
+                </Button>
+              </div>
             </div>
           </form>
         </Form>

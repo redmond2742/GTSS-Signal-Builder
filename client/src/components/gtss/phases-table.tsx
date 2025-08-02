@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Edit, Trash2, Map, Copy, AlertTriangle, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Map, ChevronUp, ChevronDown } from "lucide-react";
 import PhaseModal from "./phase-modal";
 import VisualPhaseEditor from "./visual-phase-editor";
 
@@ -81,7 +81,8 @@ export default function PhasesTable() {
   };
 
   const handleRowClick = (phase: Phase) => {
-    handleEdit(phase);
+    setEditingPhase(phase);
+    setShowModal(true);
   };
 
   const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
@@ -108,57 +109,9 @@ export default function PhasesTable() {
     setShowModal(true);
   };
 
-  const handleDelete = (id: string) => {
-    const confirmed = confirm("⚠️ WARNING: Are you sure you want to permanently delete this phase?\n\nThis action cannot be undone and will remove all phase configuration data.\n\nType 'DELETE' in the next prompt to confirm.");
-    if (confirmed) {
-      const doubleConfirm = prompt("Type 'DELETE' to confirm phase deletion:");
-      if (doubleConfirm === "DELETE") {
-        try {
-          phaseHooks.delete(id);
-          toast({
-            title: "Success",
-            description: "Phase deleted successfully",
-          });
-        } catch (error) {
-          toast({
-            title: "Error",
-            description: "Failed to delete phase",
-            variant: "destructive",
-          });
-        }
-      }
-    }
-  };
 
-  const handleDuplicate = async (phase: Phase) => {
-    try {
-      const duplicateData: InsertPhase = {
-        signalId: phase.signalId,
-        phase: phase.phase + 1, // Increment phase number
-        movementType: phase.movementType,
-        isPedestrian: phase.isPedestrian,
-        isOverlap: phase.isOverlap,
-        compassBearing: phase.compassBearing,
-        channelOutput: phase.channelOutput,
-        postedSpeedLimit: phase.postedSpeedLimit,
-        vehicleDetectionIds: phase.vehicleDetectionIds,
-        pedAudibleEnabled: phase.pedAudibleEnabled,
-      };
 
-      const newPhase = phaseHooks.save(duplicateData);
-      
-      toast({
-        title: "Success",
-        description: `Phase duplicated as Phase ${duplicateData.phase}`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to duplicate phase",
-        variant: "destructive",
-      });
-    }
-  };
+
 
   const handleAdd = () => {
     setEditingPhase(null);
@@ -243,13 +196,13 @@ export default function PhasesTable() {
                   <SortableHeader field="movementType">Movement</SortableHeader>
                   <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Type</TableHead>
                   <SortableHeader field="bearing">Bearing</SortableHeader>
-                  <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Actions</TableHead>
+
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredPhases.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-grey-500">
+                    <TableCell colSpan={5} className="text-center py-8 text-grey-500">
                       {filterSignal === "all" 
                         ? "No phases configured. Add your first phase to get started."
                         : "No phases found for the selected signal."
@@ -278,28 +231,7 @@ export default function PhasesTable() {
                       <TableCell className="text-grey-600">
                         {phase.compassBearing ? `${phase.compassBearing}°` : 'N/A'}
                       </TableCell>
-                      <TableCell className="space-x-1" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDuplicate(phase)}
-                          className="text-green-600 hover:text-green-700"
-                          title="Duplicate phase"
-                        >
-                          <Copy className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(phase.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-disabled={false}
-                          title="⚠️ Delete phase (requires confirmation)"
-                        >
-                          <AlertTriangle className="w-3 h-3 mr-1" />
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
+
                     </TableRow>
                   ))
                 )}

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import DetectorModal from "./detector-modal";
 
 export default function DetectorsTable() {
@@ -44,23 +44,7 @@ export default function DetectorsTable() {
     setShowModal(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this detector?")) {
-      try {
-        detectorHooks.delete(id);
-        toast({
-          title: "Success",
-          description: "Detector deleted successfully",
-        });
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to delete detector",
-          variant: "destructive",
-        });
-      }
-    }
-  };
+
 
   const handleAdd = () => {
     setEditingDetector(null);
@@ -125,25 +109,29 @@ export default function DetectorsTable() {
                   <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Phase</TableHead>
                   <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Technology</TableHead>
                   <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Purpose</TableHead>
-                  <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Actions</TableHead>
+
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {!selectedSignalId ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-grey-500">
+                    <TableCell colSpan={5} className="text-center py-8 text-grey-500">
                       Please select a signal above to view its detectors.
                     </TableCell>
                   </TableRow>
                 ) : filteredDetectors.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-grey-500">
+                    <TableCell colSpan={5} className="text-center py-8 text-grey-500">
                       No detectors configured for this signal. Add your first detector to get started.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredDetectors.map((detector) => (
-                    <TableRow key={detector.id}>
+                    <TableRow 
+                      key={detector.id}
+                      className="cursor-pointer hover:bg-gray-50 transition-colors"
+                      onClick={() => handleEdit(detector)}
+                    >
                       <TableCell className="font-medium text-grey-900">{detector.signalId}</TableCell>
                       <TableCell className="text-grey-600">{detector.detectorChannel}</TableCell>
                       <TableCell className="text-grey-600">{detector.phase}</TableCell>
@@ -153,24 +141,6 @@ export default function DetectorsTable() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-grey-600">{detector.purpose}</TableCell>
-                      <TableCell className="space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(detector)}
-                          className="text-primary-600 hover:text-primary-700"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(detector.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
                     </TableRow>
                   ))
                 )}
