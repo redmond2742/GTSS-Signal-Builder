@@ -186,7 +186,7 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                   </div>
                   <MapPicker
                     center={getMapCenter()}
-                    selectedPosition={form.watch("latitude") && form.watch("longitude") ? [form.watch("latitude"), form.watch("longitude")] : undefined}
+                    selectedPosition={form.watch("latitude") !== undefined && form.watch("longitude") !== undefined ? [form.watch("latitude"), form.watch("longitude")] : undefined}
                     onLocationSelect={async (lat, lng) => {
                       form.setValue("latitude", lat);
                       form.setValue("longitude", lng);
@@ -214,7 +214,7 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                     className="w-full"
                   />
                   <div className="text-xs text-grey-500 flex items-center gap-4">
-                    <span>Selected: {form.watch("latitude") ? form.watch("latitude").toFixed(6) : '0.000000'}, {form.watch("longitude") ? form.watch("longitude").toFixed(6) : '0.000000'}</span>
+                    <span>Selected: {form.watch("latitude") !== undefined ? form.watch("latitude").toFixed(6) : '0.000000'}, {form.watch("longitude") !== undefined ? form.watch("longitude").toFixed(6) : '0.000000'}</span>
                   </div>
                 </TabsContent>
 
