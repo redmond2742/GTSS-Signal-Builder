@@ -196,49 +196,54 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="phase"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phase *</FormLabel>
-                    <Select 
-                      onValueChange={(value) => field.onChange(parseInt(value))} 
-                      defaultValue={field.value?.toString()}
-                      disabled={!isSignalSelected}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select phase" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {(() => {
-                          const selectedSignalId = form.watch("signalId");
-                          if (selectedSignalId) {
-                            // Show phases from the selected signal
-                            const signalPhases = phases.filter(p => p.signalId === selectedSignalId);
-                            if (signalPhases.length > 0) {
-                              return signalPhases.map((phase) => (
-                                <SelectItem key={phase.id} value={phase.phase.toString()}>
-                                  Phase {phase.phase} - {phase.movementType}
-                                </SelectItem>
-                              ));
-                            }
-                          }
-                          // Fallback to even phase numbers (2, 4, 6, 8)
-                          return [2, 4, 6, 8].map((phaseNum) => (
-                            <SelectItem key={phaseNum} value={phaseNum.toString()}>
-                              Phase {phaseNum}
-                            </SelectItem>
-                          ));
-                        })()}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {(() => {
+                const selectedSignalId = form.watch("signalId");
+                const signalPhases = selectedSignalId ? phases.filter(p => p.signalId === selectedSignalId) : [];
+                
+                // Only show phase field if signal has phases
+                if (!selectedSignalId || signalPhases.length === 0) {
+                  return (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <p className="text-sm text-yellow-800">
+                        {!selectedSignalId 
+                          ? "Please select a signal first to see available phases." 
+                          : "No phases configured for this signal. Please add phases before creating detectors."
+                        }
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <FormField
+                    control={form.control}
+                    name="phase"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phase *</FormLabel>
+                        <Select 
+                          onValueChange={(value) => field.onChange(parseInt(value))} 
+                          defaultValue={field.value?.toString()}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select phase" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {signalPhases.map((phase) => (
+                              <SelectItem key={phase.id} value={phase.phase.toString()}>
+                                Phase {phase.phase} - {phase.movementType}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                );
+              })()}
 
               <FormField
                 control={form.control}
