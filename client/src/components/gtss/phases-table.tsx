@@ -9,15 +9,20 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Edit, Trash2, Map, Copy, AlertTriangle } from "lucide-react";
+import { Plus, Edit, Trash2, Map, Copy, AlertTriangle, ChevronUp, ChevronDown } from "lucide-react";
 import PhaseModal from "./phase-modal";
 import VisualPhaseEditor from "./visual-phase-editor";
+
+type SortField = 'phase' | 'signalId' | 'movementType' | 'bearing';
+type SortDirection = 'asc' | 'desc';
 
 export default function PhasesTable() {
   const [editingPhase, setEditingPhase] = useState<Phase | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showVisualEditor, setShowVisualEditor] = useState(false);
   const [filterSignal, setFilterSignal] = useState<string>("");
+  const [sortField, setSortField] = useState<SortField>('phase');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const { signals, phases } = useGTSSStore();
   const { toast } = useToast();
   const phaseHooks = usePhases();
@@ -30,6 +35,73 @@ export default function PhasesTable() {
   }, [signals, filterSignal]);
 
   const filteredPhases = phases.filter(phase => phase.signalId === filterSignal);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortedPhases = () => {
+    return [...filteredPhases].sort((a, b) => {
+      let aValue: string | number;
+      let bValue: string | number;
+
+      switch (sortField) {
+        case 'phase':
+          aValue = a.phase;
+          bValue = b.phase;
+          break;
+        case 'signalId':
+          aValue = a.signalId;
+          bValue = b.signalId;
+          break;
+        case 'movementType':
+          aValue = a.movementType;
+          bValue = b.movementType;
+          break;
+        case 'bearing':
+          aValue = a.compassBearing || 0;
+          bValue = b.compassBearing || 0;
+          break;
+        default:
+          aValue = a.phase;
+          bValue = b.phase;
+      }
+
+      if (sortDirection === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+  };
+
+  const handleRowClick = (phase: Phase) => {
+    handleEdit(phase);
+  };
+
+  const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
+    <TableHead 
+      className="text-xs font-medium text-grey-500 uppercase tracking-wider cursor-pointer hover:bg-grey-100 transition-colors"
+      onClick={() => handleSort(field)}
+    >
+      <div className="flex items-center justify-between">
+        {children}
+        <div className="flex flex-col ml-1">
+          <ChevronUp 
+            className={`w-3 h-3 ${sortField === field && sortDirection === 'asc' ? 'text-primary-600' : 'text-grey-300'}`} 
+          />
+          <ChevronDown 
+            className={`w-3 h-3 -mt-1 ${sortField === field && sortDirection === 'desc' ? 'text-primary-600' : 'text-grey-300'}`} 
+          />
+        </div>
+      </div>
+    </TableHead>
+  );
 
   const handleEdit = (phase: Phase) => {
     setEditingPhase(phase);
@@ -166,11 +238,11 @@ export default function PhasesTable() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-grey-50 border-b border-grey-200">
-                  <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Phase</TableHead>
-                  <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Signal ID</TableHead>
-                  <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Movement</TableHead>
+                  <SortableHeader field="phase">Phase</SortableHeader>
+                  <SortableHeader field="signalId">Signal ID</SortableHeader>
+                  <SortableHeader field="movementType">Movement</SortableHeader>
                   <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Type</TableHead>
-                  <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Bearing</TableHead>
+                  <SortableHeader field="bearing">Bearing</SortableHeader>
                   <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -185,27 +257,28 @@ export default function PhasesTable() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredPhases.map((phase) => (
-                    <TableRow key={phase.id}>
+                  getSortedPhases().map((phase) => (
+                    <TableRow 
+                      key={phase.id}
+                      className="hover:bg-grey-50 cursor-pointer transition-colors"
+                      onClick={() => handleRowClick(phase)}
+                    >
                       <TableCell className="font-medium text-grey-900">{phase.phase}</TableCell>
                       <TableCell className="text-grey-600">{phase.signalId}</TableCell>
                       <TableCell className="text-grey-600">{phase.movementType}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className={phase.isPedestrian ? "bg-orange-100 text-orange-800" : "bg-blue-100 text-blue-800"}>
-                          {phase.isPedestrian ? "Pedestrian" : "Vehicle"}
-                        </Badge>
+                        <div className="flex space-x-1">
+                          {phase.isOverlap && (
+                            <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-xs">
+                              Overlap
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
-                      <TableCell className="text-grey-600">{phase.compassBearing || "—"}°</TableCell>
-                      <TableCell className="space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(phase)}
-                          className="text-primary-600 hover:text-primary-700"
-                          title="Edit phase"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
+                      <TableCell className="text-grey-600">
+                        {phase.compassBearing ? `${phase.compassBearing}°` : 'N/A'}
+                      </TableCell>
+                      <TableCell className="space-x-1" onClick={(e) => e.stopPropagation()}>
                         <Button
                           variant="ghost"
                           size="sm"

@@ -421,26 +421,10 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
 
               <div className="flex items-center space-x-2">
                 <Switch
-                  checked={editingPhase.isPedestrian}
-                  onCheckedChange={(checked) => handlePhaseUpdate(editingPhase.id, { isPedestrian: checked })}
-                />
-                <Label className="text-xs">Pedestrian Phase</Label>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
                   checked={editingPhase.isOverlap}
                   onCheckedChange={(checked) => handlePhaseUpdate(editingPhase.id, { isOverlap: checked })}
                 />
                 <Label className="text-xs">Overlap Phase</Label>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={editingPhase.pedAudibleEnabled}
-                  onCheckedChange={(checked) => handlePhaseUpdate(editingPhase.id, { pedAudibleEnabled: checked })}
-                />
-                <Label className="text-xs">Audible Pedestrian Signal</Label>
               </div>
             </CardContent>
           </Card>
@@ -597,17 +581,6 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
                   <Switch
-                    checked={editingExistingPhase.isPedestrian}
-                    onCheckedChange={(checked) => setEditingExistingPhase({
-                      ...editingExistingPhase,
-                      isPedestrian: checked
-                    })}
-                  />
-                  <Label className="text-sm">Pedestrian Phase</Label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Switch
                     checked={editingExistingPhase.isOverlap}
                     onCheckedChange={(checked) => setEditingExistingPhase({
                       ...editingExistingPhase,
@@ -615,17 +588,6 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
                     })}
                   />
                   <Label className="text-sm">Overlap Phase</Label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    checked={editingExistingPhase.pedAudibleEnabled}
-                    onCheckedChange={(checked) => setEditingExistingPhase({
-                      ...editingExistingPhase,
-                      pedAudibleEnabled: checked
-                    })}
-                  />
-                  <Label className="text-sm">Audible Pedestrian Signal</Label>
                 </div>
               </div>
 
