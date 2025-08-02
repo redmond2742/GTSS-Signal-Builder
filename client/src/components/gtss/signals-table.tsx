@@ -8,15 +8,20 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, Map, List, Navigation } from "lucide-react";
+import { Plus, Edit, Trash2, Map, List, Navigation, ChevronUp, ChevronDown } from "lucide-react";
 import SignalModal from "./signal-modal";
 import BulkSignalModal from "./bulk-signal-modal";
 import { SignalsMap } from "@/components/ui/signals-map";
+
+type SortField = 'signalId' | 'streetName1' | 'streetName2' | 'coordinates';
+type SortDirection = 'asc' | 'desc';
 
 export default function SignalsTable() {
   const [editingSignal, setEditingSignal] = useState<Signal | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [sortField, setSortField] = useState<SortField>('signalId');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const { signals } = useGTSSStore();
   const { toast } = useToast();
   const signalHooks = useSignals();
@@ -54,6 +59,73 @@ export default function SignalsTable() {
     setEditingSignal(null);
   };
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortedSignals = () => {
+    return [...signals].sort((a, b) => {
+      let aValue: string | number;
+      let bValue: string | number;
+
+      switch (sortField) {
+        case 'signalId':
+          aValue = a.signalId;
+          bValue = b.signalId;
+          break;
+        case 'streetName1':
+          aValue = a.streetName1;
+          bValue = b.streetName1;
+          break;
+        case 'streetName2':
+          aValue = a.streetName2;
+          bValue = b.streetName2;
+          break;
+        case 'coordinates':
+          aValue = `${a.cntLat},${a.cntLon}`;
+          bValue = `${b.cntLat},${b.cntLon}`;
+          break;
+        default:
+          aValue = a.signalId;
+          bValue = b.signalId;
+      }
+
+      if (sortDirection === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+  };
+
+  const handleRowClick = (signal: Signal) => {
+    handleEdit(signal);
+  };
+
+  const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
+    <TableHead 
+      className="text-xs font-medium text-grey-500 uppercase tracking-wider cursor-pointer hover:bg-grey-100 transition-colors"
+      onClick={() => handleSort(field)}
+    >
+      <div className="flex items-center justify-between">
+        {children}
+        <div className="flex flex-col ml-1">
+          <ChevronUp 
+            className={`w-3 h-3 ${sortField === field && sortDirection === 'asc' ? 'text-primary-600' : 'text-grey-300'}`} 
+          />
+          <ChevronDown 
+            className={`w-3 h-3 -mt-1 ${sortField === field && sortDirection === 'desc' ? 'text-primary-600' : 'text-grey-300'}`} 
+          />
+        </div>
+      </div>
+    </TableHead>
+  );
+
 
 
   return (
@@ -67,7 +139,7 @@ export default function SignalsTable() {
           <div className="flex space-x-2">
             <Button onClick={() => setShowBulkModal(true)} variant="outline" className="border-primary-200 text-primary-700 hover:bg-primary-50">
               <Navigation className="w-4 h-4 mr-2" />
-              Bulk Add
+              Add Multiple Signals
             </Button>
             <Button onClick={handleAdd} className="bg-primary-600 hover:bg-primary-700">
               <Plus className="w-4 h-4 mr-2" />
@@ -95,10 +167,10 @@ export default function SignalsTable() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-grey-50 border-b border-grey-200">
-                      <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Signal ID</TableHead>
-                      <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Street 1</TableHead>
-                      <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Street 2</TableHead>
-                      <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Coordinates</TableHead>
+                      <SortableHeader field="signalId">Signal ID</SortableHeader>
+                      <SortableHeader field="streetName1">Street 1</SortableHeader>
+                      <SortableHeader field="streetName2">Street 2</SortableHeader>
+                      <SortableHeader field="coordinates">Coordinates</SortableHeader>
                       <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -110,13 +182,17 @@ export default function SignalsTable() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      signals.map((signal) => (
-                        <TableRow key={signal.id}>
+                      getSortedSignals().map((signal) => (
+                        <TableRow 
+                          key={signal.id}
+                          className="hover:bg-grey-50 cursor-pointer transition-colors"
+                          onClick={() => handleRowClick(signal)}
+                        >
                           <TableCell className="font-medium text-grey-900">{signal.signalId}</TableCell>
                           <TableCell className="text-grey-600">{signal.streetName1}</TableCell>
                           <TableCell className="text-grey-600">{signal.streetName2}</TableCell>
                           <TableCell className="text-grey-600">{signal.cntLat.toFixed(4)}, {signal.cntLon.toFixed(4)}</TableCell>
-                          <TableCell className="space-x-2">
+                          <TableCell className="space-x-2" onClick={(e) => e.stopPropagation()}>
                             <Button
                               variant="ghost"
                               size="sm"

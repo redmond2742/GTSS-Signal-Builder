@@ -3,6 +3,8 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import { useMapEvents } from "react-leaflet/hooks";
 import { Signal, InsertPhase, Phase } from "@shared/schema";
 import { useGTSSStore } from "@/store/gtss-store";
+import { usePhases } from "@/lib/localStorageHooks";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,7 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Save, RotateCcw } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Trash2, Save, RotateCcw, Edit } from "lucide-react";
 import L from "leaflet";
 
 interface PendingPhase {
@@ -101,12 +104,64 @@ function getBearingEndpoint(signal: Signal, bearing: number, distance: number = 
 
 export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: VisualPhaseEditorProps) {
   const { phases } = useGTSSStore();
+  const phaseHooks = usePhases();
+  const { toast } = useToast();
   const [pendingPhases, setPendingPhases] = useState<PendingPhase[]>([]);
   const [editingPhase, setEditingPhase] = useState<PendingPhase | null>(null);
   const [isDrawMode, setIsDrawMode] = useState(true);
+  const [editingExistingPhase, setEditingExistingPhase] = useState<Phase | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
   
   // Get existing phases for this signal
   const existingPhases = phases.filter(phase => phase.signalId === signal.signalId);
+
+  const handleExistingPhaseEdit = (phase: Phase) => {
+    setEditingExistingPhase(phase);
+    setShowEditModal(true);
+  };
+
+  const handleExistingPhaseUpdate = (updatedData: Partial<Phase>) => {
+    if (editingExistingPhase) {
+      try {
+        phaseHooks.update(editingExistingPhase.id, updatedData);
+        toast({
+          title: "Success",
+          description: "Phase updated successfully",
+        });
+        setShowEditModal(false);
+        setEditingExistingPhase(null);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to update phase",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleExistingPhaseDelete = () => {
+    if (editingExistingPhase) {
+      const confirmed = confirm("⚠️ WARNING: Are you sure you want to permanently delete this phase?\n\nThis action cannot be undone.");
+      if (confirmed) {
+        try {
+          phaseHooks.delete(editingExistingPhase.id);
+          toast({
+            title: "Success",
+            description: "Phase deleted successfully",
+          });
+          setShowEditModal(false);
+          setEditingExistingPhase(null);
+        } catch (error) {
+          toast({
+            title: "Error",
+            description: "Failed to delete phase",
+            variant: "destructive",
+          });
+        }
+      }
+    }
+  };
 
   const handlePhaseAdd = (bearing: number) => {
     // Use even numbers: 2, 4, 6, 8 for phase numbering
@@ -429,11 +484,15 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
                 {existingPhases.map((phase) => (
                   <div 
                     key={phase.id}
-                    className="p-2 border rounded bg-gray-50"
+                    className="p-2 border rounded bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
+                    onClick={() => handleExistingPhaseEdit(phase)}
                   >
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-medium">Phase {phase.phase}</div>
-                      <div className="text-xs text-gray-500">{phase.compassBearing}°</div>
+                      <div className="flex items-center space-x-2">
+                        <div className="text-xs text-gray-500">{phase.compassBearing}°</div>
+                        <Edit className="w-3 h-3 text-gray-400" />
+                      </div>
                     </div>
                     <div className="text-xs text-gray-600">
                       {phase.movementType}
@@ -447,6 +506,154 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
           )}
         </div>
       </div>
+
+      {/* Edit Existing Phase Modal */}
+      {showEditModal && editingExistingPhase && (
+        <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Phase {editingExistingPhase.phase}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium">Phase Number</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="8"
+                  value={editingExistingPhase.phase}
+                  onChange={(e) => setEditingExistingPhase({
+                    ...editingExistingPhase,
+                    phase: parseInt(e.target.value) || 1
+                  })}
+                />
+              </div>
+              
+              <div>
+                <Label className="text-sm font-medium">Movement Type</Label>
+                <Select 
+                  value={editingExistingPhase.movementType} 
+                  onValueChange={(value) => setEditingExistingPhase({
+                    ...editingExistingPhase,
+                    movementType: value
+                  })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Through">Through</SelectItem>
+                    <SelectItem value="Left Turn">Left Turn</SelectItem>
+                    <SelectItem value="Right Turn">Right Turn</SelectItem>
+                    <SelectItem value="Through-Right">Through-Right</SelectItem>
+                    <SelectItem value="U-Turn">U-Turn</SelectItem>
+                    <SelectItem value="Flashing Yellow Arrow">Flashing Yellow Arrow</SelectItem>
+                    <SelectItem value="Pedestrian">Pedestrian</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Compass Bearing (degrees)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="360"
+                  value={editingExistingPhase.compassBearing || ""}
+                  onChange={(e) => setEditingExistingPhase({
+                    ...editingExistingPhase,
+                    compassBearing: parseInt(e.target.value) || undefined
+                  })}
+                />
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Posted Speed Limit (mph)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={editingExistingPhase.postedSpeedLimit || ""}
+                  onChange={(e) => setEditingExistingPhase({
+                    ...editingExistingPhase,
+                    postedSpeedLimit: parseInt(e.target.value) || undefined
+                  })}
+                />
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Number of Lanes</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="8"
+                  value={editingExistingPhase.numberOfLanes || 1}
+                  onChange={(e) => setEditingExistingPhase({
+                    ...editingExistingPhase,
+                    numberOfLanes: parseInt(e.target.value) || 1
+                  })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={editingExistingPhase.isPedestrian}
+                    onCheckedChange={(checked) => setEditingExistingPhase({
+                      ...editingExistingPhase,
+                      isPedestrian: checked
+                    })}
+                  />
+                  <Label className="text-sm">Pedestrian Phase</Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={editingExistingPhase.isOverlap}
+                    onCheckedChange={(checked) => setEditingExistingPhase({
+                      ...editingExistingPhase,
+                      isOverlap: checked
+                    })}
+                  />
+                  <Label className="text-sm">Overlap Phase</Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={editingExistingPhase.pedAudibleEnabled}
+                    onCheckedChange={(checked) => setEditingExistingPhase({
+                      ...editingExistingPhase,
+                      pedAudibleEnabled: checked
+                    })}
+                  />
+                  <Label className="text-sm">Audible Pedestrian Signal</Label>
+                </div>
+              </div>
+
+              <div className="flex space-x-2 pt-4">
+                <Button 
+                  onClick={() => handleExistingPhaseUpdate(editingExistingPhase)}
+                  className="flex-1"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Changes
+                </Button>
+                <Button 
+                  variant="destructive"
+                  onClick={handleExistingPhaseDelete}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => setShowEditModal(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
