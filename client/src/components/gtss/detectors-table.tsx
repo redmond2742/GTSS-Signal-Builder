@@ -16,6 +16,13 @@ export default function DetectorsTable() {
   const [showModal, setShowModal] = useState(false);
   const [selectedSignalId, setSelectedSignalId] = useState<string>("");
   const { detectors, signals } = useGTSSStore();
+  
+  // Auto-select first signal on mount
+  useEffect(() => {
+    if (signals.length > 0 && !selectedSignalId) {
+      setSelectedSignalId(signals[0].signalId);
+    }
+  }, [signals, selectedSignalId]);
   const { toast } = useToast();
   const detectorHooks = useDetectors();
 
@@ -28,7 +35,7 @@ export default function DetectorsTable() {
   const getSignalDisplayName = (signalId: string) => {
     const signal = signals.find(s => s.signalId === signalId);
     return signal 
-      ? `${signal.signalId} - ${signal.primaryStreet} & ${signal.secondaryStreet}`
+      ? `${signal.signalId} - ${signal.streetName1} & ${signal.streetName2}`
       : signalId;
   };
 

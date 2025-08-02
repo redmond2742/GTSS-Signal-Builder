@@ -17,14 +17,19 @@ export default function PhasesTable() {
   const [editingPhase, setEditingPhase] = useState<Phase | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showVisualEditor, setShowVisualEditor] = useState(false);
-  const [filterSignal, setFilterSignal] = useState<string>("all");
+  const [filterSignal, setFilterSignal] = useState<string>("");
   const { signals, phases } = useGTSSStore();
   const { toast } = useToast();
   const phaseHooks = usePhases();
 
-  const filteredPhases = filterSignal === "all" 
-    ? phases 
-    : phases.filter(phase => phase.signalId === filterSignal);
+  // Auto-select first signal on mount
+  useEffect(() => {
+    if (signals.length > 0 && !filterSignal) {
+      setFilterSignal(signals[0].signalId);
+    }
+  }, [signals, filterSignal]);
+
+  const filteredPhases = phases.filter(phase => phase.signalId === filterSignal);
 
   const handleEdit = (phase: Phase) => {
     setEditingPhase(phase);
@@ -133,7 +138,6 @@ export default function PhasesTable() {
                 <SelectValue placeholder="Filter by Signal" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Signals</SelectItem>
                 {signals.map((signal) => (
                   <SelectItem key={signal.signalId} value={signal.signalId}>
                     {getSignalInfo(signal.signalId)}
@@ -145,7 +149,7 @@ export default function PhasesTable() {
               <Plus className="w-4 h-4 mr-2" />
               Add Phase
             </Button>
-            {filterSignal !== "all" && (
+            {filterSignal && (
               <Button 
                 onClick={() => setShowVisualEditor(true)} 
                 variant="outline"

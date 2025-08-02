@@ -33,7 +33,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
       movementType: "Through",
       isPedestrian: false,
       isOverlap: false,
-      channelOutput: "",
+
       compassBearing: undefined,
       postedSpeedLimit: undefined,
       numberOfLanes: 1,
@@ -48,7 +48,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
         movementType: phase.movementType,
         isPedestrian: phase.isPedestrian,
         isOverlap: phase.isOverlap,
-        channelOutput: phase.channelOutput || "",
+
         compassBearing: phase.compassBearing || undefined,
         postedSpeedLimit: phase.postedSpeedLimit || undefined,
         numberOfLanes: phase.numberOfLanes || 1,
@@ -157,7 +157,9 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                         <SelectItem value="Through">Through</SelectItem>
                         <SelectItem value="Left Turn">Left Turn</SelectItem>
                         <SelectItem value="Right Turn">Right Turn</SelectItem>
+                        <SelectItem value="Through-Right">Through-Right</SelectItem>
                         <SelectItem value="U-Turn">U-Turn</SelectItem>
+                        <SelectItem value="Flashing Yellow Arrow">Flashing Yellow Arrow</SelectItem>
                         <SelectItem value="Pedestrian">Pedestrian</SelectItem>
                       </SelectContent>
                     </Select>
@@ -166,19 +168,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="channelOutput"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Channel Output</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., CH_01" {...field} value={field.value || ""} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+
 
               <FormField
                 control={form.control}
