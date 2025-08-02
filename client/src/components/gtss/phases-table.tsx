@@ -156,31 +156,41 @@ export default function PhasesTable() {
           <div>
           </div>
           <div className="flex space-x-3">
-            <Select value={filterSignal} onValueChange={setFilterSignal}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filter by Signal" />
-              </SelectTrigger>
-              <SelectContent>
-                {signals.map((signal) => (
-                  <SelectItem key={signal.signalId} value={signal.signalId}>
-                    {getSignalInfo(signal.signalId)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button onClick={handleAdd} className="bg-primary-600 hover:bg-primary-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Phase
-            </Button>
-            {filterSignal && (
-              <Button 
-                onClick={() => setShowVisualEditor(true)} 
-                variant="outline"
-                className="border-success-200 text-success-600 hover:bg-success-50"
-              >
-                <Map className="w-4 h-4 mr-2" />
-                Visual Editor
-              </Button>
+            {signals.length === 0 ? (
+              <div className="p-3 bg-warning-50 border border-warning-200 rounded-md">
+                <p className="text-sm text-warning-700">
+                  No signals configured. Please add signals before creating phases.
+                </p>
+              </div>
+            ) : (
+              <>
+                <Select value={filterSignal} onValueChange={setFilterSignal}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by Signal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {signals.map((signal) => (
+                      <SelectItem key={signal.signalId} value={signal.signalId}>
+                        {getSignalInfo(signal.signalId)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button onClick={handleAdd} className="bg-primary-600 hover:bg-primary-700">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Phase
+                </Button>
+                {filterSignal && (
+                  <Button 
+                    onClick={() => setShowVisualEditor(true)} 
+                    variant="outline"
+                    className="border-success-200 text-success-600 hover:bg-success-50"
+                  >
+                    <Map className="w-4 h-4 mr-2" />
+                    Visual Editor
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </CardHeader>

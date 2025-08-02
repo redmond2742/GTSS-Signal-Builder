@@ -256,8 +256,8 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
           center={(() => {
             // First try to use agency coordinates if available
             const { agency } = useGTSSStore.getState();
-            if (agency?.agencyLat && agency?.agencyLon) {
-              return [agency.agencyLat, agency.agencyLon];
+            if (agency?.latitude && agency?.longitude) {
+              return [agency.latitude, agency.longitude];
             }
             // Fallback to selected signal coordinates
             return [selectedSignal.latitude || 0, selectedSignal.longitude || 0];
@@ -561,7 +561,7 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
                     </div>
                     <div className="text-xs text-gray-600">
                       {phase.movementType}
-                      {phase.isPedestrian && " • Pedestrian"}
+
                       {phase.isOverlap && " • Overlap"}
                     </div>
                   </div>
@@ -627,7 +627,7 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
                   value={editingExistingPhase.compassBearing || ""}
                   onChange={(e) => setEditingExistingPhase({
                     ...editingExistingPhase,
-                    compassBearing: parseInt(e.target.value) || undefined
+                    compassBearing: parseInt(e.target.value) || null
                   })}
                 />
               </div>
@@ -637,10 +637,10 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
                 <Input
                   type="number"
                   min="0"
-                  value={editingExistingPhase.postedSpeedLimit || ""}
+                  value={editingExistingPhase.postedSpeed || ""}
                   onChange={(e) => setEditingExistingPhase({
                     ...editingExistingPhase,
-                    postedSpeedLimit: parseInt(e.target.value) || undefined
+                    postedSpeed: parseInt(e.target.value) || null
                   })}
                 />
               </div>
@@ -651,10 +651,10 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
                   type="number"
                   min="1"
                   max="8"
-                  value={editingExistingPhase.numberOfLanes || 1}
+                  value={editingExistingPhase.numOfLanes || 1}
                   onChange={(e) => setEditingExistingPhase({
                     ...editingExistingPhase,
-                    numberOfLanes: parseInt(e.target.value) || 1
+                    numOfLanes: parseInt(e.target.value) || 1
                   })}
                 />
               </div>
@@ -662,7 +662,7 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
                   <Switch
-                    checked={editingExistingPhase.isOverlap}
+                    checked={editingExistingPhase.isOverlap || false}
                     onCheckedChange={(checked) => setEditingExistingPhase({
                       ...editingExistingPhase,
                       isOverlap: checked
