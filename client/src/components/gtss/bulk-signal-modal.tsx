@@ -43,7 +43,7 @@ function MapClickHandler({ onLocationAdd }: { onLocationAdd: (lat: number, lon: 
 }
 
 export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
-  const { agency, addSignal } = useGTSSStore();
+  const { agency, addSignal, signals } = useGTSSStore();
   const { toast } = useToast();
   const signalHooks = useSignals();
   const [pendingSignals, setPendingSignals] = useState<PendingSignal[]>([]);
@@ -179,7 +179,7 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
       <DialogContent className="max-w-6xl max-h-screen overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-3">
-            <span>Bulk Add Signal Locations</span>
+            <span>Add Multiple Signal Locations Using the Map</span>
             <Badge variant="secondary" className="bg-blue-100 text-blue-700">
               {pendingSignals.length} locations
             </Badge>
@@ -211,6 +211,26 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
               
               <MapClickHandler onLocationAdd={handleLocationAdd} />
               
+              {/* Existing signals in grey */}
+              {signals.map((signal) => (
+                signal.latitude && signal.longitude && (
+                  <Marker
+                    key={`existing-${signal.signalId}`}
+                    position={[signal.latitude, signal.longitude]}
+                    icon={L.icon({
+                      iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+                      shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+                      iconSize: [25, 41],
+                      iconAnchor: [12, 41],
+                      popupAnchor: [1, -34],
+                      shadowSize: [41, 41],
+                      className: "grayscale opacity-60" // Make existing signals grey
+                    })}
+                  />
+                )
+              ))}
+              
+              {/* New pending signals in blue */}
               {pendingSignals.map((signal) => (
                 <Marker
                   key={signal.id}

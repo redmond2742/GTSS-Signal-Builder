@@ -190,7 +190,12 @@ export default function SignalsTable() {
                           <TableCell className="font-medium text-grey-900">{signal.signalId}</TableCell>
                           <TableCell className="text-grey-600">{signal.streetName1}</TableCell>
                           <TableCell className="text-grey-600">{signal.streetName2}</TableCell>
-                          <TableCell className="text-grey-600">{signal.cntLat.toFixed(4)}, {signal.cntLon.toFixed(4)}</TableCell>
+                          <TableCell className="text-grey-600">
+                            {signal.latitude && signal.longitude 
+                              ? `${signal.latitude.toFixed(4)}, ${signal.longitude.toFixed(4)}`
+                              : 'Not set'
+                            }
+                          </TableCell>
                           <TableCell className="space-x-2" onClick={(e) => e.stopPropagation()}>
                             <Button
                               variant="ghost"

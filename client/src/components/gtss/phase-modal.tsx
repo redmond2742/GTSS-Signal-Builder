@@ -280,18 +280,18 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                     const selectedSignal = signals.find(s => s.signalId === form.watch("signalId"));
                     const bearing = form.watch("compassBearing");
                     
-                    if (!selectedSignal) return null;
+                    if (!selectedSignal || !selectedSignal.latitude || !selectedSignal.longitude) return null;
                     
                     // Calculate end point for bearing line (reversed for traffic flow direction)
                     const reversedBearing = bearing ? (bearing + 180) % 360 : 0;
                     const distance = 0.002; // degrees
                     const bearingRad = (reversedBearing * Math.PI) / 180;
-                    const endLat = selectedSignal.latitude + distance * Math.cos(bearingRad);
-                    const endLon = selectedSignal.longitude + distance * Math.sin(bearingRad);
+                    const endLat = (selectedSignal.latitude || 0) + distance * Math.cos(bearingRad);
+                    const endLon = (selectedSignal.longitude || 0) + distance * Math.sin(bearingRad);
                     
                     return (
                       <MapContainer
-                        center={[selectedSignal.latitude, selectedSignal.longitude]}
+                        center={[selectedSignal.latitude!, selectedSignal.longitude!]}
                         zoom={18}
                         style={{ height: "100%", width: "100%" }}
                       >
@@ -299,7 +299,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                         />
-                        <Marker position={[selectedSignal.latitude, selectedSignal.longitude]}>
+                        <Marker position={[selectedSignal.latitude!, selectedSignal.longitude!]}>
                           <Popup>
                             <div className="text-center">
                               <div className="font-medium">{selectedSignal.signalId}</div>
@@ -312,7 +312,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                         {bearing && (
                           <Polyline
                             positions={[
-                              [selectedSignal.latitude, selectedSignal.longitude],
+                              [selectedSignal.latitude!, selectedSignal.longitude!],
                               [endLat, endLon]
                             ]}
                             color="#10b981"
