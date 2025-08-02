@@ -150,10 +150,7 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
       if (confirmed) {
         try {
           phaseHooks.delete(editingExistingPhase.id);
-          toast({
-            title: "Success",
-            description: "Phase deleted successfully",
-          });
+          // Success toast removed per user request
           setShowEditModal(false);
           setEditingExistingPhase(null);
         } catch (error) {

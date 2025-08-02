@@ -52,7 +52,18 @@ export default function ExportPanel() {
       issues.push({ type: "warning", section: "Signal Locations", message: "No signals configured" });
     }
     
-    // Cabinet coordinate validation removed per user request
+    // Validation checks for required signal data
+    signals.forEach(signal => {
+      if (!signal.latitude || !signal.longitude) {
+        issues.push({ type: "error", section: "Signal Locations", message: `Missing coordinates for ${signal.signalId}` });
+      }
+      if (!signal.signalId) {
+        issues.push({ type: "error", section: "Signal Locations", message: `Missing signal ID for signal` });
+      }
+      if (!signal.streetName1 || !signal.streetName2) {
+        issues.push({ type: "warning", section: "Signal Locations", message: `Missing street names for ${signal.signalId}` });
+      }
+    });
     
     const signalIds = signals.map(s => s.signalId);
     const orphanPhases = phases.filter(p => !signalIds.includes(p.signalId));

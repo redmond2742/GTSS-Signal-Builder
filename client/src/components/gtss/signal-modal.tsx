@@ -89,9 +89,16 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
 
   const [isLoading, setIsLoading] = useState(false);
 
-  // Calculate map center based on agency coordinates or fallback
+  // Calculate map center based on signal coordinates, then agency, then default
   const getMapCenter = (): [number, number] => {
-    // Using default center since agency coordinates removed from schema
+    // If editing a signal, center on its coordinates
+    if (signal && signal.latitude && signal.longitude) {
+      return [signal.latitude, signal.longitude];
+    }
+    // Otherwise use agency coordinates if available
+    if (agency?.agencyLat && agency?.agencyLon) {
+      return [agency.agencyLat, agency.agencyLon];
+    }
     return [39.8283, -98.5795]; // Default center of US
   };
 
@@ -168,19 +175,13 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
             <div className="col-span-2 space-y-4">
               <h3 className="text-lg font-medium text-grey-800 border-b border-grey-200 pb-2">Intersection Location</h3>
               
-              <Tabs defaultValue="map" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="map" className="text-sm">
-                    <MapPin className="w-4 h-4 mr-2" />
-                    Map Selection
-                  </TabsTrigger>
-                  <TabsTrigger value="manual" className="text-sm">
-                    <Edit3 className="w-4 h-4 mr-2" />
-                    Manual Entry
-                  </TabsTrigger>
-                </TabsList>
+              <div className="w-full">
+                <div className="flex items-center gap-2 mb-3">
+                  <MapPin className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm font-medium">Map Selection & Coordinates</span>
+                </div>
 
-                <TabsContent value="map" className="space-y-4">
+                <div className="space-y-4">
                   <div className="text-sm text-grey-600 mb-3">
                     Click on the map to select the intersection location
                   </div>
@@ -213,26 +214,24 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                     }}
                     className="w-full"
                   />
-                  <div className="text-xs text-grey-500 flex items-center gap-4">
-                    <span>Selected: {form.watch("latitude") !== undefined ? form.watch("latitude").toFixed(6) : '0.000000'}, {form.watch("longitude") !== undefined ? form.watch("longitude").toFixed(6) : '0.000000'}</span>
-                  </div>
-                </TabsContent>
 
-                <TabsContent value="manual" className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  
+                  {/* Editable coordinate fields */}
+                  <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-lg border mt-3">
                     <FormField
                       control={form.control}
                       name="latitude"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Center Latitude *</FormLabel>
+                          <FormLabel className="text-xs font-medium text-gray-600">Latitude *</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
                               step="any"
-                              placeholder="40.7589"
+                              placeholder="39.8283"
                               {...field}
                               onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              className="text-sm"
                             />
                           </FormControl>
                           <FormMessage />
@@ -245,14 +244,15 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                       name="longitude"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Center Longitude *</FormLabel>
+                          <FormLabel className="text-xs font-medium text-gray-600">Longitude *</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
                               step="any"
-                              placeholder="-73.9851"
+                              placeholder="-98.5795"
                               {...field}
                               onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              className="text-sm"
                             />
                           </FormControl>
                           <FormMessage />
@@ -260,11 +260,9 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                       )}
                     />
                   </div>
-                </TabsContent>
-              </Tabs>
+                </div>
+              </div>
             </div>
-
-
 
             <div className="flex justify-end space-x-3 pt-4 border-t">
               <Button type="button" variant="outline" onClick={onClose}>

@@ -21,6 +21,14 @@ Preferred communication style: Simple, everyday language.
 ✓ Resolved all TypeScript compilation errors and LSP diagnostics
 ✓ Application maintains full functionality with simplified, standardized data model
 
+## Latest Improvements (February 1, 2025)
+✓ Visual phase editor: Removed success popup after deleting phases
+✓ Signal modal: Auto-populates agency ID from agency info page
+✓ Signal dialog: Removed manual entry tabs, added editable coordinate fields below map
+✓ Map consistency: Signal edit dialog now centers on existing signal coordinates
+✓ Export validation: Added validation checks for latitude, longitude, signal ID, and street names
+✓ All coordinate data properly saved to localStorage and exported to CSV files
+
 ## Previous Major Changes
 ✓ **MAJOR ARCHITECTURE CHANGE**: Complete conversion from server-based APIs to localStorage
 ✓ Built comprehensive localStorage service with full CRUD operations for all data types
