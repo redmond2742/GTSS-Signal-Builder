@@ -283,7 +283,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                     if (!selectedSignal) return null;
                     
                     // Calculate end point for bearing line (reversed for traffic flow direction)
-                    const reversedBearing = (bearing + 180) % 360;
+                    const reversedBearing = bearing ? (bearing + 180) % 360 : 0;
                     const distance = 0.002; // degrees
                     const bearingRad = (reversedBearing * Math.PI) / 180;
                     const endLat = selectedSignal.latitude + distance * Math.cos(bearingRad);
@@ -312,7 +312,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                         {bearing && (
                           <Polyline
                             positions={[
-                              [selectedSignal.cntLat, selectedSignal.cntLon],
+                              [selectedSignal.latitude, selectedSignal.longitude],
                               [endLat, endLon]
                             ]}
                             color="#10b981"

@@ -52,11 +52,7 @@ export default function ExportPanel() {
       issues.push({ type: "warning", section: "Signal Locations", message: "No signals configured" });
     }
     
-    signals.forEach(signal => {
-      if (!signal.cabinetLat || !signal.cabinetLon) {
-        issues.push({ type: "warning", section: "Signal Locations", message: `Missing cabinet coordinates for ${signal.signalId}` });
-      }
-    });
+    // Cabinet coordinate validation removed per user request
     
     const signalIds = signals.map(s => s.signalId);
     const orphanPhases = phases.filter(p => !signalIds.includes(p.signalId));

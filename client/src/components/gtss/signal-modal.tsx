@@ -214,7 +214,7 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                     className="w-full"
                   />
                   <div className="text-xs text-grey-500 flex items-center gap-4">
-                    <span>Selected: {form.watch("latitude").toFixed(6)}, {form.watch("longitude").toFixed(6)}</span>
+                    <span>Selected: {form.watch("latitude") ? form.watch("latitude").toFixed(6) : '0.000000'}, {form.watch("longitude") ? form.watch("longitude").toFixed(6) : '0.000000'}</span>
                   </div>
                 </TabsContent>
 
