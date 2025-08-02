@@ -99,14 +99,13 @@ export default function SignalsTable() {
                       <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Street 1</TableHead>
                       <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Street 2</TableHead>
                       <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Coordinates</TableHead>
-                      <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Control Type</TableHead>
                       <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {signals.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-grey-500">
+                        <TableCell colSpan={5} className="text-center py-8 text-grey-500">
                           No signals configured. Add your first signal to get started.
                         </TableCell>
                       </TableRow>
@@ -117,11 +116,6 @@ export default function SignalsTable() {
                           <TableCell className="text-grey-600">{signal.streetName1}</TableCell>
                           <TableCell className="text-grey-600">{signal.streetName2}</TableCell>
                           <TableCell className="text-grey-600">{signal.cntLat.toFixed(4)}, {signal.cntLon.toFixed(4)}</TableCell>
-                          <TableCell>
-                            <Badge variant="secondary" className="bg-green-100 text-green-800">
-                              {signal.controlType}
-                            </Badge>
-                          </TableCell>
                           <TableCell className="space-x-2">
                             <Button
                               variant="ghost"
