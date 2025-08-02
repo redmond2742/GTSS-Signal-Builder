@@ -425,7 +425,25 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
                     <SelectItem value="Through">Through</SelectItem>
                     <SelectItem value="Left Turn">Left Turn</SelectItem>
                     <SelectItem value="Right Turn">Right Turn</SelectItem>
+                    <SelectItem value="Through Right">Through Right</SelectItem>
+                    <SelectItem value="Left Turn Protected">Left Turn Protected</SelectItem>
+                    <SelectItem value="Left Turn Permissive">Left Turn Permissive</SelectItem>
+                    <SelectItem value="Right Turn Protected">Right Turn Protected</SelectItem>
+                    <SelectItem value="Right Turn Permissive">Right Turn Permissive</SelectItem>
+                    <SelectItem value="Flashing Yellow Arrow">Flashing Yellow Arrow</SelectItem>
+                    <SelectItem value="Protected Left">Protected Left</SelectItem>
+                    <SelectItem value="Permissive Left">Permissive Left</SelectItem>
                     <SelectItem value="U-Turn">U-Turn</SelectItem>
+                    <SelectItem value="U-Turn Protected">U-Turn Protected</SelectItem>
+                    <SelectItem value="Pedestrian">Pedestrian</SelectItem>
+                    <SelectItem value="Bicycle">Bicycle</SelectItem>
+                    <SelectItem value="Transit">Transit</SelectItem>
+                    <SelectItem value="Emergency">Emergency</SelectItem>
+                    <SelectItem value="Preemption">Preemption</SelectItem>
+                    <SelectItem value="Railroad">Railroad</SelectItem>
+                    <SelectItem value="All Way Stop">All Way Stop</SelectItem>
+                    <SelectItem value="Yield">Yield</SelectItem>
+                    <SelectItem value="Free">Free</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
