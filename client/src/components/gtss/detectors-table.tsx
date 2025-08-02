@@ -233,6 +233,7 @@ export default function DetectorsTable() {
         <DetectorModal
           detector={editingDetector}
           onClose={handleModalClose}
+          preSelectedSignalId={editingDetector ? undefined : selectedSignalId}
         />
       )}
     </div>

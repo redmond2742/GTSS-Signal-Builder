@@ -18,20 +18,21 @@ import { X, MapPin, Target, Trash2 } from "lucide-react";
 interface DetectorModalProps {
   detector: Detector | null;
   onClose: () => void;
+  preSelectedSignalId?: string;
 }
 
-export default function DetectorModal({ detector, onClose }: DetectorModalProps) {
+export default function DetectorModal({ detector, onClose, preSelectedSignalId }: DetectorModalProps) {
   const { signals, phases } = useGTSSStore();
   const { toast } = useToast();
   const detectorHooks = useDetectors();
   const [selectedZone, setSelectedZone] = useState<'stopbar' | 'advance' | 'count' | null>(null);
-  const [selectedSignalId, setSelectedSignalId] = useState<string>(detector?.signalId || "");
+  const [selectedSignalId, setSelectedSignalId] = useState<string>(detector?.signalId || preSelectedSignalId || "");
   const [lockedValues, setLockedValues] = useState({ length: false, stopbarSetback: false });
 
   const form = useForm<InsertDetector>({
     resolver: zodResolver(insertDetectorSchema),
     defaultValues: {
-      signalId: "",
+      signalId: preSelectedSignalId || "",
       detectorChannel: "",
       phase: 2,
       description: "",
@@ -65,6 +66,12 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
   // Update available phases when signal ID changes
   const availablePhases = phases.filter(phase => phase.signalId === selectedSignalId);
   const isSignalSelected = selectedSignalId && selectedSignalId !== "";
+
+  // Handle signal ID change - update map location
+  const handleSignalChange = (signalId: string) => {
+    setSelectedSignalId(signalId);
+    form.setValue('signalId', signalId);
+  };
 
   const handleZoneClick = (zone: 'stopbar' | 'advance' | 'count', event: React.MouseEvent) => {
     event.preventDefault();
@@ -149,7 +156,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                     <Select 
                       onValueChange={(value) => {
                         field.onChange(value);
-                        setSelectedSignalId(value);
+                        handleSignalChange(value);
                       }} 
                       defaultValue={field.value}
                     >
@@ -504,6 +511,7 @@ export default function DetectorModal({ detector, onClose }: DetectorModalProps)
                     const selectedSignal = signals.find(s => s.signalId === selectedSignalId);
                     return selectedSignal ? (
                       <MapContainer
+                        key={selectedSignalId} // Force remount when signal changes
                         center={[selectedSignal.cntLat, selectedSignal.cntLon]}
                         zoom={18}
                         style={{ height: "100%", width: "100%" }}
