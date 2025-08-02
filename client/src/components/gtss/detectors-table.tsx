@@ -145,7 +145,6 @@ export default function DetectorsTable() {
         <CardHeader className="bg-grey-50 border-b border-grey-200">
           <div className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-lg font-semibold text-grey-800">Detection Systems</CardTitle>
             </div>
             <Button onClick={handleAdd} className="bg-primary-600 hover:bg-primary-700">
               <Plus className="w-4 h-4 mr-2" />
