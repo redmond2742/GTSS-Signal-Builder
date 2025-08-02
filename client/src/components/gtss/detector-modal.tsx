@@ -33,15 +33,15 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
     resolver: zodResolver(insertDetectorSchema),
     defaultValues: {
       signalId: preSelectedSignalId || "",
-      detectorChannel: "",
+      channel: "",
       phase: 2,
       description: "",
       purpose: "Advance",
       vehicleType: "Vehicle",
       lane: "",
-      detTechnologyType: "Inductance Loop",
+      technologyType: "Inductance Loop",
       length: undefined,
-      stopbarSetback: undefined,
+      stopbarSetbackDist: undefined,
     },
   });
 
@@ -49,15 +49,15 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
     if (detector) {
       form.reset({
         signalId: detector.signalId,
-        detectorChannel: detector.detectorChannel,
+        channel: detector.channel,
         phase: detector.phase,
         description: detector.description ?? "",
         purpose: detector.purpose,
         vehicleType: detector.vehicleType ?? "",
         lane: detector.lane ?? "",
-        detTechnologyType: detector.detTechnologyType,
+        technologyType: detector.technologyType,
         length: detector.length ?? undefined,
-        stopbarSetback: detector.stopbarSetback ?? undefined,
+        stopbarSetbackDist: detector.stopbarSetbackDist ?? undefined,
       });
       setSelectedSignalId(detector.signalId);
     }
@@ -269,7 +269,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
-                name="detectorChannel"
+                name="channel"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Detector Channel *</FormLabel>
@@ -352,7 +352,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
 
               <FormField
                 control={form.control}
-                name="detTechnologyType"
+                name="technologyType"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Technology Type *</FormLabel>
@@ -453,7 +453,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
 
               <FormField
                 control={form.control}
-                name="stopbarSetback"
+                name="stopbarSetbackDist"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Stopbar Setback (feet)</FormLabel>
@@ -469,7 +469,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                           const value = e.target.value;
                           field.onChange(value ? parseFloat(value) : undefined);
                           // Lock the value when manually changed
-                          setLockedValues(prev => ({ ...prev, stopbarSetback: true }));
+                          setLockedValues(prev => ({ ...prev, stopbarSetbackDist: true }));
                         }}
                         value={field.value || ""}
                       />

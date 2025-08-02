@@ -32,12 +32,10 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
       phase: 2,
       signalId: preSelectedSignalId || "",
       movementType: "Through",
-      isPedestrian: false,
       isOverlap: false,
-
+      numOfLanes: 1,
       compassBearing: undefined,
-      postedSpeedLimit: undefined,
-      numberOfLanes: 1,
+      postedSpeed: undefined,
     },
   });
 
@@ -47,12 +45,10 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
         phase: phase.phase,
         signalId: phase.signalId,
         movementType: phase.movementType,
-        isPedestrian: phase.isPedestrian,
         isOverlap: phase.isOverlap,
-
+        numOfLanes: phase.numOfLanes || 1,
         compassBearing: phase.compassBearing || undefined,
-        postedSpeedLimit: phase.postedSpeedLimit || undefined,
-        numberOfLanes: phase.numberOfLanes || 1,
+        postedSpeed: phase.postedSpeed || undefined,
       });
     }
   }, [phase, form]);
@@ -205,7 +201,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
 
               <FormField
                 control={form.control}
-                name="postedSpeedLimit"
+                name="postedSpeed"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Posted Speed Limit (mph)</FormLabel>
@@ -229,7 +225,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
 
               <FormField
                 control={form.control}
-                name="numberOfLanes"
+                name="numOfLanes"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Number of Lanes *</FormLabel>
@@ -290,12 +286,12 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                     const reversedBearing = (bearing + 180) % 360;
                     const distance = 0.002; // degrees
                     const bearingRad = (reversedBearing * Math.PI) / 180;
-                    const endLat = selectedSignal.cntLat + distance * Math.cos(bearingRad);
-                    const endLon = selectedSignal.cntLon + distance * Math.sin(bearingRad);
+                    const endLat = selectedSignal.latitude + distance * Math.cos(bearingRad);
+                    const endLon = selectedSignal.longitude + distance * Math.sin(bearingRad);
                     
                     return (
                       <MapContainer
-                        center={[selectedSignal.cntLat, selectedSignal.cntLon]}
+                        center={[selectedSignal.latitude, selectedSignal.longitude]}
                         zoom={18}
                         style={{ height: "100%", width: "100%" }}
                       >
@@ -303,7 +299,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                         />
-                        <Marker position={[selectedSignal.cntLat, selectedSignal.cntLon]}>
+                        <Marker position={[selectedSignal.latitude, selectedSignal.longitude]}>
                           <Popup>
                             <div className="text-center">
                               <div className="font-medium">{selectedSignal.signalId}</div>

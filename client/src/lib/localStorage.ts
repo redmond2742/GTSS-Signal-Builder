@@ -43,10 +43,7 @@ export const agencyStorage = {
       agencyUrl: agency.agencyUrl ?? null,
       agencyTimezone: agency.agencyTimezone,
       agencyLanguage: agency.agencyLanguage ?? null,
-      contactPerson: agency.contactPerson ?? null,
-      contactEmail: agency.contactEmail ?? null,
-      agencyLat: agency.agencyLat ?? null,
-      agencyLon: agency.agencyLon ?? null,
+      agencyEmail: agency.agencyEmail ?? null,
     };
     saveToStorage(STORAGE_KEYS.AGENCY, newAgency);
     return newAgency;
@@ -76,14 +73,9 @@ export const signalStorage = {
       signalId: signal.signalId || `SIG_${String(signals.length + 1).padStart(3, '0')}`,
       streetName1: signal.streetName1,
       streetName2: signal.streetName2,
-      cntLat: signal.cntLat,
-      cntLon: signal.cntLon,
-      controlType: signal.controlType,
-      cabinetType: signal.cabinetType ?? null,
-      cabinetLat: signal.cabinetLat ?? null,
-      cabinetLon: signal.cabinetLon ?? null,
-      hasBatteryBackup: signal.hasBatteryBackup ?? null,
-      hasCctv: signal.hasCctv ?? null,
+      latitude: signal.latitude,
+      longitude: signal.longitude,
+
     };
     
     const updatedSignals = [...signals, newSignal];
@@ -136,13 +128,10 @@ export const phaseStorage = {
       signalId: phase.signalId,
       phase: phase.phase,
       movementType: phase.movementType,
-      isPedestrian: phase.isPedestrian ?? null,
-      isOverlap: phase.isOverlap ?? null,
-      channelOutput: phase.channelOutput ?? null,
+      numOfLanes: phase.numOfLanes ?? 1,
       compassBearing: phase.compassBearing ?? null,
-      postedSpeedLimit: phase.postedSpeedLimit ?? null,
-      vehicleDetectionIds: phase.vehicleDetectionIds ?? null,
-      pedAudibleEnabled: phase.pedAudibleEnabled ?? null,
+      postedSpeed: phase.postedSpeed ?? null,
+      isOverlap: phase.isOverlap ?? false,
     };
     
     const updatedPhases = [...phases, newPhase];
@@ -196,14 +185,14 @@ export const detectorStorage = {
       id: nanoid(),
       signalId: detector.signalId,
       phase: detector.phase,
-      detectorChannel: detector.detectorChannel,
+      channel: detector.channel,
       description: detector.description ?? null,
       purpose: detector.purpose,
       vehicleType: detector.vehicleType ?? null,
       lane: detector.lane ?? null,
-      detTechnologyType: detector.detTechnologyType,
+      technologyType: detector.technologyType,
       length: detector.length ?? null,
-      stopbarSetback: detector.stopbarSetback ?? null,
+      stopbarSetbackDist: detector.stopbarSetbackDist ?? null,
     };
     
     const updatedDetectors = [...detectors, newDetector];
@@ -260,45 +249,45 @@ export const clearAllData = () => {
 
 // CSV export functions
 function generateAgencyCSV(agency: Agency | null): string {
-  if (!agency) return 'agency_id,agency_name,agency_url,agency_timezone,agency_lang,contact_person,contact_email\n';
+  if (!agency) return 'agency_id,agency_name,agency_url,agency_timezone,agency_language,agency_email\n';
   
   return [
-    'agency_id,agency_name,agency_url,agency_timezone,agency_lang,contact_person,contact_email',
-    `"${agency.agencyId}","${agency.agencyName}","${agency.agencyUrl || ''}","${agency.agencyTimezone}","${agency.agencyLanguage || ''}","${agency.contactPerson || ''}","${agency.contactEmail || ''}"`
+    'agency_id,agency_name,agency_url,agency_timezone,agency_language,agency_email',
+    `"${agency.agencyId}","${agency.agencyName}","${agency.agencyUrl || ''}","${agency.agencyTimezone}","${agency.agencyLanguage || ''}","${agency.agencyEmail || ''}"`
   ].join('\n');
 }
 
 function generateSignalsCSV(signals: Signal[]): string {
-  const headers = 'signal_id,cnt_lat,cnt_lon,street_name_1,street_name_2,control_type,cabinet_type';
+  const headers = 'signal_id,agency_id,street_name_1,street_name_2,latitude,longitude';
   
   if (signals.length === 0) return headers + '\n';
   
   const rows = signals.map(signal => 
-    `"${signal.signalId}","${signal.cntLat}","${signal.cntLon}","${signal.streetName1}","${signal.streetName2}","${signal.controlType}","${signal.cabinetType || ''}"`
+    `"${signal.signalId}","${signal.agencyId}","${signal.streetName1}","${signal.streetName2}","${signal.latitude}","${signal.longitude}"`
   );
   
   return [headers, ...rows].join('\n');
 }
 
 function generatePhasesCSV(phases: Phase[]): string {
-  const headers = 'signal_id,phase,movement_type,is_pedestrian,is_overlap,channel_output,compass_bearing,posted_speed_limit,vehicle_detection_ids,ped_audible_enabled';
+  const headers = 'phase,signal_id,movement_type,num_of_lanes,compass_bearing,posted_speed,is_overlap';
   
   if (phases.length === 0) return headers + '\n';
   
   const rows = phases.map(phase => 
-    `"${phase.signalId}","${phase.phase}","${phase.movementType}","${phase.isPedestrian || false}","${phase.isOverlap || false}","${phase.channelOutput || ''}","${phase.compassBearing || ''}","${phase.postedSpeedLimit || ''}","${phase.vehicleDetectionIds || ''}","${phase.pedAudibleEnabled || false}"`
+    `"${phase.phase}","${phase.signalId}","${phase.movementType}","${phase.numOfLanes || 1}","${phase.compassBearing || ''}","${phase.postedSpeed || ''}","${phase.isOverlap || false}"`
   );
   
   return [headers, ...rows].join('\n');
 }
 
 function generateDetectionCSV(detectors: Detector[]): string {
-  const headers = 'signal_id,detector_channel,phase,description,purpose,vehicle_type,lane,det_technology_type,length,stopbar_setback';
+  const headers = 'channel,signal_id,phase,description,purpose,vehicle_type,lane,technology_type,length,stopbar_setback_dist';
   
   if (detectors.length === 0) return headers + '\n';
   
   const rows = detectors.map(detector => 
-    `"${detector.signalId}","${detector.detectorChannel}","${detector.phase}","${detector.description || ''}","${detector.purpose}","${detector.vehicleType || ''}","${detector.lane || ''}","${detector.detTechnologyType}","${detector.length || ''}","${detector.stopbarSetback || ''}"`
+    `"${detector.channel}","${detector.signalId}","${detector.phase}","${detector.description || ''}","${detector.purpose}","${detector.vehicleType || ''}","${detector.lane || ''}","${detector.technologyType}","${detector.length || ''}","${detector.stopbarSetbackDist || ''}"`
   );
   
   return [headers, ...rows].join('\n');
@@ -316,10 +305,10 @@ export const exportAsZip = async (): Promise<void> => {
     
     // Generate CSV content
     const csvFiles = {
-      'agency.txt': generateAgencyCSV(data.agency),
-      'signals.txt': generateSignalsCSV(data.signals),
-      'phases.txt': generatePhasesCSV(data.phases),
-      'detection.txt': generateDetectionCSV(data.detectors),
+      'agency.csv': generateAgencyCSV(data.agency),
+      'signals.csv': generateSignalsCSV(data.signals),
+      'phases.csv': generatePhasesCSV(data.phases),
+      'detection.csv': generateDetectionCSV(data.detectors),
     };
 
     // Create a simple ZIP-like structure using a blob

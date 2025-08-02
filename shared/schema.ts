@@ -10,25 +10,17 @@ export const agencies = pgTable("agencies", {
   agencyUrl: text("agency_url"),
   agencyTimezone: text("agency_timezone").notNull(),
   agencyLanguage: text("agency_language").default("en"),
-  contactPerson: text("contact_person"),
-  contactEmail: text("contact_email"),
-  agencyLat: real("agency_lat"),
-  agencyLon: real("agency_lon"),
+  agencyEmail: text("agency_email"),
 });
 
 export const signals = pgTable("signals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   signalId: text("signal_id").notNull().unique(),
   agencyId: text("agency_id").notNull(),
-  streetName1: text("street_name1").notNull(),
-  streetName2: text("street_name2").notNull(),
-  cntLat: real("cnt_lat").notNull(),
-  cntLon: real("cnt_lon").notNull(),
-  cabinetType: text("cabinet_type"),
-  cabinetLat: real("cabinet_lat"),
-  cabinetLon: real("cabinet_lon"),
-  hasBatteryBackup: boolean("has_battery_backup").default(false),
-  hasCctv: boolean("has_cctv").default(false),
+  streetName1: text("street_name_1").notNull(),
+  streetName2: text("street_name_2").notNull(),
+  latitude: real("latitude").notNull(),
+  longitude: real("longitude").notNull(),
 });
 
 export const phases = pgTable("phases", {
@@ -36,27 +28,24 @@ export const phases = pgTable("phases", {
   phase: integer("phase").notNull(),
   signalId: text("signal_id").notNull(),
   movementType: text("movement_type").notNull(),
-  isPedestrian: boolean("is_pedestrian").default(false),
-  isOverlap: boolean("is_overlap").default(false),
-  channelOutput: text("channel_output"),
+  numOfLanes: integer("num_of_lanes").default(1),
   compassBearing: integer("compass_bearing"),
-  postedSpeedLimit: integer("posted_speed_limit"),
-  numberOfLanes: integer("number_of_lanes").default(1),
-  pedAudibleEnabled: boolean("ped_audible_enabled").default(false),
+  postedSpeed: integer("posted_speed"),
+  isOverlap: boolean("is_overlap").default(false),
 });
 
 export const detectors = pgTable("detectors", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  channel: text("channel").notNull(),
   signalId: text("signal_id").notNull(),
-  detectorChannel: text("detector_channel").notNull(),
   phase: integer("phase").notNull(),
   description: text("description"),
   purpose: text("purpose").notNull(),
   vehicleType: text("vehicle_type"),
   lane: text("lane"),
-  detTechnologyType: text("det_technology_type").notNull(),
+  technologyType: text("technology_type").notNull(),
   length: real("length"),
-  stopbarSetback: real("stopbar_setback"),
+  stopbarSetbackDist: real("stopbar_setback_dist"),
 });
 
 export const insertAgencySchema = createInsertSchema(agencies).omit({

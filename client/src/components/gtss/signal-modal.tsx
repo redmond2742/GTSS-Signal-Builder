@@ -32,11 +32,8 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
       agencyId: agency?.agencyId || "",
       streetName1: "",
       streetName2: "",
-      cntLat: 39.8283,
-      cntLon: -98.5795,
-      cabinetType: "",
-      hasBatteryBackup: false,
-      hasCctv: false,
+      latitude: 39.8283,
+      longitude: -98.5795,
     },
   });
 
@@ -47,13 +44,8 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
         agencyId: signal.agencyId,
         streetName1: signal.streetName1,
         streetName2: signal.streetName2,
-        cntLat: signal.cntLat,
-        cntLon: signal.cntLon,
-        cabinetType: signal.cabinetType || "",
-        cabinetLat: signal.cabinetLat || undefined,
-        cabinetLon: signal.cabinetLon || undefined,
-        hasBatteryBackup: signal.hasBatteryBackup || false,
-        hasCctv: signal.hasCctv || false,
+        latitude: signal.latitude,
+        longitude: signal.longitude,
       });
     } else {
       form.reset({
@@ -61,11 +53,8 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
         agencyId: agency?.agencyId || "",
         streetName1: "",
         streetName2: "",
-        cntLat: agency?.agencyLat || 39.8283,
-        cntLon: agency?.agencyLon || -98.5795,
-        cabinetType: "",
-        hasBatteryBackup: false,
-        hasCctv: false,
+        latitude: 39.8283,
+        longitude: -98.5795,
       });
     }
   }, [signal, form, agency]);
@@ -102,9 +91,7 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
 
   // Calculate map center based on agency coordinates or fallback
   const getMapCenter = (): [number, number] => {
-    if (agency?.agencyLat && agency?.agencyLon) {
-      return [agency.agencyLat, agency.agencyLon];
-    }
+    // Using default center since agency coordinates removed from schema
     return [39.8283, -98.5795]; // Default center of US
   };
 
@@ -199,10 +186,10 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                   </div>
                   <MapPicker
                     center={getMapCenter()}
-                    selectedPosition={form.watch("cntLat") && form.watch("cntLon") ? [form.watch("cntLat"), form.watch("cntLon")] : undefined}
+                    selectedPosition={form.watch("latitude") && form.watch("longitude") ? [form.watch("latitude"), form.watch("longitude")] : undefined}
                     onLocationSelect={async (lat, lng) => {
-                      form.setValue("cntLat", lat);
-                      form.setValue("cntLon", lng);
+                      form.setValue("latitude", lat);
+                      form.setValue("longitude", lng);
                       
                       // Try to auto-populate street names using reverse geocoding
                       try {
@@ -227,7 +214,7 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                     className="w-full"
                   />
                   <div className="text-xs text-grey-500 flex items-center gap-4">
-                    <span>Selected: {form.watch("cntLat").toFixed(6)}, {form.watch("cntLon").toFixed(6)}</span>
+                    <span>Selected: {form.watch("latitude").toFixed(6)}, {form.watch("longitude").toFixed(6)}</span>
                   </div>
                 </TabsContent>
 
@@ -235,7 +222,7 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
-                      name="cntLat"
+                      name="latitude"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Center Latitude *</FormLabel>
@@ -255,7 +242,7 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
 
                     <FormField
                       control={form.control}
-                      name="cntLon"
+                      name="longitude"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Center Longitude *</FormLabel>

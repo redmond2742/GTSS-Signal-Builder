@@ -51,9 +51,7 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
 
   const getMapCenter = (): [number, number] => {
     // First priority: use agency coordinates if available
-    if (agency?.agencyLat && agency?.agencyLon) {
-      return [agency.agencyLat, agency.agencyLon];
-    }
+    // Default fallback since agency coordinates are no longer in schema
     
     if (!agency) return [39.8283, -98.5795]; // Center of US
     
@@ -147,12 +145,9 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
         agencyId: agency?.agencyId || "",
         streetName1: signal.streetName1 || `Street ${index + 1}`,
         streetName2: signal.streetName2 || `Cross Street ${index + 1}`,
-        cntLat: signal.lat,
-        cntLon: signal.lon,
-        controlType: "Actuated",
-        cabinetType: "",
-        hasBatteryBackup: false,
-        hasCctv: false,
+        latitude: signal.lat,
+        longitude: signal.lon,
+
       }));
 
       // Create all signals using localStorage

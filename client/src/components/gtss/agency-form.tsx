@@ -64,8 +64,7 @@ export default function AgencyForm() {
       agencyUrl: "",
       agencyTimezone: "America/Los_Angeles",
       agencyLanguage: "en",
-      contactPerson: "",
-      contactEmail: "",
+      agencyEmail: "",
     },
   });
 
@@ -77,8 +76,7 @@ export default function AgencyForm() {
         agencyUrl: agency.agencyUrl ?? "",
         agencyTimezone: agency.agencyTimezone,
         agencyLanguage: agency.agencyLanguage ?? "en",
-        contactPerson: agency.contactPerson ?? "",
-        contactEmail: agency.contactEmail ?? "",
+        agencyEmail: agency.agencyEmail ?? "",
       });
     }
   }, [agency, form]);
@@ -144,8 +142,7 @@ export default function AgencyForm() {
             ...agency,
             agencyId,
             agencyName,
-            agencyLat: locationInfo.lat,
-            agencyLon: locationInfo.lon
+
           });
         }
       }
@@ -392,33 +389,19 @@ export default function AgencyForm() {
 
               <FormField
                 control={form.control}
-                name="contactPerson"
+                name="agencyEmail"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Contact Person</FormLabel>
+                    <FormLabel>Agency Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="Contact person name" {...field} value={field.value || ""} />
+                      <Input type="email" placeholder="agency@domain.com" {...field} value={field.value || ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <div className="md:col-span-2">
-                <FormField
-                  control={form.control}
-                  name="contactEmail"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Contact Email</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="contact@agency.com" {...field} value={field.value || ""} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+
 
               </div>
 

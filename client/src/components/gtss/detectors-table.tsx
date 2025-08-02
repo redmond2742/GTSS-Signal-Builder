@@ -185,9 +185,9 @@ export default function DetectorsTable() {
               <TableHeader>
                 <TableRow className="bg-grey-50 border-b border-grey-200">
                   <SortableHeader field="signalId">Signal ID</SortableHeader>
-                  <SortableHeader field="detectorChannel">Channel</SortableHeader>
+                  <SortableHeader field="channel">Channel</SortableHeader>
                   <SortableHeader field="phase">Phase</SortableHeader>
-                  <SortableHeader field="detTechnologyType">Technology</SortableHeader>
+                  <SortableHeader field="technologyType">Technology</SortableHeader>
                   <SortableHeader field="purpose">Purpose</SortableHeader>
                 </TableRow>
               </TableHeader>
@@ -212,11 +212,11 @@ export default function DetectorsTable() {
                       onClick={() => handleRowClick(detector)}
                     >
                       <TableCell className="font-medium text-grey-900">{detector.signalId}</TableCell>
-                      <TableCell className="text-grey-600">{detector.detectorChannel}</TableCell>
+                      <TableCell className="text-grey-600">{detector.channel}</TableCell>
                       <TableCell className="text-grey-600">{detector.phase}</TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-                          {detector.detTechnologyType}
+                          {detector.technologyType}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-grey-600">{detector.purpose}</TableCell>

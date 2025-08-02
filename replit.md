@@ -10,6 +10,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (February 1, 2025)
 
+✓ **MAJOR SCHEMA MIGRATION COMPLETED**: Updated all data models to match exact CSV export requirements
+✓ Agency schema simplified: removed contactPerson/contactEmail fields, added agencyEmail field only
+✓ Signal schema updated: cntLat/cntLon → latitude/longitude, removed cabinet and equipment fields
+✓ Phase schema updated: isPedestrian removed, numberOfLanes → numOfLanes, postedSpeedLimit → postedSpeed
+✓ Detector schema updated: detectorChannel → channel, detTechnologyType → technologyType, stopbarSetback → stopbarSetbackDist
+✓ Fixed all CSV export headers to match exact specification (agency.csv, signals.csv, phases.csv, detection.csv)
+✓ Updated all component forms, tables, and modals to use new field names throughout application
+✓ All localStorage operations adapted to work with new schema structure
+✓ Resolved all TypeScript compilation errors and LSP diagnostics
+✓ Application maintains full functionality with simplified, standardized data model
+
+## Previous Major Changes
 ✓ **MAJOR ARCHITECTURE CHANGE**: Complete conversion from server-based APIs to localStorage
 ✓ Built comprehensive localStorage service with full CRUD operations for all data types
 ✓ Created custom localStorage hooks to replace React Query patterns throughout application
