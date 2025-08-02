@@ -157,7 +157,7 @@ export default function DetectorsTable() {
           <div className="mt-4 flex items-center space-x-4">
             <div className="flex-1 max-w-md">
               <label className="block text-sm font-medium text-grey-700 mb-2">
-                Select Signal to View Detectors
+                Select Signal
               </label>
               <Select value={selectedSignalId} onValueChange={setSelectedSignalId}>
                 <SelectTrigger>

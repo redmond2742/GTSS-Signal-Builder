@@ -138,7 +138,7 @@ export default function SignalsTable() {
           <div className="flex space-x-2">
             <Button onClick={() => setShowBulkModal(true)} variant="outline" className="border-primary-200 text-primary-700 hover:bg-primary-50">
               <Navigation className="w-4 h-4 mr-2" />
-              Add Multiple Signals
+              Add Multiple
             </Button>
             <Button onClick={handleAdd} className="bg-primary-600 hover:bg-primary-700">
               <Plus className="w-4 h-4 mr-2" />

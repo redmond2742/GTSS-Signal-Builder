@@ -88,10 +88,6 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
   const handleDelete = () => {
     if (phase && confirm("Are you sure you want to delete this phase?")) {
       phaseHooks.delete(phase.id);
-      toast({
-        title: "Success",
-        description: "Phase deleted successfully",
-      });
       onClose();
     }
   };
@@ -276,19 +272,19 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
               </div>
             </div>
 
-            {/* Map section with bearing visualization */}
-            {form.watch("signalId") && form.watch("compassBearing") && (
+            {/* Map section with signal location and optional bearing visualization */}
+            {form.watch("signalId") && (
               <div className="bg-gray-50 p-4 rounded-lg border">
                 <h3 className="text-lg font-medium mb-3 flex items-center">
                   <MapPin className="w-5 h-5 mr-2 text-blue-600" />
-                  Phase Direction Visualization
+                  Signal Location {form.watch("compassBearing") ? "& Phase Direction" : ""}
                 </h3>
                 <div className="h-64 rounded-lg overflow-hidden border">
                   {(() => {
                     const selectedSignal = signals.find(s => s.signalId === form.watch("signalId"));
                     const bearing = form.watch("compassBearing");
                     
-                    if (!selectedSignal || !bearing) return null;
+                    if (!selectedSignal) return null;
                     
                     // Calculate end point for bearing line (reversed for traffic flow direction)
                     const reversedBearing = (bearing + 180) % 360;
@@ -317,15 +313,17 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                             </div>
                           </Popup>
                         </Marker>
-                        <Polyline
-                          positions={[
-                            [selectedSignal.cntLat, selectedSignal.cntLon],
-                            [endLat, endLon]
-                          ]}
-                          color="#10b981"
-                          weight={3}
-                          opacity={0.8}
-                        />
+                        {bearing && (
+                          <Polyline
+                            positions={[
+                              [selectedSignal.cntLat, selectedSignal.cntLon],
+                              [endLat, endLon]
+                            ]}
+                            color="#10b981"
+                            weight={3}
+                            opacity={0.8}
+                          />
+                        )}
                       </MapContainer>
                     );
                   })()}
