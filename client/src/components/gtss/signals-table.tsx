@@ -133,7 +133,7 @@ export default function SignalsTable() {
       <Card>
         <CardHeader className="bg-grey-50 border-b border-grey-200 flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-lg font-semibold text-grey-800">Signal Locations</CardTitle>
+            <CardTitle className="text-lg font-semibold text-grey-800">Traffic Signals ({signals.length})</CardTitle>
             <p className="text-sm text-grey-600">Manage traffic signal installation locations</p>
           </div>
           <div className="flex space-x-2">
@@ -193,14 +193,6 @@ export default function SignalsTable() {
                           <TableCell className="text-grey-600">{signal.streetName2}</TableCell>
                           <TableCell className="text-grey-600">{signal.cntLat.toFixed(4)}, {signal.cntLon.toFixed(4)}</TableCell>
                           <TableCell className="space-x-2" onClick={(e) => e.stopPropagation()}>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(signal)}
-                              className="text-primary-600 hover:text-primary-700"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"

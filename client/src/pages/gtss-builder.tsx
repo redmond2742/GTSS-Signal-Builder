@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLoadFromStorage } from "@/lib/localStorageHooks";
-import { TrafficCone, Building, MapPin, Shuffle, Target, FolderOutput, Save, FolderOpen } from "lucide-react";
+import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Save, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import AgencyForm from "@/components/gtss/agency-form";
@@ -14,23 +14,23 @@ import { cn } from "@/lib/utils";
 type TabType = "agency" | "signals" | "phases" | "detectors" | "export";
 
 const tabs = [
-  { id: "agency", label: "Agency Info", icon: Building },
-  { id: "signals", label: "Signal Locations", icon: MapPin },
-  { id: "phases", label: "Phases", icon: Shuffle },
+  { id: "signals", label: "Traffic Signals", icon: MapPin },
+  { id: "phases", label: "Phases", icon: ArrowUpDown },
   { id: "detectors", label: "Detectors", icon: Target },
+  { id: "agency", label: "Agency Info", icon: Building },
   { id: "export", label: "Preview & Export", icon: FolderOutput },
 ];
 
 const tabTitles = {
   agency: { title: "Agency Information", desc: "Configure your traffic management agency details" },
-  signals: { title: "Signal Locations", desc: "Manage traffic signal installation locations" },
+  signals: { title: "Traffic Signals", desc: "Manage traffic signal installation locations" },
   phases: { title: "Signal Phases", desc: "Configure movement phases for each signal" },
   detectors: { title: "Detection Systems", desc: "Configure vehicle and pedestrian detection equipment" },
   export: { title: "Preview & Export", desc: "Review configuration and export GTSS package" },
 };
 
 export default function GTSSBuilder() {
-  const [activeTab, setActiveTab] = useState<TabType>("agency");
+  const [activeTab, setActiveTab] = useState<TabType>("signals");
   const { signals, phases, detectors } = useGTSSStore();
   
   // Load data from localStorage on mount
@@ -100,9 +100,9 @@ export default function GTSSBuilder() {
                     )}
                   >
                     <Icon className="w-5 h-5" />
-                    <span>{tab.label}</span>
+                    <span className="flex-1">{tab.label}</span>
                     {count > 0 && (
-                      <Badge variant="secondary" className="ml-auto bg-grey-200 text-grey-700 text-xs">
+                      <Badge variant="secondary" className="bg-grey-200 text-grey-700 text-xs">
                         {count}
                       </Badge>
                     )}

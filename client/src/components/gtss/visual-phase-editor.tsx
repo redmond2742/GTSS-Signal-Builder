@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
 import { useMapEvents } from "react-leaflet/hooks";
 import { Signal, InsertPhase, Phase } from "@shared/schema";
 import { useGTSSStore } from "@/store/gtss-store";
@@ -261,6 +261,43 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
               </div>
             </Popup>
           </Marker>
+
+          {/* Draw bearing lines for pending phases */}
+          {pendingPhases.map((phase) => {
+            const endPoint = getBearingEndpoint(signal, phase.bearing, 0.002);
+            return (
+              <Polyline
+                key={`line-${phase.id}`}
+                positions={[
+                  [signal.cntLat, signal.cntLon],
+                  endPoint
+                ]}
+                color="#3b82f6"
+                weight={3}
+                opacity={0.8}
+              />
+            );
+          })}
+
+          {/* Draw bearing lines for existing phases */}
+          {existingPhases.map((phase) => {
+            if (phase.compassBearing) {
+              const endPoint = getBearingEndpoint(signal, phase.compassBearing, 0.002);
+              return (
+                <Polyline
+                  key={`existing-line-${phase.id}`}
+                  positions={[
+                    [signal.cntLat, signal.cntLon],
+                    endPoint
+                  ]}
+                  color="#10b981"
+                  weight={2}
+                  opacity={0.6}
+                />
+              );
+            }
+            return null;
+          })}
 
           {/* Phase bearing markers */}
           {pendingPhases.map((phase) => {
