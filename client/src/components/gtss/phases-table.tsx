@@ -193,7 +193,6 @@ export default function PhasesTable() {
                   <SortableHeader field="phase">Phase</SortableHeader>
                   <SortableHeader field="signalId">Signal ID</SortableHeader>
                   <SortableHeader field="movementType">Movement</SortableHeader>
-                  <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Type</TableHead>
                   <SortableHeader field="bearing">Bearing</SortableHeader>
 
                 </TableRow>
@@ -201,7 +200,7 @@ export default function PhasesTable() {
               <TableBody>
                 {filteredPhases.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-grey-500">
+                    <TableCell colSpan={4} className="text-center py-8 text-grey-500">
                       {filterSignal === "all" 
                         ? "No phases configured. Add your first phase to get started."
                         : "No phases found for the selected signal."
@@ -217,9 +216,9 @@ export default function PhasesTable() {
                     >
                       <TableCell className="font-medium text-grey-900">{phase.phase}</TableCell>
                       <TableCell className="text-grey-600">{phase.signalId}</TableCell>
-                      <TableCell className="text-grey-600">{phase.movementType}</TableCell>
-                      <TableCell>
-                        <div className="flex space-x-1">
+                      <TableCell className="text-grey-600">
+                        <div className="flex items-center space-x-2">
+                          <span>{phase.movementType}</span>
                           {phase.isOverlap && (
                             <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-xs">
                               Overlap

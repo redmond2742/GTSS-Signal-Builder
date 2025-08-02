@@ -253,7 +253,15 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
         </div>
 
         <MapContainer
-          center={[selectedSignal.latitude || 0, selectedSignal.longitude || 0]}
+          center={(() => {
+            // First try to use agency coordinates if available
+            const { agency } = useGTSSStore.getState();
+            if (agency?.agencyLat && agency?.agencyLon) {
+              return [agency.agencyLat, agency.agencyLon];
+            }
+            // Fallback to selected signal coordinates
+            return [selectedSignal.latitude || 0, selectedSignal.longitude || 0];
+          })()}
           zoom={18}
           style={{ height: "100%", width: "100%" }}
           className="rounded-lg border"
