@@ -264,7 +264,9 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
 
           {/* Draw bearing lines for pending phases */}
           {pendingPhases.map((phase) => {
-            const endPoint = getBearingEndpoint(signal, phase.bearing, 0.002);
+            // Reverse the bearing by 180 degrees for line display to match traffic flow direction
+            const reversedBearing = (phase.bearing + 180) % 360;
+            const endPoint = getBearingEndpoint(signal, reversedBearing, 0.002);
             return (
               <Polyline
                 key={`line-${phase.id}`}
@@ -282,7 +284,9 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
           {/* Draw bearing lines for existing phases */}
           {existingPhases.map((phase) => {
             if (phase.compassBearing) {
-              const endPoint = getBearingEndpoint(signal, phase.compassBearing, 0.002);
+              // Reverse the bearing by 180 degrees for line display to match traffic flow direction
+              const reversedBearing = (phase.compassBearing + 180) % 360;
+              const endPoint = getBearingEndpoint(signal, reversedBearing, 0.002);
               return (
                 <Polyline
                   key={`existing-line-${phase.id}`}
