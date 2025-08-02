@@ -219,7 +219,6 @@ export default function AgencyForm() {
       <Card>
         <CardHeader className="bg-grey-50 border-b border-grey-200">
           <CardTitle className="text-lg font-semibold text-grey-800">Agency Configuration</CardTitle>
-          <p className="text-sm text-grey-600">Basic information about your traffic management agency</p>
         </CardHeader>
         <CardContent className="p-6">
           <Form {...form}>

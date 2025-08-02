@@ -8,13 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus } from "lucide-react";
+import { Plus, ChevronUp, ChevronDown } from "lucide-react";
+
+type SortField = 'signalId' | 'detectorChannel' | 'phase' | 'detTechnologyType' | 'purpose';
+type SortDirection = 'asc' | 'desc';
 import DetectorModal from "./detector-modal";
 
 export default function DetectorsTable() {
   const [editingDetector, setEditingDetector] = useState<Detector | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [selectedSignalId, setSelectedSignalId] = useState<string>("");
+  const [sortField, setSortField] = useState<SortField>('signalId');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const { detectors, signals } = useGTSSStore();
   
   // Auto-select first signal on mount
@@ -56,6 +61,82 @@ export default function DetectorsTable() {
     setEditingDetector(null);
   };
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const handleRowClick = (detector: Detector) => {
+    setEditingDetector(detector);
+    setShowModal(true);
+  };
+
+  const getSortedDetectors = () => {
+    return [...filteredDetectors].sort((a, b) => {
+      let aValue: string | number;
+      let bValue: string | number;
+
+      switch (sortField) {
+        case 'signalId':
+          aValue = a.signalId;
+          bValue = b.signalId;
+          break;
+        case 'detectorChannel':
+          aValue = a.detectorChannel;
+          bValue = b.detectorChannel;
+          break;
+        case 'phase':
+          aValue = a.phase || 0;
+          bValue = b.phase || 0;
+          break;
+        case 'detTechnologyType':
+          aValue = a.detTechnologyType;
+          bValue = b.detTechnologyType;
+          break;
+        case 'purpose':
+          aValue = a.purpose;
+          bValue = b.purpose;
+          break;
+        default:
+          aValue = a.signalId;
+          bValue = b.signalId;
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortDirection === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      } else {
+        return sortDirection === 'asc' 
+          ? (aValue as number) - (bValue as number)
+          : (bValue as number) - (aValue as number);
+      }
+    });
+  };
+
+  const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
+    <TableHead 
+      className="text-xs font-medium text-grey-500 uppercase tracking-wider cursor-pointer hover:bg-grey-100 transition-colors"
+      onClick={() => handleSort(field)}
+    >
+      <div className="flex items-center justify-between">
+        {children}
+        <div className="flex flex-col ml-1">
+          <ChevronUp 
+            className={`w-3 h-3 ${sortField === field && sortDirection === 'asc' ? 'text-primary-600' : 'text-grey-300'}`} 
+          />
+          <ChevronDown 
+            className={`w-3 h-3 -mt-1 ${sortField === field && sortDirection === 'desc' ? 'text-primary-600' : 'text-grey-300'}`} 
+          />
+        </div>
+      </div>
+    </TableHead>
+  );
+
 
 
   return (
@@ -65,7 +146,6 @@ export default function DetectorsTable() {
           <div className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-lg font-semibold text-grey-800">Detection Systems</CardTitle>
-              <p className="text-sm text-grey-600">Configure vehicle and pedestrian detection equipment</p>
             </div>
             <Button onClick={handleAdd} className="bg-primary-600 hover:bg-primary-700">
               <Plus className="w-4 h-4 mr-2" />
@@ -104,12 +184,11 @@ export default function DetectorsTable() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-grey-50 border-b border-grey-200">
-                  <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Signal ID</TableHead>
-                  <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Channel</TableHead>
-                  <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Phase</TableHead>
-                  <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Technology</TableHead>
-                  <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Purpose</TableHead>
-
+                  <SortableHeader field="signalId">Signal ID</SortableHeader>
+                  <SortableHeader field="detectorChannel">Channel</SortableHeader>
+                  <SortableHeader field="phase">Phase</SortableHeader>
+                  <SortableHeader field="detTechnologyType">Technology</SortableHeader>
+                  <SortableHeader field="purpose">Purpose</SortableHeader>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -126,11 +205,11 @@ export default function DetectorsTable() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredDetectors.map((detector) => (
+                  getSortedDetectors().map((detector) => (
                     <TableRow 
                       key={detector.id}
                       className="cursor-pointer hover:bg-gray-50 transition-colors"
-                      onClick={() => handleEdit(detector)}
+                      onClick={() => handleRowClick(detector)}
                     >
                       <TableCell className="font-medium text-grey-900">{detector.signalId}</TableCell>
                       <TableCell className="text-grey-600">{detector.detectorChannel}</TableCell>

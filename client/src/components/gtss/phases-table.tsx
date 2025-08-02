@@ -155,7 +155,6 @@ export default function PhasesTable() {
         <CardHeader className="bg-grey-50 border-b border-grey-200 flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-lg font-semibold text-grey-800">Signal Phases</CardTitle>
-            <p className="text-sm text-grey-600">Configure movement phases for each signal</p>
           </div>
           <div className="flex space-x-3">
             <Select value={filterSignal} onValueChange={setFilterSignal}>

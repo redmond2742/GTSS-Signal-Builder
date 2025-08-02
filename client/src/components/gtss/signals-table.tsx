@@ -133,8 +133,7 @@ export default function SignalsTable() {
       <Card>
         <CardHeader className="bg-grey-50 border-b border-grey-200 flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-lg font-semibold text-grey-800">Traffic Signals ({signals.length})</CardTitle>
-            <p className="text-sm text-grey-600">Manage traffic signal installation locations</p>
+            <CardTitle className="text-lg font-semibold text-grey-800">Traffic Signals</CardTitle>
           </div>
           <div className="flex space-x-2">
             <Button onClick={() => setShowBulkModal(true)} variant="outline" className="border-primary-200 text-primary-700 hover:bg-primary-50">
