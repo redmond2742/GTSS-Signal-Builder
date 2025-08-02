@@ -34,7 +34,6 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
       streetName2: "",
       cntLat: 39.8283,
       cntLon: -98.5795,
-      controlType: "Traffic Signal",
       cabinetType: "",
       hasBatteryBackup: false,
       hasCctv: false,
@@ -50,7 +49,6 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
         streetName2: signal.streetName2,
         cntLat: signal.cntLat,
         cntLon: signal.cntLon,
-        controlType: signal.controlType,
         cabinetType: signal.cabinetType || "",
         cabinetLat: signal.cabinetLat || undefined,
         cabinetLon: signal.cabinetLon || undefined,
@@ -65,7 +63,6 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
         streetName2: "",
         cntLat: agency?.agencyLat || 39.8283,
         cntLon: agency?.agencyLon || -98.5795,
-        controlType: "Traffic Signal",
         cabinetType: "",
         hasBatteryBackup: false,
         hasCctv: false,
@@ -280,141 +277,7 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
               </Tabs>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="controlType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Control Type *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select control type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Traffic Signal">Traffic Signal</SelectItem>
-                        <SelectItem value="Stop Sign">Stop Sign</SelectItem>
-                        <SelectItem value="Yield Sign">Yield Sign</SelectItem>
-                        <SelectItem value="Warning Sign">Warning Sign</SelectItem>
-                        <SelectItem value="Flashing Signal">Flashing Signal</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
-              <FormField
-                control={form.control}
-                name="numDirections"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Number of Directions *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="2"
-                        max="8"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 4)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="intersectionRadius"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Intersection Radius (meters)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="1"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 15)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="milepost"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Milepost</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="instrumentApproach"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Instrumented Approach</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., North, South" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="equipment"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Equipment Details</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Signal controller model, etc." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="space-y-4">
-              <FormField
-                control={form.control}
-                name="isIntersection"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                    <div className="space-y-0.5">
-                      <FormLabel>Is Intersection</FormLabel>
-                      <div className="text-xs text-grey-600">
-                        Check if this signal is at an intersection
-                      </div>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </div>
 
             <div className="flex justify-end space-x-3 pt-4 border-t">
               <Button type="button" variant="outline" onClick={onClose}>

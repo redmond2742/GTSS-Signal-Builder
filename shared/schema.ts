@@ -24,7 +24,6 @@ export const signals = pgTable("signals", {
   streetName2: text("street_name2").notNull(),
   cntLat: real("cnt_lat").notNull(),
   cntLon: real("cnt_lon").notNull(),
-  controlType: text("control_type").notNull(),
   cabinetType: text("cabinet_type"),
   cabinetLat: real("cabinet_lat"),
   cabinetLon: real("cabinet_lon"),
