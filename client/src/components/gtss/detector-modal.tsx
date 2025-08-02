@@ -80,15 +80,15 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
     // Auto-configure detector based on zone
     if (zone === 'stopbar') {
       form.setValue('purpose', 'Stop Bar');
-      if (!lockedValues.stopbarSetback) form.setValue('stopbarSetback', 4.0);
+      if (!lockedValues.stopbarSetback) form.setValue('stopbarSetbackDist', 4.0);
       if (!lockedValues.length) form.setValue('length', 6.0);
     } else if (zone === 'advance') {
       form.setValue('purpose', 'Advanced Loop');
-      if (!lockedValues.stopbarSetback) form.setValue('stopbarSetback', 250.0);
+      if (!lockedValues.stopbarSetback) form.setValue('stopbarSetbackDist', 250.0);
       if (!lockedValues.length) form.setValue('length', 25.0);
     } else {
       form.setValue('purpose', 'Count Detector');
-      if (!lockedValues.stopbarSetback) form.setValue('stopbarSetback', 500.0);
+      if (!lockedValues.stopbarSetback) form.setValue('stopbarSetbackDist', 500.0);
       if (!lockedValues.length) form.setValue('length', 6.0);
     }
   };
@@ -296,7 +296,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Vehicle Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!isSignalSelected}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || undefined} disabled={!isSignalSelected}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select vehicle type" />
@@ -427,7 +427,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                     return selectedSignal ? (
                       <MapContainer
                         key={selectedSignalId} // Force remount when signal changes
-                        center={[selectedSignal.cntLat, selectedSignal.cntLon]}
+                        center={[selectedSignal.latitude || 0, selectedSignal.longitude || 0]}
                         zoom={18}
                         style={{ height: "100%", width: "100%" }}
                       >
@@ -435,7 +435,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                         />
-                        <Marker position={[selectedSignal.cntLat, selectedSignal.cntLon]}>
+                        <Marker position={[selectedSignal.latitude || 0, selectedSignal.longitude || 0]}>
                           <Popup>
                             <div className="text-center">
                               <div className="font-medium">{selectedSignal.signalId}</div>
