@@ -170,13 +170,12 @@ export default function SignalsTable() {
                       <SortableHeader field="streetName1">Street 1</SortableHeader>
                       <SortableHeader field="streetName2">Street 2</SortableHeader>
                       <SortableHeader field="coordinates">Coordinates</SortableHeader>
-                      <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {signals.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-grey-500">
+                        <TableCell colSpan={4} className="text-center py-8 text-grey-500">
                           No signals configured. Add your first signal to get started.
                         </TableCell>
                       </TableRow>
@@ -195,17 +194,6 @@ export default function SignalsTable() {
                               ? `${signal.latitude.toFixed(4)}, ${signal.longitude.toFixed(4)}`
                               : 'Not set'
                             }
-                          </TableCell>
-                          <TableCell className="space-x-2" onClick={(e) => e.stopPropagation()}>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(signal.signalId)}
-                              className="text-red-600 hover:text-red-700"
-    disabled={false}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
                           </TableCell>
                         </TableRow>
                       ))

@@ -50,8 +50,11 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const getMapCenter = (): [number, number] => {
-    // First priority: use agency coordinates if available
-    // Default fallback since agency coordinates are no longer in schema
+    // Use agency coordinates if available
+    if (agency?.agencyLat && agency?.agencyLon) {
+      return [agency.agencyLat, agency.agencyLon];
+    }
+    // Default fallback
     
     if (!agency) return [39.8283, -98.5795]; // Center of US
     

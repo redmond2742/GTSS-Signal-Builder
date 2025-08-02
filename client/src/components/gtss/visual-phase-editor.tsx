@@ -53,7 +53,7 @@ function BearingDrawer({
       if (!isDrawing) {
         // Start drawing from signal location
         setIsDrawing(true);
-        setStartPoint(L.latLng(signal.cntLat, signal.cntLon));
+        setStartPoint(L.latLng(signal.latitude || 0, signal.longitude || 0));
       } else {
         // End drawing and calculate bearing
         if (startPoint) {
@@ -92,8 +92,8 @@ function calculateBearing(start: L.LatLng, end: L.LatLng): number {
 
 // Get bearing line endpoint for visualization
 function getBearingEndpoint(signal: Signal, bearing: number, distance: number = 0.001): [number, number] {
-  const lat1 = signal.cntLat * Math.PI / 180;
-  const lon1 = signal.cntLon * Math.PI / 180;
+  const lat1 = (signal.latitude || 0) * Math.PI / 180;
+  const lon1 = (signal.longitude || 0) * Math.PI / 180;
   const bearingRad = bearing * Math.PI / 180;
   
   const lat2 = Math.asin(Math.sin(lat1) * Math.cos(distance) + Math.cos(lat1) * Math.sin(distance) * Math.cos(bearingRad));
@@ -253,7 +253,7 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
         </div>
 
         <MapContainer
-          center={[selectedSignal.cntLat, selectedSignal.cntLon]}
+          center={[selectedSignal.latitude || 0, selectedSignal.longitude || 0]}
           zoom={18}
           style={{ height: "100%", width: "100%" }}
           className="rounded-lg border"
@@ -265,7 +265,7 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
           />
           
           {/* Signal location marker */}
-          <Marker position={[selectedSignal.cntLat, selectedSignal.cntLon]}>
+          <Marker position={[selectedSignal.latitude || 0, selectedSignal.longitude || 0]}>
             <Popup>
               <div className="text-center">
                 <div className="font-medium">{selectedSignal.signalId}</div>
@@ -285,7 +285,7 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
               <Polyline
                 key={`line-${phase.id}`}
                 positions={[
-                  [selectedSignal.cntLat, selectedSignal.cntLon],
+                  [selectedSignal.latitude || 0, selectedSignal.longitude || 0],
                   endPoint
                 ]}
                 color="#3b82f6"
@@ -305,7 +305,7 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
                 <Polyline
                   key={`existing-line-${phase.id}`}
                   positions={[
-                    [selectedSignal.cntLat, selectedSignal.cntLon],
+                    [selectedSignal.latitude || 0, selectedSignal.longitude || 0],
                     endPoint
                   ]}
                   color="#10b981"

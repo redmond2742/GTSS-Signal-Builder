@@ -264,13 +264,37 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
               </div>
             </div>
 
-            <div className="flex justify-end space-x-3 pt-4 border-t">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Saving..." : signal ? "Update Signal" : "Create Signal"}
-              </Button>
+            <div className="flex justify-between space-x-3 pt-4 border-t">
+              <div>
+                {signal && (
+                  <Button 
+                    type="button" 
+                    variant="destructive" 
+                    onClick={() => {
+                      if (confirm("Are you sure you want to delete this signal? This action cannot be undone.")) {
+                        signalHooks.delete(signal.signalId);
+                        toast({
+                          title: "Success",
+                          description: "Signal deleted successfully",
+                        });
+                        onClose();
+                      }
+                    }}
+                    className="flex items-center space-x-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete Signal</span>
+                  </Button>
+                )}
+              </div>
+              <div className="flex space-x-3">
+                <Button type="button" variant="outline" onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Saving..." : signal ? "Update Signal" : "Create Signal"}
+                </Button>
+              </div>
             </div>
           </form>
         </Form>
