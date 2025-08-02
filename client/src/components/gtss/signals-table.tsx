@@ -87,8 +87,8 @@ export default function SignalsTable() {
           bValue = b.streetName2;
           break;
         case 'coordinates':
-          aValue = `${a.cntLat},${a.cntLon}`;
-          bValue = `${b.cntLat},${b.cntLon}`;
+          aValue = `${a.latitude},${a.longitude}`;
+          bValue = `${b.latitude},${b.longitude}`;
           break;
         default:
           aValue = a.signalId;
@@ -226,10 +226,7 @@ export default function SignalsTable() {
                         onSignalSelect={(signal) => handleEdit(signal)}
                         onSignalUpdate={async (signalId, updates) => {
                           try {
-                            const response = await apiRequest("PUT", `/api/signals/${signalId}`, updates);
-                            const updatedSignal = await response.json();
-                            updateSignal(signalId, updatedSignal);
-                            queryClient.invalidateQueries({ queryKey: ["/api/signals"] });
+                            signalHooks.update(signalId, updates);
                             toast({
                               title: "Success",
                               description: "Signal updated successfully",

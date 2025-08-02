@@ -385,7 +385,7 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
                   key={phase.id}
                   className={`p-2 border rounded cursor-pointer transition-colors ${
                     editingPhase?.id === phase.id 
-                      ? 'border-blue-500 bg-blue-50' 
+                      ? 'border-primary-500 bg-primary-50' 
                       : 'border-grey-200 hover:border-grey-300'
                   }`}
                   onClick={() => setEditingPhase(phase)}

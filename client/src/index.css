@@ -5,41 +5,54 @@
 :root {
   --background: hsl(0, 0%, 100%);
   --foreground: hsl(20, 14.3%, 4.1%);
-  --muted: hsl(60, 4.8%, 95.9%);
-  --muted-foreground: hsl(25, 5.3%, 44.7%);
+  --muted: hsl(210, 8%, 96%);
+  --muted-foreground: hsl(210, 4%, 46%);
   --popover: hsl(0, 0%, 100%);
   --popover-foreground: hsl(20, 14.3%, 4.1%);
   --card: hsl(0, 0%, 100%);
   --card-foreground: hsl(20, 14.3%, 4.1%);
-  --border: hsl(20, 5.9%, 90%);
-  --input: hsl(20, 5.9%, 90%);
-  --primary: hsl(207, 90%, 54%);
-  --primary-foreground: hsl(211, 100%, 99%);
-  --secondary: hsl(60, 4.8%, 95.9%);
-  --secondary-foreground: hsl(24, 9.8%, 10%);
-  --accent: hsl(60, 4.8%, 95.9%);
-  --accent-foreground: hsl(24, 9.8%, 10%);
+  --border: hsl(210, 6%, 93%);
+  --input: hsl(210, 6%, 93%);
+  --primary: hsl(215, 45%, 35%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(210, 8%, 96%);
+  --secondary-foreground: hsl(210, 8%, 13%);
+  --accent: hsl(215, 20%, 97%);
+  --accent-foreground: hsl(210, 8%, 13%);
   --destructive: hsl(0, 84.2%, 60.2%);
   --destructive-foreground: hsl(60, 9.1%, 97.8%);
   --ring: hsl(20, 14.3%, 4.1%);
   --radius: 0.5rem;
 
-  /* Custom GTSS colors */
-  --primary-50: hsl(207, 90%, 97%);
-  --primary-100: hsl(207, 90%, 92%);
-  --primary-500: hsl(207, 90%, 54%);
-  --primary-600: hsl(207, 90%, 48%);
-  --primary-700: hsl(207, 90%, 42%);
+  /* Government/Professional color scheme */
+  --primary-50: hsl(215, 20%, 97%);
+  --primary-100: hsl(215, 25%, 94%);
+  --primary-200: hsl(215, 30%, 86%);
+  --primary-500: hsl(215, 45%, 35%);
+  --primary-600: hsl(215, 50%, 28%);
+  --primary-700: hsl(215, 55%, 22%);
   
-  --grey-50: hsl(0, 0%, 98%);
-  --grey-100: hsl(0, 0%, 96%);
-  --grey-200: hsl(0, 0%, 93%);
-  --grey-300: hsl(0, 0%, 88%);
-  --grey-400: hsl(0, 0%, 74%);
-  --grey-500: hsl(0, 0%, 62%);
-  --grey-600: hsl(0, 0%, 46%);
-  --grey-700: hsl(0, 0%, 26%);
-  --grey-800: hsl(0, 0%, 13%);
+  --grey-50: hsl(210, 10%, 98%);
+  --grey-100: hsl(210, 8%, 96%);
+  --grey-200: hsl(210, 6%, 93%);
+  --grey-300: hsl(210, 5%, 88%);
+  --grey-400: hsl(210, 4%, 74%);
+  --grey-500: hsl(210, 3%, 62%);
+  --grey-600: hsl(210, 4%, 46%);
+  --grey-700: hsl(210, 6%, 26%);
+  --grey-800: hsl(210, 8%, 13%);
+  
+  /* Success/accent colors for government use */
+  --success-50: hsl(125, 35%, 95%);
+  --success-100: hsl(125, 40%, 88%);
+  --success-600: hsl(125, 45%, 35%);
+  --success-700: hsl(125, 50%, 28%);
+  
+  /* Warning colors */
+  --warning-50: hsl(45, 60%, 95%);
+  --warning-100: hsl(45, 65%, 88%);
+  --warning-600: hsl(45, 70%, 45%);
+  --warning-700: hsl(45, 75%, 38%);
 }
 
 .dark {
@@ -53,8 +66,8 @@
   --card-foreground: hsl(0, 0%, 98%);
   --border: hsl(240, 3.7%, 15.9%);
   --input: hsl(240, 3.7%, 15.9%);
-  --primary: hsl(207, 90%, 54%);
-  --primary-foreground: hsl(211, 100%, 99%);
+  --primary: hsl(215, 45%, 35%);
+  --primary-foreground: hsl(0, 0%, 100%);
   --secondary: hsl(240, 3.7%, 15.9%);
   --secondary-foreground: hsl(0, 0%, 98%);
   --accent: hsl(240, 3.7%, 15.9%);
@@ -102,7 +115,41 @@
     color: var(--primary-700);
   }
   .border-primary-200 {
-    border-color: var(--primary-100);
+    border-color: var(--primary-200);
+  }
+  
+  /* Success utilities for government theme */
+  .bg-success-50 {
+    background-color: var(--success-50);
+  }
+  .bg-success-100 {
+    background-color: var(--success-100);
+  }
+  .text-success-600 {
+    color: var(--success-600);
+  }
+  .text-success-700 {
+    color: var(--success-700);
+  }
+  .border-success-200 {
+    border-color: var(--success-100);
+  }
+  
+  /* Warning utilities */
+  .bg-warning-50 {
+    background-color: var(--warning-50);
+  }
+  .bg-warning-100 {
+    background-color: var(--warning-100);
+  }
+  .text-warning-600 {
+    color: var(--warning-600);
+  }
+  .text-warning-700 {
+    color: var(--warning-700);
+  }
+  .border-warning-200 {
+    border-color: var(--warning-100);
   }
   
   .bg-grey-50 {

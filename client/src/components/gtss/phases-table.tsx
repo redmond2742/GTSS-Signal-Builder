@@ -176,7 +176,7 @@ export default function PhasesTable() {
               <Button 
                 onClick={() => setShowVisualEditor(true)} 
                 variant="outline"
-                className="border-green-600 text-green-600 hover:bg-green-50"
+                className="border-success-200 text-success-600 hover:bg-success-50"
               >
                 <Map className="w-4 h-4 mr-2" />
                 Visual Editor

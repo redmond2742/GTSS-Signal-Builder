@@ -203,8 +203,8 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                 // Only show phase field if signal has phases
                 if (!selectedSignalId || signalPhases.length === 0) {
                   return (
-                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                      <p className="text-sm text-yellow-800">
+                    <div className="p-3 bg-warning-50 border border-warning-200 rounded-md">
+                      <p className="text-sm text-warning-700">
                         {!selectedSignalId 
                           ? "Please select a signal first to see available phases." 
                           : "No phases configured for this signal. Please add phases before creating detectors."
