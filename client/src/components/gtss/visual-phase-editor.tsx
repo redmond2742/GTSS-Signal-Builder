@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker } from "react-leaflet";
 import { useMapEvents } from "react-leaflet/hooks";
 import { Signal, InsertPhase, Phase } from "@shared/schema";
 import { useGTSSStore } from "@/store/gtss-store";
@@ -264,17 +264,17 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           
-          {/* Signal location marker */}
-          <Marker position={[selectedSignal.latitude || 0, selectedSignal.longitude || 0]}>
-            <Popup>
-              <div className="text-center">
-                <div className="font-medium">{selectedSignal.signalId}</div>
-                <div className="text-xs text-grey-600">
-                  {selectedSignal.streetName1} & {selectedSignal.streetName2}
-                </div>
-              </div>
-            </Popup>
-          </Marker>
+          {/* Signal location marker - small dot */}
+          <CircleMarker 
+            center={[selectedSignal.latitude || 0, selectedSignal.longitude || 0]}
+            radius={6}
+            pathOptions={{
+              fillColor: '#ef4444',
+              fillOpacity: 1,
+              color: '#dc2626',
+              weight: 2
+            }}
+          />
 
           {/* Draw bearing lines for pending phases */}
           {pendingPhases.map((phase) => {
