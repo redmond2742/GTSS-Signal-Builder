@@ -151,6 +151,11 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
 
   return (
     <div className="max-w-6xl">
+      <div className="mb-4 p-4 bg-white rounded-lg border border-grey-200">
+        <p className="text-xs text-grey-600 leading-relaxed">
+          Configure traffic signal locations for your transportation network. Each signal represents an intersection or crossing point where traffic control is needed. Use the map-based tools to precisely position signals and define their operational parameters including timing phases and detection systems.
+        </p>
+      </div>
       <Card>
 
         <CardContent className="p-0">
