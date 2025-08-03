@@ -51,8 +51,8 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
 
   const getMapCenter = (): [number, number] => {
     // Use agency coordinates if available
-    if (agency?.agencyLat && agency?.agencyLon) {
-      return [agency.agencyLat, agency.agencyLon];
+    if (agency?.latitude && agency?.longitude) {
+      return [agency.latitude, agency.longitude];
     }
     // Default fallback
     

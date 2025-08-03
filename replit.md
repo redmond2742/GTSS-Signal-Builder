@@ -10,6 +10,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (February 1, 2025)
 
+✓ **AGENCY LOCATION STORAGE**: Added latitude/longitude fields to agency schema for reference location storage
+✓ Agency coordinates now saved to localStorage when pin is set on map during agency configuration
+✓ Bulk signal creation map now uses agency coordinates as default center point for better user experience
+✓ Updated agency form to include location picker with coordinate persistence across application
+✓ **CLICKABLE SIGNAL ROWS**: Removed actions column from signals table for cleaner interface design
+✓ Made entire signal table rows clickable to navigate directly to signal details page
+✓ Improved user workflow by reducing clicks needed to access detailed signal management
+✓ **ENHANCED SIGNAL DETAILS**: Fixed all technical issues with signal details page functionality
+✓ Resolved phase validation to prevent duplicate phase numbers with clear error messaging
+✓ Made intersection dropdown wider (w-72) in detector modal for better signal name visibility
+✓ Fixed map view coordinate field references from cntLat/cntLon to latitude/longitude throughout
+✓ All TypeScript diagnostics resolved for proper signal details page operation
 ✓ **PROFESSIONAL COLOR SCHEME UPDATE**: Updated application to government-friendly design with navy blue primary colors
 ✓ Primary colors changed to professional navy blue (hsl(215, 45%, 35%)) for trustworthy appearance
 ✓ Implemented neutral grays with subtle blue undertones for improved readability and government appeal

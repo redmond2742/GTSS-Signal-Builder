@@ -11,6 +11,8 @@ export const agencies = pgTable("agencies", {
   agencyTimezone: text("agency_timezone").notNull(),
   agencyLanguage: text("agency_language").default("en"),
   agencyEmail: text("agency_email"),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
 });
 
 export const signals = pgTable("signals", {

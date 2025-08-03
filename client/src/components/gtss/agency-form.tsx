@@ -65,6 +65,8 @@ export default function AgencyForm() {
       agencyTimezone: "America/Los_Angeles",
       agencyLanguage: "en",
       agencyEmail: "",
+      latitude: undefined,
+      longitude: undefined,
     },
   });
 
@@ -73,16 +75,34 @@ export default function AgencyForm() {
       form.reset({
         agencyId: agency.agencyId,
         agencyName: agency.agencyName,
-        agencyUrl: agency.agencyUrl ?? "",
+        agencyUrl: agency.agencyUrl || "",
         agencyTimezone: agency.agencyTimezone,
-        agencyLanguage: agency.agencyLanguage ?? "en",
-        agencyEmail: agency.agencyEmail ?? "",
+        agencyLanguage: agency.agencyLanguage || "en",
+        agencyEmail: agency.agencyEmail || "",
+        latitude: agency.latitude || undefined,
+        longitude: agency.longitude || undefined,
       });
+      
+      // Set selected location and map center if agency has coordinates
+      if (agency.latitude && agency.longitude) {
+        setSelectedLocation({
+          lat: agency.latitude,
+          lon: agency.longitude,
+          displayName: `${agency.agencyName} Location`
+        });
+        setMapCenter([agency.latitude, agency.longitude]);
+      }
     }
   }, [agency, form]);
 
   const onSubmit = (data: InsertAgency) => {
-    saveAgency(data);
+    // Include selected location coordinates in save data
+    const saveData = {
+      ...data,
+      latitude: selectedLocation?.lat || data.latitude,
+      longitude: selectedLocation?.lon || data.longitude,
+    };
+    saveAgency(saveData);
   };
 
   const generateAgencyId = (state: string, agencyName: string): string => {
