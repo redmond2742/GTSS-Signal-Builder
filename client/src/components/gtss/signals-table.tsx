@@ -146,21 +146,25 @@ export default function SignalsTable() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <Tabs defaultValue="list" className="w-full">
-            <div className="flex items-center justify-between px-3 py-2 border-b border-grey-200">
-              <TabsList className="grid w-fit grid-cols-2 h-7">
-                <TabsTrigger value="list" className="text-xs h-6 px-2">
-                  <List className="w-3 h-3 mr-1" />
-                  List View
-                </TabsTrigger>
-                <TabsTrigger value="map" className="text-xs h-6 px-2">
-                  <Map className="w-3 h-3 mr-1" />
-                  Map View
-                </TabsTrigger>
-              </TabsList>
+          <div className="w-full">
+            {/* Map View - Wide aspect ratio */}
+            <div className="border-b border-grey-200">
+              {signals.length === 0 ? (
+                <div className="h-48 bg-grey-50 flex items-center justify-center">
+                  <div className="text-center text-grey-500">
+                    <Map className="w-8 h-8 mx-auto mb-2 text-grey-400" />
+                    <p className="text-xs">No signals to display on map</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="h-48 relative">
+                  <SignalsMap signals={signals} />
+                </div>
+              )}
             </div>
             
-            <TabsContent value="list" className="mt-0">
+            {/* List View - Below map */}
+            <div className="mt-0">
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -200,55 +204,8 @@ export default function SignalsTable() {
                   </TableBody>
                 </Table>
               </div>
-            </TabsContent>
-            
-            <TabsContent value="map" className="mt-0">
-              <div className="p-6">
-                {signals.length === 0 ? (
-                  <div className="h-96 bg-grey-50 border border-grey-200 rounded-lg flex items-center justify-center">
-                    <div className="text-center text-grey-500">
-                      <Map className="w-12 h-12 mx-auto mb-3 text-grey-400" />
-                      <h3 className="font-medium mb-1">No Signals to Display</h3>
-                      <p className="text-sm">Add signal locations to see them on the map</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-grey-600">
-                        Showing {signals.length} signal{signals.length !== 1 ? 's' : ''} on map
-                      </p>
-                      <div className="text-xs text-grey-500">
-                        Click markers for details
-                      </div>
-                    </div>
-                    {!showModal && !showBulkModal && (
-                      <SignalsMap 
-                        signals={signals}
-                        onSignalSelect={(signal) => handleEdit(signal)}
-                        onSignalUpdate={async (signalId, updates) => {
-                          try {
-                            signalHooks.update(signalId, updates);
-                            toast({
-                              title: "Success",
-                              description: "Signal updated successfully",
-                            });
-                          } catch (error) {
-                            toast({
-                              title: "Error", 
-                              description: "Failed to update signal",
-                              variant: "destructive",
-                            });
-                          }
-                        }}
-                        className="w-full"
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

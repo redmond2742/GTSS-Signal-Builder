@@ -541,12 +541,12 @@ export default function SignalDetails() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-grey-50 border-b border-grey-200">
-                    <TableHead className="text-xs font-medium py-1.5 px-2">Phase</TableHead>
-                    <TableHead className="text-xs font-medium py-1.5 px-2">Movement</TableHead>
-                    <TableHead className="text-xs font-medium py-1.5 px-2">Bearing</TableHead>
-                    <TableHead className="text-xs font-medium py-1.5 px-2">Lanes</TableHead>
-                    <TableHead className="text-xs font-medium py-1.5 px-2">Speed</TableHead>
-                    <TableHead className="text-xs font-medium py-1.5 px-2">Actions</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Phase</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Movement</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Bearing</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Lanes</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Speed</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -556,23 +556,23 @@ export default function SignalDetails() {
                       className="hover:bg-grey-50 cursor-pointer transition-colors"
                       onClick={() => handlePhaseEdit(phase)}
                     >
-                      <TableCell className="text-xs py-1.5 px-2 font-medium">
-                        <div className="flex items-center space-x-2">
+                      <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>
+                        <div className="flex items-center space-x-1">
                           <span>{phase.phase}</span>
                           {phase.isOverlap && (
-                            <Badge variant="secondary" className="text-xs">Overlap</Badge>
+                            <Badge variant="secondary" style={{ fontSize: '10px' }} className="px-1 py-0">Overlap</Badge>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-xs py-1.5 px-2">{phase.movementType}</TableCell>
-                      <TableCell className="text-xs py-1.5 px-2">
+                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{phase.movementType}</TableCell>
+                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>
                         {phase.compassBearing ? `${phase.compassBearing}°` : 'N/A'}
                       </TableCell>
-                      <TableCell className="text-xs py-1.5 px-2">{phase.numOfLanes}</TableCell>
-                      <TableCell className="text-xs py-1.5 px-2">
+                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{phase.numOfLanes}</TableCell>
+                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>
                         {phase.postedSpeed ? `${phase.postedSpeed} mph` : 'N/A'}
                       </TableCell>
-                      <TableCell className="text-xs py-1.5 px-2">
+                      <TableCell className="py-1 px-1.5">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -580,9 +580,9 @@ export default function SignalDetails() {
                             e.stopPropagation();
                             handlePhaseDelete(phase);
                           }}
-                          className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          className="h-5 w-5 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Trash2 className="w-2.5 h-2.5" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -628,11 +628,11 @@ export default function SignalDetails() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-grey-50 border-b border-grey-200">
-                    <TableHead className="text-xs font-medium py-1.5 px-2">Channel</TableHead>
-                    <TableHead className="text-xs font-medium py-1.5 px-2">Phase</TableHead>
-                    <TableHead className="text-xs font-medium py-1.5 px-2">Technology</TableHead>
-                    <TableHead className="text-xs font-medium py-1.5 px-2">Setback</TableHead>
-                    <TableHead className="text-xs font-medium py-1.5 px-2">Actions</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Channel</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Phase</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Technology</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Setback</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -642,13 +642,13 @@ export default function SignalDetails() {
                       className="hover:bg-grey-50 cursor-pointer transition-colors"
                       onClick={() => handleDetectorEdit(detector)}
                     >
-                      <TableCell className="text-xs py-1.5 px-2 font-medium">{detector.channel}</TableCell>
-                      <TableCell className="text-xs py-1.5 px-2">{detector.phase}</TableCell>
-                      <TableCell className="text-xs py-1.5 px-2">{detector.technologyType}</TableCell>
-                      <TableCell className="text-xs py-1.5 px-2">
+                      <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>{detector.channel}</TableCell>
+                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{detector.phase}</TableCell>
+                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{detector.technologyType}</TableCell>
+                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>
                         {detector.stopbarSetbackDist ? `${detector.stopbarSetbackDist}ft` : 'N/A'}
                       </TableCell>
-                      <TableCell className="text-xs py-1.5 px-2">
+                      <TableCell className="py-1 px-1.5">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -656,9 +656,9 @@ export default function SignalDetails() {
                             e.stopPropagation();
                             handleDetectorDelete(detector);
                           }}
-                          className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          className="h-5 w-5 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Trash2 className="w-2.5 h-2.5" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -679,21 +679,22 @@ export default function SignalDetails() {
             </DialogTitle>
           </DialogHeader>
           <Form {...phaseForm}>
-            <form onSubmit={phaseForm.handleSubmit(handlePhaseSave)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={phaseForm.handleSubmit(handlePhaseSave)} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 <FormField
                   control={phaseForm.control}
                   name="phase"
                   render={({ field }) => (
-                    <FormItem className="space-y-1">
-                      <FormLabel className="text-xs font-medium">Phase Number</FormLabel>
+                    <FormItem className="space-y-0.5">
+                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Phase Number</FormLabel>
                       <FormControl>
                         <Input 
                           {...field} 
                           type="number" 
                           min="1" 
                           max="8"
-                          className="h-7 px-2 text-xs"
+                          className="h-6 px-2"
+                          style={{ fontSize: '12px' }}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                         />
                       </FormControl>
@@ -705,11 +706,11 @@ export default function SignalDetails() {
                   control={phaseForm.control}
                   name="movementType"
                   render={({ field }) => (
-                    <FormItem className="space-y-1">
-                      <FormLabel className="text-xs font-medium">Movement Type</FormLabel>
+                    <FormItem className="space-y-0.5">
+                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Movement Type</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger className="h-7 text-xs">
+                          <SelectTrigger className="h-6" style={{ fontSize: '12px' }}>
                             <SelectValue />
                           </SelectTrigger>
                         </FormControl>
@@ -728,15 +729,16 @@ export default function SignalDetails() {
                   control={phaseForm.control}
                   name="compassBearing"
                   render={({ field }) => (
-                    <FormItem className="space-y-1">
-                      <FormLabel className="text-xs font-medium">Bearing (°)</FormLabel>
+                    <FormItem className="space-y-0.5">
+                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Bearing (°)</FormLabel>
                       <FormControl>
                         <Input 
                           {...field} 
                           type="number" 
                           min="0" 
                           max="360"
-                          className="h-7 px-2 text-xs"
+                          className="h-6 px-2"
+                          style={{ fontSize: '12px' }}
                           value={field.value || ""}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || null)}
                         />
@@ -749,15 +751,16 @@ export default function SignalDetails() {
                   control={phaseForm.control}
                   name="numOfLanes"
                   render={({ field }) => (
-                    <FormItem className="space-y-1">
-                      <FormLabel className="text-xs font-medium">Number of Lanes</FormLabel>
+                    <FormItem className="space-y-0.5">
+                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Number of Lanes</FormLabel>
                       <FormControl>
                         <Input 
                           {...field} 
                           type="number" 
                           min="1" 
                           max="8"
-                          className="h-7 px-2 text-xs"
+                          className="h-6 px-2"
+                          style={{ fontSize: '12px' }}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                         />
                       </FormControl>
@@ -769,14 +772,15 @@ export default function SignalDetails() {
                   control={phaseForm.control}
                   name="postedSpeed"
                   render={({ field }) => (
-                    <FormItem className="space-y-1">
-                      <FormLabel className="text-xs font-medium">Posted Speed (mph)</FormLabel>
+                    <FormItem className="space-y-0.5">
+                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Posted Speed (mph)</FormLabel>
                       <FormControl>
                         <Input 
                           {...field} 
                           type="number" 
                           min="0"
-                          className="h-7 px-2 text-xs"
+                          className="h-6 px-2"
+                          style={{ fontSize: '12px' }}
                           value={field.value || ""}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || null)}
                         />
@@ -789,15 +793,15 @@ export default function SignalDetails() {
                   control={phaseForm.control}
                   name="isOverlap"
                   render={({ field }) => (
-                    <FormItem className="space-y-1">
-                      <FormLabel className="text-xs font-medium">Overlap Phase</FormLabel>
+                    <FormItem className="space-y-0.5">
+                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Overlap Phase</FormLabel>
                       <FormControl>
                         <div className="flex items-center space-x-2">
                           <Switch
                             checked={field.value}
                             onCheckedChange={field.onChange}
                           />
-                          <span className="text-xs text-grey-600">
+                          <span style={{ fontSize: '12px' }} className="text-grey-600">
                             {field.value ? 'Yes' : 'No'}
                           </span>
                         </div>
@@ -812,11 +816,12 @@ export default function SignalDetails() {
                   type="button"
                   variant="outline"
                   onClick={() => setShowPhaseModal(false)}
-                  className="h-7 px-3 text-xs"
+                  className="h-6 px-2"
+                  style={{ fontSize: '12px' }}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" className="h-7 px-3 text-xs bg-primary-600 hover:bg-primary-700">
+                <Button type="submit" className="h-6 px-2 bg-primary-600 hover:bg-primary-700" style={{ fontSize: '12px' }}>
                   {editingPhase ? 'Update' : 'Add'} Phase
                 </Button>
               </div>
@@ -834,20 +839,21 @@ export default function SignalDetails() {
             </DialogTitle>
           </DialogHeader>
           <Form {...detectorForm}>
-            <form onSubmit={detectorForm.handleSubmit(handleDetectorSave)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={detectorForm.handleSubmit(handleDetectorSave)} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 <FormField
                   control={detectorForm.control}
                   name="channel"
                   render={({ field }) => (
-                    <FormItem className="space-y-1">
-                      <FormLabel className="text-xs font-medium">Channel</FormLabel>
+                    <FormItem className="space-y-0.5">
+                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Channel</FormLabel>
                       <FormControl>
                         <Input 
                           {...field} 
                           type="number" 
                           min="1"
-                          className="h-7 px-2 text-xs"
+                          className="h-6 px-2"
+                          style={{ fontSize: '12px' }}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                         />
                       </FormControl>
@@ -859,11 +865,11 @@ export default function SignalDetails() {
                   control={detectorForm.control}
                   name="phase"
                   render={({ field }) => (
-                    <FormItem className="space-y-1">
-                      <FormLabel className="text-xs font-medium">Phase</FormLabel>
+                    <FormItem className="space-y-0.5">
+                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Phase</FormLabel>
                       <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
                         <FormControl>
-                          <SelectTrigger className="h-7 text-xs w-full min-w-0">
+                          <SelectTrigger className="h-6 w-full min-w-0" style={{ fontSize: '12px' }}>
                             <SelectValue />
                           </SelectTrigger>
                         </FormControl>
@@ -883,11 +889,11 @@ export default function SignalDetails() {
                   control={detectorForm.control}
                   name="technologyType"
                   render={({ field }) => (
-                    <FormItem className="space-y-1 col-span-2">
-                      <FormLabel className="text-xs font-medium">Technology Type</FormLabel>
+                    <FormItem className="space-y-0.5 col-span-2">
+                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Technology Type</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger className="h-7 text-xs">
+                          <SelectTrigger className="h-6" style={{ fontSize: '12px' }}>
                             <SelectValue />
                           </SelectTrigger>
                         </FormControl>
@@ -907,14 +913,15 @@ export default function SignalDetails() {
                   control={detectorForm.control}
                   name="stopbarSetbackDist"
                   render={({ field }) => (
-                    <FormItem className="space-y-1 col-span-2">
-                      <FormLabel className="text-xs font-medium">Stopbar Setback Distance (ft)</FormLabel>
+                    <FormItem className="space-y-0.5 col-span-2">
+                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Stopbar Setback Distance (ft)</FormLabel>
                       <FormControl>
                         <Input 
                           {...field} 
                           type="number" 
                           min="0"
-                          className="h-7 px-2 text-xs"
+                          className="h-6 px-2"
+                          style={{ fontSize: '12px' }}
                           value={field.value || ""}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || null)}
                         />
@@ -929,11 +936,12 @@ export default function SignalDetails() {
                   type="button"
                   variant="outline"
                   onClick={() => setShowDetectorModal(false)}
-                  className="h-7 px-3 text-xs"
+                  className="h-6 px-2"
+                  style={{ fontSize: '12px' }}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" className="h-7 px-3 text-xs bg-primary-600 hover:bg-primary-700">
+                <Button type="submit" className="h-6 px-2 bg-primary-600 hover:bg-primary-700" style={{ fontSize: '12px' }}>
                   {editingDetector ? 'Update' : 'Add'} Detector
                 </Button>
               </div>
