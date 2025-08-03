@@ -16,7 +16,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
-import { MapPin, Edit3, Plus, Trash2, Navigation, ArrowLeft, Settings } from "lucide-react";
+import { MapPin, Edit3, Plus, Trash2, Navigation, ArrowLeft, Settings, HelpCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function SignalDetails() {
   const params = useParams();
@@ -686,7 +687,17 @@ export default function SignalDetails() {
                   name="phase"
                   render={({ field }) => (
                     <FormItem className="space-y-0.5">
-                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Phase Number</FormLabel>
+                      <div className="flex items-center space-x-1">
+                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Phase Number</FormLabel>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">Unique identifier for this traffic phase (1-8). Each phase represents a different traffic movement direction.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                       <FormControl>
                         <Input 
                           {...field} 
@@ -707,7 +718,17 @@ export default function SignalDetails() {
                   name="movementType"
                   render={({ field }) => (
                     <FormItem className="space-y-0.5">
-                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Movement Type</FormLabel>
+                      <div className="flex items-center space-x-1">
+                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Movement Type</FormLabel>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">Type of vehicle movement: Through (straight), Left turn, Right turn, or U-Turn.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger className="h-6" style={{ fontSize: '12px' }}>
@@ -730,7 +751,17 @@ export default function SignalDetails() {
                   name="compassBearing"
                   render={({ field }) => (
                     <FormItem className="space-y-0.5">
-                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Bearing (°)</FormLabel>
+                      <div className="flex items-center space-x-1">
+                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Bearing (°)</FormLabel>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">Compass direction of traffic flow in degrees (0-360). 0° = North, 90° = East, 180° = South, 270° = West.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                       <FormControl>
                         <Input 
                           {...field} 
@@ -752,7 +783,17 @@ export default function SignalDetails() {
                   name="numOfLanes"
                   render={({ field }) => (
                     <FormItem className="space-y-0.5">
-                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Number of Lanes</FormLabel>
+                      <div className="flex items-center space-x-1">
+                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Number of Lanes</FormLabel>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">Total number of traffic lanes for this movement direction (1-8).</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                       <FormControl>
                         <Input 
                           {...field} 
@@ -773,7 +814,17 @@ export default function SignalDetails() {
                   name="postedSpeed"
                   render={({ field }) => (
                     <FormItem className="space-y-0.5">
-                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Posted Speed (mph)</FormLabel>
+                      <div className="flex items-center space-x-1">
+                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Posted Speed (mph)</FormLabel>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">Speed limit for this approach in miles per hour. Leave blank if not applicable.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                       <FormControl>
                         <Input 
                           {...field} 
@@ -794,7 +845,17 @@ export default function SignalDetails() {
                   name="isOverlap"
                   render={({ field }) => (
                     <FormItem className="space-y-0.5">
-                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Overlap Phase</FormLabel>
+                      <div className="flex items-center space-x-1">
+                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Overlap Phase</FormLabel>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">Enable if this phase runs simultaneously with another phase. Used for concurrent movements like right turns with through traffic.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                       <FormControl>
                         <div className="flex items-center space-x-2">
                           <Switch
@@ -846,7 +907,17 @@ export default function SignalDetails() {
                   name="channel"
                   render={({ field }) => (
                     <FormItem className="space-y-0.5">
-                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Channel</FormLabel>
+                      <div className="flex items-center space-x-1">
+                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Channel</FormLabel>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">Unique channel number for this detector. Used to identify which physical detector input on the signal controller.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                       <FormControl>
                         <Input 
                           {...field} 
@@ -866,7 +937,17 @@ export default function SignalDetails() {
                   name="phase"
                   render={({ field }) => (
                     <FormItem className="space-y-0.5">
-                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Phase</FormLabel>
+                      <div className="flex items-center space-x-1">
+                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Phase</FormLabel>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">Which traffic phase this detector serves. Must match an existing phase for this signal.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                       <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
                         <FormControl>
                           <SelectTrigger className="h-6 w-full min-w-0" style={{ fontSize: '12px' }}>
@@ -890,7 +971,17 @@ export default function SignalDetails() {
                   name="technologyType"
                   render={({ field }) => (
                     <FormItem className="space-y-0.5 col-span-2">
-                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Technology Type</FormLabel>
+                      <div className="flex items-center space-x-1">
+                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Technology Type</FormLabel>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">Detection technology: Inductive Loop (wire in pavement), Video (camera-based), Radar (microwave), Microwave (motion-based), or Thermal (heat-based).</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger className="h-6" style={{ fontSize: '12px' }}>
@@ -914,7 +1005,17 @@ export default function SignalDetails() {
                   name="stopbarSetbackDist"
                   render={({ field }) => (
                     <FormItem className="space-y-0.5 col-span-2">
-                      <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Stopbar Setback Distance (ft)</FormLabel>
+                      <div className="flex items-center space-x-1">
+                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Stopbar Setback Distance (ft)</FormLabel>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">Distance in feet from the stop line to the detector. Typical values: 50-200 feet for advance detection, 4-6 feet for stop line detection.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                       <FormControl>
                         <Input 
                           {...field} 
