@@ -153,7 +153,7 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
   return (
     <div className="max-w-6xl">
       <div className="mb-4 bg-white rounded-lg border border-grey-200 overflow-hidden">
-        <div className="h-64 relative">
+        <div className="h-64 relative z-0">
           {signals.length === 0 ? (
             <div className="w-full h-full bg-grey-50 flex items-center justify-center">
               <div className="text-center text-grey-500">
@@ -162,7 +162,9 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
               </div>
             </div>
           ) : (
-            <SignalsMap signals={signals} />
+            <div className="w-full h-full relative z-0">
+              <SignalsMap signals={signals} />
+            </div>
           )}
         </div>
       </div>
