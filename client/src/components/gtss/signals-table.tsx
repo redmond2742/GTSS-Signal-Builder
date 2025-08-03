@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { Signal } from "@shared/schema";
 import { useSignals } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, Map, List, Navigation, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Edit, Trash2, Map, List, Navigation, ChevronUp, ChevronDown, Eye } from "lucide-react";
 import SignalModal from "./signal-modal";
 import BulkSignalModal from "./bulk-signal-modal";
 import { SignalsMap } from "@/components/ui/signals-map";
@@ -25,6 +26,7 @@ export default function SignalsTable() {
   const { signals } = useGTSSStore();
   const { toast } = useToast();
   const signalHooks = useSignals();
+  const [, navigate] = useLocation();
 
   const handleEdit = (signal: Signal) => {
     setEditingSignal(signal);
@@ -167,12 +169,13 @@ export default function SignalsTable() {
                       <SortableHeader field="streetName1">Street 1</SortableHeader>
                       <SortableHeader field="streetName2">Street 2</SortableHeader>
                       <SortableHeader field="coordinates">Coordinates</SortableHeader>
+                      <TableHead className="text-xs font-medium py-1.5 px-2">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {signals.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center py-4 text-xs text-grey-500">
+                        <TableCell colSpan={5} className="text-center py-4 text-xs text-grey-500">
                           No signals configured. Add your first signal to get started.
                         </TableCell>
                       </TableRow>
@@ -180,8 +183,7 @@ export default function SignalsTable() {
                       getSortedSignals().map((signal) => (
                         <TableRow 
                           key={signal.id}
-                          className="hover:bg-grey-50 cursor-pointer transition-colors"
-                          onClick={() => handleRowClick(signal)}
+                          className="hover:bg-grey-50 transition-colors"
                         >
                           <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">{signal.signalId}</TableCell>
                           <TableCell className="text-grey-600 text-xs py-1.5 px-2">{signal.streetName1}</TableCell>
@@ -191,6 +193,34 @@ export default function SignalsTable() {
                               ? `${signal.latitude.toFixed(4)}, ${signal.longitude.toFixed(4)}`
                               : 'Not set'
                             }
+                          </TableCell>
+                          <TableCell className="text-xs py-1.5 px-2">
+                            <div className="flex items-center space-x-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => navigate(`/signal/${signal.signalId}`)}
+                                className="h-6 w-6 p-0 text-primary-600 hover:text-primary-700 hover:bg-primary-50"
+                              >
+                                <Eye className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(signal)}
+                                className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(signal.id)}
+                                className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))

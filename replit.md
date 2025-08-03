@@ -27,6 +27,13 @@ Preferred communication style: Simple, everyday language.
 ✓ Optimized sidebar width from 64 to 56 units and reduced icon sizes for compact workflow
 ✓ Compressed table cells with py-1.5 px-2 spacing and xs text for maximum data density
 ✓ Updated all button icons from w-4 h-4 to w-3 h-3 for consistent compact design
+✓ **NEW SIGNAL DETAILS PAGE**: Created comprehensive signal management page with editable sections
+✓ Added signal details route (/signal/:signalId) with full CRUD operations for signal info, phases, and detectors
+✓ Implemented inline editing for signal information with map integration showing current location
+✓ Built dedicated phases management section with add/edit/delete functionality and validation
+✓ Created detectors management section with phase-aware dropdown and technology type selection
+✓ Added navigation from signals table to individual signal detail pages via eye icon button
+✓ Integrated validation preventing detector creation when no phases exist for the signal
 
 ## Previous Major Schema Changes (February 1, 2025)
 ✓ **MAJOR SCHEMA MIGRATION COMPLETED**: Updated all data models to match exact CSV export requirements
