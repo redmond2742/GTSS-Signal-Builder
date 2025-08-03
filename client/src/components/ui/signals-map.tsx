@@ -137,8 +137,8 @@ export default function SignalsMap({ signals, onSignalSelect, onSignalUpdate, cl
       <MapContainer
         center={center}
         zoom={signals.length > 0 ? 13 : 4}
-        style={{ height: "400px", width: "100%" }}
-        className="rounded-lg border border-grey-200"
+        style={{ height: "100%", width: "100%" }}
+        className="rounded-lg"
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

@@ -193,21 +193,25 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
                     ))}
                   </SelectContent>
                 </Select>
-                {filterSignal && (() => {
-                  const selectedSignal = signals.find(s => s.signalId === filterSignal);
-                  return selectedSignal && selectedSignal.latitude && selectedSignal.longitude ? (
-                    <div className="w-48 h-36 border border-grey-300 rounded-md overflow-hidden bg-white relative z-0">
-                      <SignalsMap signals={[selectedSignal]} />
-                    </div>
-                  ) : (
-                    <div className="w-48 h-36 border border-grey-300 rounded-md bg-grey-100 flex items-center justify-center">
-                      <MapPin className="w-8 h-8 text-grey-400" />
-                    </div>
-                  );
-                })()}
               </>
             )}
           </div>
+          {filterSignal && (() => {
+            const selectedSignal = signals.find(s => s.signalId === filterSignal);
+            return (
+              <div className="flex-1 ml-4 h-20">
+                {selectedSignal && selectedSignal.latitude && selectedSignal.longitude ? (
+                  <div className="w-full h-full border border-grey-300 rounded-md overflow-hidden bg-white relative z-0">
+                    <SignalsMap signals={[selectedSignal]} />
+                  </div>
+                ) : (
+                  <div className="w-full h-full border border-grey-300 rounded-md bg-grey-100 flex items-center justify-center">
+                    <MapPin className="w-6 h-6 text-grey-400" />
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
