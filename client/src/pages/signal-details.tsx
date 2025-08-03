@@ -25,13 +25,14 @@ export default function SignalDetails() {
   const { toast } = useToast();
   const { agency } = useGTSSStore();
   
+  const { signals, phases, detectors } = useGTSSStore();
   const signalHooks = useSignals();
   const phaseHooks = usePhases();
   const detectorHooks = useDetectors();
   
   const [signal, setSignal] = useState<Signal | null>(null);
-  const [phases, setPhases] = useState<Phase[]>([]);
-  const [detectors, setDetectors] = useState<Detector[]>([]);
+  const [signalPhases, setSignalPhases] = useState<Phase[]>([]);
+  const [signalDetectors, setSignalDetectors] = useState<Detector[]>([]);
   const [isEditingSignal, setIsEditingSignal] = useState(false);
   const [showPhaseModal, setShowPhaseModal] = useState(false);
   const [showDetectorModal, setShowDetectorModal] = useState(false);
@@ -76,7 +77,7 @@ export default function SignalDetails() {
 
   useEffect(() => {
     if (signalId) {
-      const foundSignal = signalHooks.getAll().find(s => s.signalId === signalId);
+      const foundSignal = signals.find(s => s.signalId === signalId);
       if (foundSignal) {
         setSignal(foundSignal);
         signalForm.reset({
@@ -89,19 +90,21 @@ export default function SignalDetails() {
         });
       }
       
-      const signalPhases = phaseHooks.getAll().filter(p => p.signalId === signalId);
-      setPhases(signalPhases);
+      const filteredPhases = phases.filter(p => p.signalId === signalId);
+      setSignalPhases(filteredPhases);
       
-      const signalDetectors = detectorHooks.getAll().filter(d => d.signalId === signalId);
-      setDetectors(signalDetectors);
+      const filteredDetectors = detectors.filter(d => d.signalId === signalId);
+      setSignalDetectors(filteredDetectors);
     }
-  }, [signalId, signalHooks, phaseHooks, detectorHooks]);
+  }, [signalId, signals, phases, detectors]);
 
   const handleSignalSave = (data: InsertSignal) => {
     if (signal) {
       try {
-        const updatedSignal = signalHooks.save({ ...data, id: signal.id });
-        setSignal(updatedSignal);
+        const updatedSignal = signalHooks.update(signal.id, data);
+        if (updatedSignal) {
+          setSignal(updatedSignal);
+        }
         setIsEditingSignal(false);
         toast({
           title: "Success",
@@ -121,7 +124,7 @@ export default function SignalDetails() {
     setEditingPhase(null);
     phaseForm.reset({
       signalId: signalId || "",
-      phase: phases.length + 1,
+      phase: signalPhases.length + 1,
       movementType: "Through",
       compassBearing: null,
       numOfLanes: 1,
@@ -148,13 +151,13 @@ export default function SignalDetails() {
   const handlePhaseSave = (data: InsertPhase) => {
     try {
       if (editingPhase) {
-        phaseHooks.save({ ...data, id: editingPhase.id });
+        phaseHooks.update(editingPhase.id, data);
       } else {
         phaseHooks.save(data);
       }
       
-      const updatedPhases = phaseHooks.getAll().filter(p => p.signalId === signalId);
-      setPhases(updatedPhases);
+      const updatedPhases = phases.filter(p => p.signalId === signalId);
+      setSignalPhases(updatedPhases);
       setShowPhaseModal(false);
       
       toast({
@@ -174,8 +177,8 @@ export default function SignalDetails() {
     if (confirm(`Delete Phase ${phase.phase}?`)) {
       try {
         phaseHooks.delete(phase.id);
-        const updatedPhases = phaseHooks.getAll().filter(p => p.signalId === signalId);
-        setPhases(updatedPhases);
+        const updatedPhases = phases.filter(p => p.signalId === signalId);
+        setSignalPhases(updatedPhases);
         toast({
           title: "Success",
           description: "Phase deleted successfully",
@@ -194,8 +197,9 @@ export default function SignalDetails() {
     setEditingDetector(null);
     detectorForm.reset({
       signalId: signalId || "",
-      phase: phases.length > 0 ? phases[0].phase : 1,
-      channel: detectors.length + 1,
+      phase: signalPhases.length > 0 ? signalPhases[0].phase : 1,
+      channel: (signalDetectors.length + 1).toString(),
+      purpose: "Detection",
       technologyType: "Inductive Loop",
       stopbarSetbackDist: null,
     });
@@ -208,7 +212,12 @@ export default function SignalDetails() {
       signalId: detector.signalId,
       phase: detector.phase,
       channel: detector.channel,
+      purpose: detector.purpose,
       technologyType: detector.technologyType,
+      length: detector.length,
+      description: detector.description,
+      vehicleType: detector.vehicleType,
+      lane: detector.lane,
       stopbarSetbackDist: detector.stopbarSetbackDist,
     });
     setShowDetectorModal(true);
@@ -217,13 +226,13 @@ export default function SignalDetails() {
   const handleDetectorSave = (data: InsertDetector) => {
     try {
       if (editingDetector) {
-        detectorHooks.save({ ...data, id: editingDetector.id });
+        detectorHooks.update(editingDetector.id, data);
       } else {
         detectorHooks.save(data);
       }
       
-      const updatedDetectors = detectorHooks.getAll().filter(d => d.signalId === signalId);
-      setDetectors(updatedDetectors);
+      const updatedDetectors = detectors.filter(d => d.signalId === signalId);
+      setSignalDetectors(updatedDetectors);
       setShowDetectorModal(false);
       
       toast({
@@ -243,8 +252,8 @@ export default function SignalDetails() {
     if (confirm(`Delete Detector ${detector.channel}?`)) {
       try {
         detectorHooks.delete(detector.id);
-        const updatedDetectors = detectorHooks.getAll().filter(d => d.signalId === signalId);
-        setDetectors(updatedDetectors);
+        const updatedDetectors = detectors.filter(d => d.signalId === signalId);
+        setSignalDetectors(updatedDetectors);
         toast({
           title: "Success",
           description: "Detector deleted successfully",
@@ -488,7 +497,7 @@ export default function SignalDetails() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold text-grey-800 flex items-center space-x-2">
               <Settings className="w-4 h-4 text-primary-600" />
-              <span>Signal Phases ({phases.length})</span>
+              <span>Signal Phases ({signalPhases.length})</span>
             </CardTitle>
             <Button
               onClick={handlePhaseAdd}
@@ -500,7 +509,7 @@ export default function SignalDetails() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {phases.length === 0 ? (
+          {signalPhases.length === 0 ? (
             <div className="p-8 text-center text-grey-500 text-sm">
               No phases configured for this signal
             </div>
@@ -518,7 +527,7 @@ export default function SignalDetails() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {phases.map((phase) => (
+                  {signalPhases.map((phase) => (
                     <TableRow
                       key={phase.id}
                       className="hover:bg-grey-50 cursor-pointer transition-colors"
@@ -568,12 +577,12 @@ export default function SignalDetails() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold text-grey-800 flex items-center space-x-2">
               <Navigation className="w-4 h-4 text-primary-600" />
-              <span>Detection Equipment ({detectors.length})</span>
+              <span>Detection Equipment ({signalDetectors.length})</span>
             </CardTitle>
             <Button
               onClick={handleDetectorAdd}
               className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
-              disabled={phases.length === 0}
+              disabled={signalPhases.length === 0}
             >
               <Plus className="w-3 h-3 mr-1" />
               Add Detector
@@ -581,13 +590,13 @@ export default function SignalDetails() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {phases.length === 0 ? (
+          {signalPhases.length === 0 ? (
             <div className="p-8 text-center">
               <p className="text-sm text-warning-700 bg-warning-50 border border-warning-200 rounded-md p-3">
                 No phases configured. Please add phases before adding detectors.
               </p>
             </div>
-          ) : detectors.length === 0 ? (
+          ) : signalDetectors.length === 0 ? (
             <div className="p-8 text-center text-grey-500 text-sm">
               No detectors configured for this signal
             </div>
@@ -604,7 +613,7 @@ export default function SignalDetails() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {detectors.map((detector) => (
+                  {signalDetectors.map((detector) => (
                     <TableRow
                       key={detector.id}
                       className="hover:bg-grey-50 cursor-pointer transition-colors"
