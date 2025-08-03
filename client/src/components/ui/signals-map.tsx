@@ -117,7 +117,7 @@ function QuickEditPopup({ signal, onUpdate, onSignalSelect }: {
   );
 }
 
-export function SignalsMap({ signals, onSignalSelect, onSignalUpdate, className }: SignalsMapProps) {
+export default function SignalsMap({ signals, onSignalSelect, onSignalUpdate, className }: SignalsMapProps) {
   const agency = useGTSSStore((state) => state.agency);
   
   // Use agency coordinates as starting point for map center

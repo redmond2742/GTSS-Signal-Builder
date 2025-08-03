@@ -497,11 +497,11 @@ export default function SignalDetails() {
           {signal.latitude && signal.longitude && (
             <div className="mt-4">
               <h4 className="text-sm font-medium text-grey-700 mb-2">Location</h4>
-              <div className="h-48 rounded-lg border overflow-hidden">
+              <div className="h-48 rounded-lg border overflow-hidden relative z-0">
                 <MapContainer
                   center={[signal.latitude, signal.longitude]}
                   zoom={16}
-                  style={{ height: "100%", width: "100%" }}
+                  style={{ height: "100%", width: "100%", zIndex: 1 }}
                 >
                   <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

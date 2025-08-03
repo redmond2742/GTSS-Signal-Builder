@@ -133,6 +133,14 @@
     z-index: 2 !important;
   }
   
+  .leaflet-popup {
+    z-index: 3 !important;
+  }
+  
+  .leaflet-tooltip {
+    z-index: 3 !important;
+  }
+  
   /* Ensure dialog overlays have higher z-index */
   [data-radix-popper-content-wrapper] {
     z-index: 50 !important;
@@ -140,6 +148,19 @@
   
   [role="dialog"] {
     z-index: 50 !important;
+  }
+  
+  [data-state="open"][role="dialog"] {
+    z-index: 50 !important;
+  }
+  
+  .dialog-overlay {
+    z-index: 49 !important;
+  }
+  
+  /* Specific override for modal dialogs */
+  .modal-dialog {
+    z-index: 51 !important;
   }
   
   .card-header-compact {

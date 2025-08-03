@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Map, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Map, ChevronUp, ChevronDown, MapPin } from "lucide-react";
 import PhaseModal from "./phase-modal";
 import VisualPhaseEditor from "./visual-phase-editor";
+import SignalsMap from "@/components/ui/signals-map";
 
 type SortField = 'phase' | 'signalId' | 'movementType' | 'bearing';
 type SortDirection = 'asc' | 'desc';
@@ -171,7 +172,7 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
     <div className="max-w-6xl">
       <Card>
         <CardHeader className="bg-grey-50 border-b border-grey-200 flex flex-row items-center justify-start px-3 py-2">
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 items-center">
             {signals.length === 0 ? (
               <div className="p-2 bg-warning-50 border border-warning-200 rounded-md">
                 <p className="text-xs text-warning-700">
@@ -179,18 +180,32 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
                 </p>
               </div>
             ) : (
-              <Select value={filterSignal} onValueChange={setFilterSignal}>
-                <SelectTrigger className="w-80 h-7 text-xs">
-                  <SelectValue placeholder="Filter by Signal" />
-                </SelectTrigger>
-                <SelectContent>
-                  {signals.map((signal) => (
-                    <SelectItem key={signal.signalId} value={signal.signalId}>
-                      {getSignalInfo(signal.signalId)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <>
+                <Select value={filterSignal} onValueChange={setFilterSignal}>
+                  <SelectTrigger className="w-80 h-7 text-xs">
+                    <SelectValue placeholder="Filter by Signal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {signals.map((signal) => (
+                      <SelectItem key={signal.signalId} value={signal.signalId}>
+                        {getSignalInfo(signal.signalId)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {filterSignal && (() => {
+                  const selectedSignal = signals.find(s => s.signalId === filterSignal);
+                  return selectedSignal && selectedSignal.latitude && selectedSignal.longitude ? (
+                    <div className="w-16 h-12 border border-grey-300 rounded-md overflow-hidden bg-white relative z-0">
+                      <SignalsMap signals={[selectedSignal]} />
+                    </div>
+                  ) : (
+                    <div className="w-16 h-12 border border-grey-300 rounded-md bg-grey-100 flex items-center justify-center">
+                      <MapPin className="w-4 h-4 text-grey-400" />
+                    </div>
+                  );
+                })()}
+              </>
             )}
           </div>
         </CardHeader>
