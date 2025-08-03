@@ -120,7 +120,7 @@ export default function DetectorsTable() {
 
   const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
     <TableHead 
-      className="text-xs font-medium text-grey-500 uppercase tracking-wider cursor-pointer hover:bg-grey-100 transition-colors"
+      className="text-xs font-medium text-grey-500 uppercase tracking-wider cursor-pointer hover:bg-grey-100 transition-colors py-1.5 px-2"
       onClick={() => handleSort(field)}
     >
       <div className="flex items-center justify-between">
@@ -142,25 +142,12 @@ export default function DetectorsTable() {
   return (
     <div className="max-w-6xl">
       <Card>
-        <CardHeader className="bg-grey-50 border-b border-grey-200">
+        <CardHeader className="bg-grey-50 border-b border-grey-200 px-3 py-2">
           <div className="flex flex-row items-center justify-between">
-            <div>
-            </div>
-            <Button onClick={handleAdd} className="bg-primary-600 hover:bg-primary-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Detector
-            </Button>
-          </div>
-          
-          {/* Signal Selection */}
-          <div className="mt-4 flex items-center space-x-4">
-            <div className="flex-1 max-w-md">
-              <label className="block text-sm font-medium text-grey-700 mb-2">
-                Select Signal
-              </label>
+            <div className="flex items-center space-x-2">
               <Select value={selectedSignalId} onValueChange={setSelectedSignalId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a signal to view its detectors" />
+                <SelectTrigger className="w-80 h-7 text-xs">
+                  <SelectValue placeholder="Choose signal to view detectors" />
                 </SelectTrigger>
                 <SelectContent>
                   {signals.map((signal) => (
@@ -170,12 +157,14 @@ export default function DetectorsTable() {
                   ))}
                 </SelectContent>
               </Select>
+              {selectedSignalId && (
+                <span className="text-xs text-grey-600">({filteredDetectors.length} detector(s))</span>
+              )}
             </div>
-            {selectedSignalId && (
-              <div className="flex items-center space-x-2 text-sm text-grey-600">
-                <span>Showing {filteredDetectors.length} detector(s)</span>
-              </div>
-            )}
+            <Button onClick={handleAdd} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
+              <Plus className="w-3 h-3 mr-1" />
+              Add Detector
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -193,13 +182,13 @@ export default function DetectorsTable() {
               <TableBody>
                 {!selectedSignalId ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-grey-500">
+                    <TableCell colSpan={5} className="text-center py-4 text-xs text-grey-500">
                       Please select a signal above to view its detectors.
                     </TableCell>
                   </TableRow>
                 ) : filteredDetectors.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-grey-500">
+                    <TableCell colSpan={5} className="text-center py-4 text-xs text-grey-500">
                       No detectors configured for this signal. Add your first detector to get started.
                     </TableCell>
                   </TableRow>
@@ -210,15 +199,15 @@ export default function DetectorsTable() {
                       className="cursor-pointer hover:bg-gray-50 transition-colors"
                       onClick={() => handleRowClick(detector)}
                     >
-                      <TableCell className="font-medium text-grey-900">{detector.signalId}</TableCell>
-                      <TableCell className="text-grey-600">{detector.channel}</TableCell>
-                      <TableCell className="text-grey-600">{detector.phase}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                      <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">{detector.signalId}</TableCell>
+                      <TableCell className="text-grey-600 text-xs py-1.5 px-2">{detector.channel}</TableCell>
+                      <TableCell className="text-grey-600 text-xs py-1.5 px-2">{detector.phase}</TableCell>
+                      <TableCell className="py-1.5 px-2">
+                        <Badge variant="secondary" className="bg-purple-100 text-purple-800 text-xs py-0 px-1.5 h-4">
                           {detector.technologyType}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-grey-600">{detector.purpose}</TableCell>
+                      <TableCell className="text-grey-600 text-xs py-1.5 px-2">{detector.purpose}</TableCell>
                     </TableRow>
                   ))
                 )}

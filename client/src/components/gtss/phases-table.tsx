@@ -165,7 +165,7 @@ export default function PhasesTable() {
             ) : (
               <>
                 <Select value={filterSignal} onValueChange={setFilterSignal}>
-                  <SelectTrigger className="w-44 h-7 text-xs">
+                  <SelectTrigger className="w-80 h-7 text-xs">
                     <SelectValue placeholder="Filter by Signal" />
                   </SelectTrigger>
                   <SelectContent>
