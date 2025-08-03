@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Edit, Trash2, Map, List, Navigation, ChevronUp, ChevronDown, Eye, MapPin, Edit3 } from "lucide-react";
 import SignalModal from "./signal-modal";
 import BulkSignalModal from "./bulk-signal-modal";
-import { SignalsMap } from "@/components/ui/signals-map";
+
 
 type SortField = 'signalId' | 'streetName1' | 'streetName2' | 'coordinates';
 type SortDirection = 'asc' | 'desc';
@@ -147,90 +147,72 @@ export default function SignalsTable() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="w-full">
-            {/* Map View - Wide aspect ratio */}
-            <div className="border-b border-grey-200">
-              {signals.length === 0 ? (
-                <div className="h-24 bg-grey-50 flex items-center justify-center">
-                  <div className="text-center text-grey-500">
-                    <Map className="w-8 h-8 mx-auto mb-2 text-grey-400" />
-                    <p className="text-xs">No signals to display on map</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="h-24 relative">
-                  <SignalsMap signals={signals} />
-                </div>
-              )}
+            {/* Signals Table */}
+            <div className="px-3 py-2 border-b border-grey-200 bg-grey-50">
+              <h3 className="text-sm font-semibold text-grey-800">Signal Intersections ({signals.length})</h3>
             </div>
-            
-            {/* Signals Table - Below map */}
-            <div className="mt-0">
-              <div className="px-3 py-2 border-b border-grey-200 bg-grey-50">
-                <h3 className="text-sm font-semibold text-grey-800">Signal Intersections ({signals.length})</h3>
-              </div>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-grey-50 border-b border-grey-200">
-                      <SortableHeader field="signalId">Signal ID</SortableHeader>
-                      <SortableHeader field="streetName1">Street 1</SortableHeader>
-                      <SortableHeader field="streetName2">Street 2</SortableHeader>
-                      <SortableHeader field="coordinates">Coordinates</SortableHeader>
-                      <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider py-1.5 px-2">Actions</TableHead>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-grey-50 border-b border-grey-200">
+                    <SortableHeader field="signalId">Signal ID</SortableHeader>
+                    <SortableHeader field="streetName1">Street 1</SortableHeader>
+                    <SortableHeader field="streetName2">Street 2</SortableHeader>
+                    <SortableHeader field="coordinates">Coordinates</SortableHeader>
+                    <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider py-1.5 px-2">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {signals.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-xs text-grey-500">
+                        <div className="flex flex-col items-center space-y-2">
+                          <MapPin className="w-8 h-8 text-grey-300" />
+                          <p>No traffic signals configured</p>
+                          <p className="text-grey-400">Add your first signal to get started</p>
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {signals.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-xs text-grey-500">
-                          <div className="flex flex-col items-center space-y-2">
-                            <MapPin className="w-8 h-8 text-grey-300" />
-                            <p>No traffic signals configured</p>
-                            <p className="text-grey-400">Add your first signal to get started</p>
+                  ) : (
+                    getSortedSignals().map((signal) => (
+                      <TableRow 
+                        key={signal.id}
+                        className="hover:bg-grey-50 transition-colors"
+                      >
+                        <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">{signal.signalId}</TableCell>
+                        <TableCell className="text-grey-600 text-xs py-1.5 px-2">{signal.streetName1}</TableCell>
+                        <TableCell className="text-grey-600 text-xs py-1.5 px-2">{signal.streetName2}</TableCell>
+                        <TableCell className="text-grey-600 text-xs py-1.5 px-2">
+                          {signal.latitude && signal.longitude 
+                            ? `${signal.latitude.toFixed(4)}, ${signal.longitude.toFixed(4)}`
+                            : 'Not set'
+                          }
+                        </TableCell>
+                        <TableCell className="py-1.5 px-2">
+                          <div className="flex items-center space-x-1">
+                            <Button
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => navigate(`/signal/${signal.signalId}`)}
+                              className="h-6 w-6 p-0 text-primary-600 hover:text-primary-700 hover:bg-primary-50"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(signal)}
+                              className="h-6 w-6 p-0 text-grey-600 hover:text-grey-700 hover:bg-grey-100"
+                            >
+                              <MapPin className="w-3 h-3" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ) : (
-                      getSortedSignals().map((signal) => (
-                        <TableRow 
-                          key={signal.id}
-                          className="hover:bg-grey-50 transition-colors"
-                        >
-                          <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">{signal.signalId}</TableCell>
-                          <TableCell className="text-grey-600 text-xs py-1.5 px-2">{signal.streetName1}</TableCell>
-                          <TableCell className="text-grey-600 text-xs py-1.5 px-2">{signal.streetName2}</TableCell>
-                          <TableCell className="text-grey-600 text-xs py-1.5 px-2">
-                            {signal.latitude && signal.longitude 
-                              ? `${signal.latitude.toFixed(4)}, ${signal.longitude.toFixed(4)}`
-                              : 'Not set'
-                            }
-                          </TableCell>
-                          <TableCell className="py-1.5 px-2">
-                            <div className="flex items-center space-x-1">
-                              <Button
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => navigate(`/signal/${signal.signalId}`)}
-                                className="h-6 w-6 p-0 text-primary-600 hover:text-primary-700 hover:bg-primary-50"
-                              >
-                                <Edit3 className="w-3 h-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEdit(signal)}
-                                className="h-6 w-6 p-0 text-grey-600 hover:text-grey-700 hover:bg-grey-100"
-                              >
-                                <MapPin className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
             </div>
           </div>
         </CardContent>
