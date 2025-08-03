@@ -149,9 +149,6 @@ export default function SignalsTable() {
         <CardContent className="p-0">
           <div className="w-full">
             {/* Signals Table */}
-            <div className="px-3 py-2 border-b border-grey-200 bg-grey-50">
-              <h3 className="text-sm font-semibold text-grey-800">Signal Intersections ({signals.length})</h3>
-            </div>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
