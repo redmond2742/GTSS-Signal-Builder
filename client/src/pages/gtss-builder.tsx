@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLoadFromStorage } from "@/lib/localStorageHooks";
-import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Save, FolderOpen } from "lucide-react";
+import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Save, FolderOpen, Navigation, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import AgencyForm from "@/components/gtss/agency-form";
@@ -44,12 +44,15 @@ export default function GTSSBuilder() {
 
   const counts = getCounts();
 
+  const [triggerAdd, setTriggerAdd] = useState(0);
+  const [triggerBulk, setTriggerBulk] = useState(0);
+
   const renderTabContent = () => {
     switch (activeTab) {
       case "agency":
         return <AgencyForm />;
       case "signals":
-        return <SignalsTable />;
+        return <SignalsTable triggerAdd={triggerAdd} triggerBulk={triggerBulk} />;
       case "phases":
         return <PhasesTable />;
       case "detectors":
@@ -59,6 +62,14 @@ export default function GTSSBuilder() {
       default:
         return <AgencyForm />;
     }
+  };
+
+  const handleAddSignal = () => {
+    setTriggerAdd(prev => prev + 1);
+  };
+
+  const handleAddMultiple = () => {
+    setTriggerBulk(prev => prev + 1);
   };
 
   return (
@@ -139,6 +150,18 @@ export default function GTSSBuilder() {
               </h2>
               <p className="text-xs text-grey-500">{tabTitles[activeTab].desc}</p>
             </div>
+            {activeTab === "signals" && (
+              <div className="flex space-x-1">
+                <Button onClick={handleAddMultiple} variant="outline" className="h-7 px-2 text-xs border-primary-200 text-primary-700 hover:bg-primary-50">
+                  <Navigation className="w-3 h-3 mr-1" />
+                  Add Multiple
+                </Button>
+                <Button onClick={handleAddSignal} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add Signal
+                </Button>
+              </div>
+            )}
           </div>
         </header>
 

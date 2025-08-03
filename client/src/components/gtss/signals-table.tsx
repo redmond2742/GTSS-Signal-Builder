@@ -18,7 +18,12 @@ import BulkSignalModal from "./bulk-signal-modal";
 type SortField = 'signalId' | 'streetName1' | 'streetName2' | 'coordinates';
 type SortDirection = 'asc' | 'desc';
 
-export default function SignalsTable() {
+interface SignalsTableProps {
+  triggerAdd?: number;
+  triggerBulk?: number;
+}
+
+export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTableProps) {
   const [editingSignal, setEditingSignal] = useState<Signal | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -28,6 +33,19 @@ export default function SignalsTable() {
   const { toast } = useToast();
   const signalHooks = useSignals();
   const [, navigate] = useLocation();
+
+  // Handle triggers from parent component
+  useEffect(() => {
+    if (triggerAdd && triggerAdd > 0) {
+      handleAdd();
+    }
+  }, [triggerAdd]);
+
+  useEffect(() => {
+    if (triggerBulk && triggerBulk > 0) {
+      setShowBulkModal(true);
+    }
+  }, [triggerBulk]);
 
   const handleEdit = (signal: Signal) => {
     setEditingSignal(signal);
@@ -134,18 +152,7 @@ export default function SignalsTable() {
   return (
     <div className="max-w-6xl">
       <Card>
-        <CardHeader className="bg-grey-50 border-b border-grey-200 flex flex-row items-center justify-end px-3 py-2">
-          <div className="flex space-x-1">
-            <Button onClick={() => setShowBulkModal(true)} variant="outline" className="h-7 px-2 text-xs border-primary-200 text-primary-700 hover:bg-primary-50">
-              <Navigation className="w-3 h-3 mr-1" />
-              Add Multiple
-            </Button>
-            <Button onClick={handleAdd} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
-              <Plus className="w-3 h-3 mr-1" />
-              Add Signal
-            </Button>
-          </div>
-        </CardHeader>
+
         <CardContent className="p-0">
           <div className="w-full">
             {/* Signals Table */}
