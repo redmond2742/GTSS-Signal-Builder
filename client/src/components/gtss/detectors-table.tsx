@@ -14,7 +14,11 @@ type SortField = 'signalId' | 'detectorChannel' | 'phase' | 'detTechnologyType' 
 type SortDirection = 'asc' | 'desc';
 import DetectorModal from "./detector-modal";
 
-export default function DetectorsTable() {
+interface DetectorsTableProps {
+  triggerAdd?: number;
+}
+
+export default function DetectorsTable({ triggerAdd }: DetectorsTableProps) {
   const [editingDetector, setEditingDetector] = useState<Detector | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [selectedSignalId, setSelectedSignalId] = useState<string>("");
@@ -30,6 +34,13 @@ export default function DetectorsTable() {
   }, [signals, selectedSignalId]);
   const { toast } = useToast();
   const detectorHooks = useDetectors();
+
+  // Handle triggers from parent component
+  useEffect(() => {
+    if (triggerAdd && triggerAdd > 0) {
+      handleAdd();
+    }
+  }, [triggerAdd]);
 
   // Filter detectors by selected signal
   const filteredDetectors = selectedSignalId 
@@ -143,28 +154,22 @@ export default function DetectorsTable() {
     <div className="max-w-6xl">
       <Card>
         <CardHeader className="bg-grey-50 border-b border-grey-200 px-3 py-2">
-          <div className="flex flex-row items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Select value={selectedSignalId} onValueChange={setSelectedSignalId}>
-                <SelectTrigger className="w-80 h-7 text-xs">
-                  <SelectValue placeholder="Choose signal to view detectors" />
-                </SelectTrigger>
-                <SelectContent>
-                  {signals.map((signal) => (
-                    <SelectItem key={signal.id} value={signal.signalId}>
-                      {getSignalDisplayName(signal.signalId)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedSignalId && (
-                <span className="text-xs text-grey-600">({filteredDetectors.length} detector(s))</span>
-              )}
-            </div>
-            <Button onClick={handleAdd} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
-              <Plus className="w-3 h-3 mr-1" />
-              Add Detector
-            </Button>
+          <div className="flex items-center space-x-2">
+            <Select value={selectedSignalId} onValueChange={setSelectedSignalId}>
+              <SelectTrigger className="w-80 h-7 text-xs">
+                <SelectValue placeholder="Choose signal to view detectors" />
+              </SelectTrigger>
+              <SelectContent>
+                {signals.map((signal) => (
+                  <SelectItem key={signal.id} value={signal.signalId}>
+                    {getSignalDisplayName(signal.signalId)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedSignalId && (
+              <span className="text-xs text-grey-600">({filteredDetectors.length} detector(s))</span>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-0">

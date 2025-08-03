@@ -16,7 +16,12 @@ import VisualPhaseEditor from "./visual-phase-editor";
 type SortField = 'phase' | 'signalId' | 'movementType' | 'bearing';
 type SortDirection = 'asc' | 'desc';
 
-export default function PhasesTable() {
+interface PhasesTableProps {
+  triggerAdd?: number;
+  triggerVisualEditor?: number;
+}
+
+export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesTableProps) {
   const [editingPhase, setEditingPhase] = useState<Phase | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showVisualEditor, setShowVisualEditor] = useState(false);
@@ -26,6 +31,19 @@ export default function PhasesTable() {
   const { signals, phases } = useGTSSStore();
   const { toast } = useToast();
   const phaseHooks = usePhases();
+
+  // Handle triggers from parent component
+  useEffect(() => {
+    if (triggerAdd && triggerAdd > 0) {
+      handleAdd();
+    }
+  }, [triggerAdd]);
+
+  useEffect(() => {
+    if (triggerVisualEditor && triggerVisualEditor > 0) {
+      setShowVisualEditor(true);
+    }
+  }, [triggerVisualEditor]);
 
   // Auto-select first signal on mount
   useEffect(() => {
@@ -152,9 +170,7 @@ export default function PhasesTable() {
   return (
     <div className="max-w-6xl">
       <Card>
-        <CardHeader className="bg-grey-50 border-b border-grey-200 flex flex-row items-center justify-between px-3 py-2">
-          <div>
-          </div>
+        <CardHeader className="bg-grey-50 border-b border-grey-200 flex flex-row items-center justify-start px-3 py-2">
           <div className="flex space-x-2">
             {signals.length === 0 ? (
               <div className="p-2 bg-warning-50 border border-warning-200 rounded-md">
@@ -163,34 +179,18 @@ export default function PhasesTable() {
                 </p>
               </div>
             ) : (
-              <>
-                <Select value={filterSignal} onValueChange={setFilterSignal}>
-                  <SelectTrigger className="w-80 h-7 text-xs">
-                    <SelectValue placeholder="Filter by Signal" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {signals.map((signal) => (
-                      <SelectItem key={signal.signalId} value={signal.signalId}>
-                        {getSignalInfo(signal.signalId)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button onClick={handleAdd} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
-                  <Plus className="w-3 h-3 mr-1" />
-                  Add Phase
-                </Button>
-                {filterSignal && (
-                  <Button 
-                    onClick={() => setShowVisualEditor(true)} 
-                    variant="outline"
-                    className="h-7 px-2 text-xs border-success-200 text-success-600 hover:bg-success-50"
-                  >
-                    <Map className="w-3 h-3 mr-1" />
-                    Visual Editor
-                  </Button>
-                )}
-              </>
+              <Select value={filterSignal} onValueChange={setFilterSignal}>
+                <SelectTrigger className="w-80 h-7 text-xs">
+                  <SelectValue placeholder="Filter by Signal" />
+                </SelectTrigger>
+                <SelectContent>
+                  {signals.map((signal) => (
+                    <SelectItem key={signal.signalId} value={signal.signalId}>
+                      {getSignalInfo(signal.signalId)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
           </div>
         </CardHeader>

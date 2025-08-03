@@ -153,24 +153,17 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
   return (
     <div className="max-w-6xl">
       <div className="mb-4 bg-white rounded-lg border border-grey-200 overflow-hidden">
-        <div className="flex">
-          <div className="w-64 h-32 relative flex-shrink-0">
-            {signals.length === 0 ? (
-              <div className="w-full h-full bg-grey-50 flex items-center justify-center">
-                <div className="text-center text-grey-500">
-                  <MapPin className="w-6 h-6 mx-auto mb-1 text-grey-400" />
-                  <p className="text-xs">No signals to display</p>
-                </div>
+        <div className="h-32 relative">
+          {signals.length === 0 ? (
+            <div className="w-full h-full bg-grey-50 flex items-center justify-center">
+              <div className="text-center text-grey-500">
+                <MapPin className="w-6 h-6 mx-auto mb-1 text-grey-400" />
+                <p className="text-xs">No signals to display</p>
               </div>
-            ) : (
-              <SignalsMap signals={signals} />
-            )}
-          </div>
-          <div className="flex-1 p-4">
-            <p className="text-xs text-grey-600 leading-relaxed">
-              Configure traffic signal locations for your transportation network. Each signal represents an intersection or crossing point where traffic control is needed. Use the map-based tools to precisely position signals and define their operational parameters including timing phases and detection systems.
-            </p>
-          </div>
+            </div>
+          ) : (
+            <SignalsMap signals={signals} />
+          )}
         </div>
       </div>
       <Card>

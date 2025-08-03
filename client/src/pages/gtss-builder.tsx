@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLoadFromStorage } from "@/lib/localStorageHooks";
-import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Save, FolderOpen, Navigation, Plus } from "lucide-react";
+import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Save, FolderOpen, Navigation, Plus, Map } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import AgencyForm from "@/components/gtss/agency-form";
@@ -46,6 +46,9 @@ export default function GTSSBuilder() {
 
   const [triggerAdd, setTriggerAdd] = useState(0);
   const [triggerBulk, setTriggerBulk] = useState(0);
+  const [triggerAddPhase, setTriggerAddPhase] = useState(0);
+  const [triggerVisualEditor, setTriggerVisualEditor] = useState(0);
+  const [triggerAddDetector, setTriggerAddDetector] = useState(0);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -54,9 +57,9 @@ export default function GTSSBuilder() {
       case "signals":
         return <SignalsTable triggerAdd={triggerAdd} triggerBulk={triggerBulk} />;
       case "phases":
-        return <PhasesTable />;
+        return <PhasesTable triggerAdd={triggerAddPhase} triggerVisualEditor={triggerVisualEditor} />;
       case "detectors":
-        return <DetectorsTable />;
+        return <DetectorsTable triggerAdd={triggerAddDetector} />;
       case "export":
         return <ExportPanel />;
       default:
@@ -70,6 +73,18 @@ export default function GTSSBuilder() {
 
   const handleAddMultiple = () => {
     setTriggerBulk(prev => prev + 1);
+  };
+
+  const handleAddPhase = () => {
+    setTriggerAddPhase(prev => prev + 1);
+  };
+
+  const handleVisualEditor = () => {
+    setTriggerVisualEditor(prev => prev + 1);
+  };
+
+  const handleAddDetector = () => {
+    setTriggerAddDetector(prev => prev + 1);
   };
 
   return (
@@ -159,6 +174,26 @@ export default function GTSSBuilder() {
                 <Button onClick={handleAddSignal} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
                   <Plus className="w-3 h-3 mr-1" />
                   Add Signal
+                </Button>
+              </div>
+            )}
+            {activeTab === "phases" && (
+              <div className="flex space-x-1">
+                <Button onClick={handleAddPhase} variant="outline" className="h-7 px-2 text-xs border-primary-200 text-primary-700 hover:bg-primary-50">
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add Phase
+                </Button>
+                <Button onClick={handleVisualEditor} className="h-7 px-2 text-xs bg-success-600 hover:bg-success-700 text-white">
+                  <Map className="w-3 h-3 mr-1" />
+                  Visual Editor
+                </Button>
+              </div>
+            )}
+            {activeTab === "detectors" && (
+              <div className="flex space-x-1">
+                <Button onClick={handleAddDetector} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add Detector
                 </Button>
               </div>
             )}
