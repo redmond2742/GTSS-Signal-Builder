@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Edit, Trash2, Map, List, Navigation, ChevronUp, ChevronDown, Eye, MapPin, Edit3 } from "lucide-react";
 import SignalModal from "./signal-modal";
 import BulkSignalModal from "./bulk-signal-modal";
-import { SignalsMap } from "@/components/ui/signals-map";
+
 
 
 type SortField = 'signalId' | 'streetName1' | 'streetName2' | 'coordinates';
@@ -148,22 +148,6 @@ export default function SignalsTable() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="w-full">
-            {/* Map View - Slim */}
-            <div className="border-b border-grey-200">
-              {signals.length === 0 ? (
-                <div className="h-20 bg-grey-50 flex items-center justify-center">
-                  <div className="text-center text-grey-500">
-                    <Map className="w-6 h-6 mx-auto mb-1 text-grey-400" />
-                    <p className="text-xs">No signals to display on map</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="h-20 relative">
-                  <SignalsMap signals={signals} />
-                </div>
-              )}
-            </div>
-            
             {/* Signals Table */}
             <div className="px-3 py-2 border-b border-grey-200 bg-grey-50">
               <h3 className="text-sm font-semibold text-grey-800">Signal Intersections ({signals.length})</h3>
