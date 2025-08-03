@@ -150,14 +150,14 @@ export default function SignalsTable() {
             {/* Map View - Wide aspect ratio */}
             <div className="border-b border-grey-200">
               {signals.length === 0 ? (
-                <div className="h-32 bg-grey-50 flex items-center justify-center">
+                <div className="h-24 bg-grey-50 flex items-center justify-center">
                   <div className="text-center text-grey-500">
                     <Map className="w-8 h-8 mx-auto mb-2 text-grey-400" />
                     <p className="text-xs">No signals to display on map</p>
                   </div>
                 </div>
               ) : (
-                <div className="h-32 relative">
+                <div className="h-24 relative">
                   <SignalsMap signals={signals} />
                 </div>
               )}
