@@ -134,7 +134,7 @@ export default function SignalsTable() {
   return (
     <div className="max-w-6xl">
       <Card>
-        <CardHeader className="bg-grey-50 border-b border-grey-200 flex flex-row items-center justify-between px-3 py-2">
+        <CardHeader className="bg-grey-50 border-b border-grey-200 flex flex-row items-center justify-end px-3 py-2">
           <div className="flex space-x-1">
             <Button onClick={() => setShowBulkModal(true)} variant="outline" className="h-7 px-2 text-xs border-primary-200 text-primary-700 hover:bg-primary-50">
               <Navigation className="w-3 h-3 mr-1" />
