@@ -152,9 +152,29 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
   return (
     <div className="max-w-6xl">
       <div className="mb-4 p-4 bg-white rounded-lg border border-grey-200">
-        <p className="text-xs text-grey-600 leading-relaxed">
-          Configure traffic signal locations for your transportation network. Each signal represents an intersection or crossing point where traffic control is needed. Use the map-based tools to precisely position signals and define their operational parameters including timing phases and detection systems.
-        </p>
+        <div className="flex items-start space-x-4">
+          <div className="flex-shrink-0">
+            <div className="w-20 h-16 bg-grey-100 border border-grey-300 rounded-md overflow-hidden">
+              <div className="w-full h-full bg-gradient-to-br from-blue-50 to-green-50 relative">
+                {/* Simple map representation */}
+                <div className="absolute inset-1">
+                  {/* Streets */}
+                  <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-grey-400"></div>
+                  <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-grey-400"></div>
+                  {/* Signal dots */}
+                  <div className="absolute top-1/2 left-1/2 w-1.5 h-1.5 bg-red-500 rounded-full transform -translate-x-1/2 -translate-y-1/2"></div>
+                  <div className="absolute top-1/4 left-1/4 w-1 h-1 bg-green-500 rounded-full"></div>
+                  <div className="absolute bottom-1/4 right-1/4 w-1 h-1 bg-amber-500 rounded-full"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="flex-1">
+            <p className="text-xs text-grey-600 leading-relaxed">
+              Configure traffic signal locations for your transportation network. Each signal represents an intersection or crossing point where traffic control is needed. Use the map-based tools to precisely position signals and define their operational parameters including timing phases and detection systems.
+            </p>
+          </div>
+        </div>
       </div>
       <Card>
 
