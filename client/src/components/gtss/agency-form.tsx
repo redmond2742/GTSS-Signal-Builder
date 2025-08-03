@@ -217,15 +217,15 @@ export default function AgencyForm() {
         <CardHeader className="bg-grey-50 border-b border-grey-200">
           <CardTitle className="text-lg font-semibold text-grey-800">Agency Configuration</CardTitle>
         </CardHeader>
-        <CardContent className="p-6">
+        <CardContent className="p-4">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               {/* Integrated Location Picker */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-medium">Agency Location</h3>
-                    <p className="text-sm text-grey-600">
+                    <h3 className="text-base font-medium">Agency Location</h3>
+                    <p className="text-xs text-grey-600">
                       Select your agency's location. This will be used as the center point for signal maps.
                     </p>
                   </div>
@@ -234,14 +234,14 @@ export default function AgencyForm() {
                     onClick={handleGetUserLocation}
                     disabled={isGeocodingUserLocation}
                     variant="outline"
-                    size="sm"
+                    className="h-7 px-2 text-xs"
                   >
-                    <Crosshair className="w-4 h-4 mr-2" />
+                    <Crosshair className="w-3 h-3 mr-1" />
                     {isGeocodingUserLocation ? "Locating..." : "Use My Location"}
                   </Button>
                 </div>
 
-                <div className="h-80 relative">
+                <div className="h-64 relative">
                   <MapContainer
                     center={mapCenter}
                     zoom={selectedLocation ? 12 : 6}
@@ -263,11 +263,11 @@ export default function AgencyForm() {
 
                 {selectedLocation && (
                   <Card className="bg-green-50 border-green-200">
-                    <CardContent className="p-4">
+                    <CardContent className="p-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="font-medium text-green-800">Selected Location</div>
-                          <div className="text-sm text-green-700">
+                          <div className="font-medium text-green-800 text-sm">Selected Location</div>
+                          <div className="text-xs text-green-700">
                             {selectedLocation.city && selectedLocation.state 
                               ? `${selectedLocation.city}, ${selectedLocation.state}`
                               : selectedLocation.displayName
@@ -277,7 +277,7 @@ export default function AgencyForm() {
                             {selectedLocation.lat.toFixed(6)}, {selectedLocation.lon.toFixed(6)}
                           </div>
                         </div>
-                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                        <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
                           <MapPin className="w-3 h-3 mr-1" />
                           Auto-populated
                         </Badge>
@@ -288,17 +288,17 @@ export default function AgencyForm() {
               </div>
 
               {/* Agency Information Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="agencyId"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-xs font-medium">
                       Agency ID <span className="text-red-500">*</span>
                     </FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., TM_001" {...field} />
+                      <Input placeholder="e.g., TM_001" className="h-7 px-2 text-xs" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -309,13 +309,14 @@ export default function AgencyForm() {
                       control={form.control}
                       name="agencyName"
                       render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>
+                        <FormItem className="space-y-1">
+                          <FormLabel className="text-xs font-medium">
                             Agency Name <span className="text-red-500">*</span>
                           </FormLabel>
                           <FormControl>
                             <Input 
                               placeholder="e.g., Los Angeles Department of Transportation" 
+                              className="h-7 px-2 text-xs"
                               {...field} 
                             />
                           </FormControl>
@@ -408,8 +409,8 @@ export default function AgencyForm() {
               <div className="flex justify-end">
                 <Button 
                   type="submit" 
-                  className="bg-primary-600 hover:bg-primary-700"
-  disabled={false}
+                  className="h-8 px-4 text-xs bg-primary-600 hover:bg-primary-700"
+                  disabled={false}
                 >
                   Save Agency Information
                 </Button>
@@ -425,15 +426,15 @@ export default function AgencyForm() {
           <CardTitle className="text-lg font-semibold text-grey-800">Configuration Preview</CardTitle>
           <p className="text-sm text-grey-600">Current configuration summary</p>
         </CardHeader>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
-            <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-primary-600 font-medium">Signal Intersections</p>
-                  <p className="text-2xl font-bold text-primary-700">{signals.length}</p>
+                  <p className="text-xs text-primary-600 font-medium">Signal Intersections</p>
+                  <p className="text-xl font-bold text-primary-700">{signals.length}</p>
                 </div>
-                <MapPin className="text-primary-500 text-xl" />
+                <MapPin className="text-primary-500 w-5 h-5" />
               </div>
             </div>
           </div>

@@ -109,17 +109,17 @@ export default function SignalsTable() {
 
   const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
     <TableHead 
-      className="text-xs font-medium text-grey-500 uppercase tracking-wider cursor-pointer hover:bg-grey-100 transition-colors"
+      className="text-xs font-medium text-grey-500 uppercase tracking-wider cursor-pointer hover:bg-grey-100 transition-colors py-1.5 px-2"
       onClick={() => handleSort(field)}
     >
       <div className="flex items-center justify-between">
         {children}
         <div className="flex flex-col ml-1">
           <ChevronUp 
-            className={`w-3 h-3 ${sortField === field && sortDirection === 'asc' ? 'text-primary-600' : 'text-grey-300'}`} 
+            className={`w-2 h-2 ${sortField === field && sortDirection === 'asc' ? 'text-primary-600' : 'text-grey-300'}`} 
           />
           <ChevronDown 
-            className={`w-3 h-3 -mt-1 ${sortField === field && sortDirection === 'desc' ? 'text-primary-600' : 'text-grey-300'}`} 
+            className={`w-2 h-2 -mt-0.5 ${sortField === field && sortDirection === 'desc' ? 'text-primary-600' : 'text-grey-300'}`} 
           />
         </div>
       </div>
@@ -131,28 +131,28 @@ export default function SignalsTable() {
   return (
     <div className="max-w-6xl">
       <Card>
-        <CardHeader className="bg-grey-50 border-b border-grey-200 flex flex-row items-center justify-between text-[13px]">
-          <div className="flex space-x-2">
-            <Button onClick={() => setShowBulkModal(true)} variant="outline" className="border-primary-200 text-primary-700 hover:bg-primary-50">
-              <Navigation className="w-4 h-4 mr-2" />
+        <CardHeader className="bg-grey-50 border-b border-grey-200 flex flex-row items-center justify-between px-3 py-2">
+          <div className="flex space-x-1">
+            <Button onClick={() => setShowBulkModal(true)} variant="outline" className="h-7 px-2 text-xs border-primary-200 text-primary-700 hover:bg-primary-50">
+              <Navigation className="w-3 h-3 mr-1" />
               Add Multiple
             </Button>
-            <Button onClick={handleAdd} className="bg-primary-600 hover:bg-primary-700">
-              <Plus className="w-4 h-4 mr-2" />
+            <Button onClick={handleAdd} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
+              <Plus className="w-3 h-3 mr-1" />
               Add Signal
             </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
           <Tabs defaultValue="list" className="w-full">
-            <div className="flex items-center justify-between px-6 py-3 border-b border-grey-200">
-              <TabsList className="grid w-fit grid-cols-2">
-                <TabsTrigger value="list" className="text-xs">
-                  <List className="w-4 h-4 mr-2" />
+            <div className="flex items-center justify-between px-3 py-2 border-b border-grey-200">
+              <TabsList className="grid w-fit grid-cols-2 h-7">
+                <TabsTrigger value="list" className="text-xs h-6 px-2">
+                  <List className="w-3 h-3 mr-1" />
                   List View
                 </TabsTrigger>
-                <TabsTrigger value="map" className="text-xs">
-                  <Map className="w-4 h-4 mr-2" />
+                <TabsTrigger value="map" className="text-xs h-6 px-2">
+                  <Map className="w-3 h-3 mr-1" />
                   Map View
                 </TabsTrigger>
               </TabsList>
@@ -172,7 +172,7 @@ export default function SignalsTable() {
                   <TableBody>
                     {signals.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-grey-500">
+                        <TableCell colSpan={4} className="text-center py-4 text-xs text-grey-500">
                           No signals configured. Add your first signal to get started.
                         </TableCell>
                       </TableRow>
@@ -183,10 +183,10 @@ export default function SignalsTable() {
                           className="hover:bg-grey-50 cursor-pointer transition-colors"
                           onClick={() => handleRowClick(signal)}
                         >
-                          <TableCell className="font-medium text-grey-900">{signal.signalId}</TableCell>
-                          <TableCell className="text-grey-600">{signal.streetName1}</TableCell>
-                          <TableCell className="text-grey-600">{signal.streetName2}</TableCell>
-                          <TableCell className="text-grey-600">
+                          <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">{signal.signalId}</TableCell>
+                          <TableCell className="text-grey-600 text-xs py-1.5 px-2">{signal.streetName1}</TableCell>
+                          <TableCell className="text-grey-600 text-xs py-1.5 px-2">{signal.streetName2}</TableCell>
+                          <TableCell className="text-grey-600 text-xs py-1.5 px-2">
                             {signal.latitude && signal.longitude 
                               ? `${signal.latitude.toFixed(4)}, ${signal.longitude.toFixed(4)}`
                               : 'Not set'

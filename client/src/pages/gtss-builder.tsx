@@ -64,64 +64,65 @@ export default function GTSSBuilder() {
   return (
     <div className="min-h-screen flex bg-grey-50">
       {/* Sidebar */}
-      <div className="w-64 bg-white shadow-lg border-r border-grey-200 flex flex-col">
+      <div className="w-56 bg-white shadow-lg border-r border-grey-200 flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-grey-200">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center">
-              <TrafficCone className="text-white text-lg" size={20} />
+        <div className="p-3 border-b border-grey-200">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
+              <TrafficCone className="text-white" size={16} />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-grey-800">GTSS Builder</h1>
+              <h1 className="text-lg font-bold text-grey-800">GTSS Builder</h1>
               <p className="text-sm text-grey-500">OpenSignal</p>
             </div>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4">
-          <ul className="space-y-2">
+        <nav className="flex-1 p-2">
+          <div className="space-y-1">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
-              const count = tab.id === "signals" ? counts.signals : 
-                           tab.id === "phases" ? counts.phases :
-                           tab.id === "detectors" ? counts.detectors : 0;
-
+              const count = counts[tab.id as keyof typeof counts] || 0;
+              
               return (
-                <li key={tab.id}>
-                  <button
-                    onClick={() => setActiveTab(tab.id as TabType)}
-                    className={cn(
-                      "w-full flex items-center space-x-3 px-4 py-3 text-left rounded-lg transition-colors font-medium",
-                      isActive
-                        ? "bg-primary-50 text-primary-700 border border-primary-200"
-                        : "text-grey-600 hover:bg-grey-100"
-                    )}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span className="flex-1">{tab.label}</span>
-                    {tab.id === "signals" && counts.signals > 0 && (
-                      <Badge variant="secondary" className="bg-grey-200 text-grey-700 text-xs">
-                        {counts.signals}
-                      </Badge>
-                    )}
-
-                  </button>
-                </li>
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as TabType)}
+                  className={cn(
+                    "w-full flex items-center space-x-2 px-2 py-2 rounded-md text-left transition-all duration-200",
+                    isActive
+                      ? "bg-primary-100 text-primary-700 border border-primary-200 shadow-sm"
+                      : "text-grey-600 hover:bg-grey-100 hover:text-grey-800"
+                  )}
+                >
+                  <Icon size={16} className={isActive ? "text-primary-600" : "text-grey-500"} />
+                  <div className="flex-1">
+                    <span className="text-xs font-medium">{tab.label}</span>
+                  </div>
+                  {count > 0 && (
+                    <Badge 
+                      variant={isActive ? "default" : "secondary"} 
+                      className="text-xs px-1.5 py-0 min-w-[18px] h-4"
+                    >
+                      {count}
+                    </Badge>
+                  )}
+                </button>
               );
             })}
-          </ul>
+          </div>
         </nav>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-grey-200 space-y-2">
-          <Button variant="outline" className="w-full bg-grey-100 text-grey-700 hover:bg-grey-200">
-            <Save className="w-4 h-4 mr-2" />
+        <div className="p-2 border-t border-grey-200 space-y-1">
+          <Button variant="outline" className="w-full h-7 text-xs bg-grey-100 text-grey-700 hover:bg-grey-200">
+            <Save className="w-3 h-3 mr-1" />
             Save Config
           </Button>
-          <Button variant="outline" className="w-full bg-grey-100 text-grey-700 hover:bg-grey-200">
-            <FolderOpen className="w-4 h-4 mr-2" />
+          <Button variant="outline" className="w-full h-7 text-xs bg-grey-100 text-grey-700 hover:bg-grey-200">
+            <FolderOpen className="w-3 h-3 mr-1" />
             Load Config
           </Button>
         </div>
@@ -130,20 +131,19 @@ export default function GTSSBuilder() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
-        <header className="bg-white border-b border-grey-200 px-6 py-4">
+        <header className="bg-white border-b border-grey-200 px-4 py-2">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-grey-800">
+              <h2 className="text-lg font-bold text-grey-800">
                 {tabTitles[activeTab].title}
               </h2>
-              <p className="text-grey-500">{tabTitles[activeTab].desc}</p>
+              <p className="text-xs text-grey-500">{tabTitles[activeTab].desc}</p>
             </div>
-
           </div>
         </header>
 
         {/* Content Area */}
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto p-3">
           {renderTabContent()}
         </main>
       </div>
