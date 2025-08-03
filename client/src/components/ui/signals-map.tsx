@@ -28,15 +28,18 @@ function MapBounds({ signals }: { signals: Signal[] }) {
 
   useEffect(() => {
     if (signals.length > 0) {
+      const validSignals = signals.filter(signal => signal.latitude && signal.longitude);
+      if (validSignals.length === 0) return;
+      
       const group = new L.FeatureGroup(
-        signals.map(signal => 
-          L.marker([signal.cntLat, signal.cntLon])
+        validSignals.map(signal => 
+          L.marker([signal.latitude, signal.longitude])
         )
       );
       
-      if (signals.length === 1) {
+      if (validSignals.length === 1) {
         // If only one signal, center on it with reasonable zoom
-        map.setView([signals[0].cntLat, signals[0].cntLon], 15);
+        map.setView([validSignals[0].latitude, validSignals[0].longitude], 15);
       } else {
         // If multiple signals, fit all markers in view
         map.fitBounds(group.getBounds(), { padding: [20, 20] });
@@ -98,16 +101,11 @@ function QuickEditPopup({ signal, onUpdate, onSignalSelect }: {
         </div>
         <div className="pt-1 space-y-1">
           <p className="text-xs text-grey-500">
-            Control: {signal.controlType}
+            Location: {signal.latitude?.toFixed(4)}, {signal.longitude?.toFixed(4)}
           </p>
           <p className="text-xs text-grey-500">
-            Location: {signal.cntLat.toFixed(4)}, {signal.cntLon.toFixed(4)}
+            Agency: {signal.agencyId}
           </p>
-          {signal.cabinetType && (
-            <p className="text-xs text-grey-500">
-              Cabinet: {signal.cabinetType}
-            </p>
-          )}
         </div>
         <div className="pt-2">
           <Button onClick={() => onSignalSelect?.(signal)} variant="outline" size="sm" className="text-xs h-6 w-full">
@@ -124,17 +122,15 @@ export function SignalsMap({ signals, onSignalSelect, onSignalUpdate, className 
   
   // Use agency coordinates as starting point for map center
   const center: [number, number] = useMemo(() => {
-    // First priority: use agency coordinates if available
-    if (agency?.agencyLat && agency?.agencyLon) {
-      return [agency.agencyLat, agency.agencyLon];
-    }
+    // First priority: use agency coordinates if available (agencies don't have coordinates in current schema)
+    // Skip agency-based centering for now
     // Second priority: center on existing signals
-    if (signals.length > 0) {
-      return [signals[0].cntLat, signals[0].cntLon];
+    if (signals.length > 0 && signals[0].latitude && signals[0].longitude) {
+      return [signals[0].latitude, signals[0].longitude];
     }
     // Default: center of US
     return [39.8283, -98.5795];
-  }, [agency?.agencyLat, agency?.agencyLon, signals]);
+  }, [agency?.latitude, agency?.longitude, signals]);
 
   return (
     <div className={className}>
@@ -151,10 +147,10 @@ export function SignalsMap({ signals, onSignalSelect, onSignalUpdate, className 
         
         <MapBounds signals={signals} />
         
-        {signals.map((signal) => (
+        {signals.filter(signal => signal.latitude && signal.longitude).map((signal) => (
           <Marker
             key={signal.id}
-            position={[signal.cntLat, signal.cntLon]}
+            position={[signal.latitude, signal.longitude]}
           >
             <Popup>
               <QuickEditPopup

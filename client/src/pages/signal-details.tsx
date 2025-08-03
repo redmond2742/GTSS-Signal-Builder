@@ -150,7 +150,30 @@ export default function SignalDetails() {
 
   const handlePhaseSave = (data: InsertPhase) => {
     try {
+      // Check for duplicate phase numbers (only for new phases)
+      if (!editingPhase) {
+        const existingPhase = signalPhases.find(p => p.phase === data.phase);
+        if (existingPhase) {
+          toast({
+            title: "Error",
+            description: `Phase ${data.phase} already exists for this signal. Please choose a different phase number.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+      
       if (editingPhase) {
+        // Check for duplicate phase numbers when editing (exclude current phase)
+        const existingPhase = signalPhases.find(p => p.phase === data.phase && p.id !== editingPhase.id);
+        if (existingPhase) {
+          toast({
+            title: "Error",
+            description: `Phase ${data.phase} already exists for this signal. Please choose a different phase number.`,
+            variant: "destructive",
+          });
+          return;
+        }
         phaseHooks.update(editingPhase.id, data);
       } else {
         phaseHooks.save(data);
@@ -840,13 +863,13 @@ export default function SignalDetails() {
                       <FormLabel className="text-xs font-medium">Phase</FormLabel>
                       <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
                         <FormControl>
-                          <SelectTrigger className="h-7 text-xs">
+                          <SelectTrigger className="h-7 text-xs w-full min-w-0">
                             <SelectValue />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
-                          {phases.map((phase) => (
-                            <SelectItem key={phase.id} value={phase.phase.toString()}>
+                        <SelectContent className="w-72">
+                          {signalPhases.map((phase) => (
+                            <SelectItem key={phase.id} value={phase.phase.toString()} className="w-full">
                               Phase {phase.phase} - {phase.movementType}
                             </SelectItem>
                           ))}
