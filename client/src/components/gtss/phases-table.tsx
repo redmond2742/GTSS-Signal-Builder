@@ -196,12 +196,12 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
                 {filterSignal && (() => {
                   const selectedSignal = signals.find(s => s.signalId === filterSignal);
                   return selectedSignal && selectedSignal.latitude && selectedSignal.longitude ? (
-                    <div className="w-16 h-12 border border-grey-300 rounded-md overflow-hidden bg-white relative z-0">
+                    <div className="w-48 h-36 border border-grey-300 rounded-md overflow-hidden bg-white relative z-0">
                       <SignalsMap signals={[selectedSignal]} />
                     </div>
                   ) : (
-                    <div className="w-16 h-12 border border-grey-300 rounded-md bg-grey-100 flex items-center justify-center">
-                      <MapPin className="w-4 h-4 text-grey-400" />
+                    <div className="w-48 h-36 border border-grey-300 rounded-md bg-grey-100 flex items-center justify-center">
+                      <MapPin className="w-8 h-8 text-grey-400" />
                     </div>
                   );
                 })()}
