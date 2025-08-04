@@ -54,6 +54,24 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
     setShowModal(true);
   };
 
+  const handleSignalUpdate = (signalId: string, updates: Partial<Signal>) => {
+    try {
+      const updatedSignal = signalHooks.update(signalId, updates);
+      if (updatedSignal) {
+        toast({
+          title: "Success",
+          description: "Signal updated successfully",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update signal",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDelete = (signalId: string) => {
     if (confirm("Are you sure you want to delete this signal? This will also delete all related phases and detectors.")) {
       try {
@@ -167,8 +185,8 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
               <SignalsMap 
                 signals={signals} 
                 onSignalSelect={(signal) => navigate(`/signal/${signal.signalId}`)}
+                onSignalUpdate={handleSignalUpdate}
                 className="w-full h-full"
-
               />
             </div>
           )}
