@@ -138,10 +138,7 @@ export default function SignalDetails() {
           description: "Signal created successfully",
         });
       } else if (signal) {
-        console.log("Updating signal with data:", data);
-        console.log("Signal ID:", signal.signalId);
         const updatedSignal = signalHooks.update(signal.signalId, data);
-        console.log("Updated signal result:", updatedSignal);
         
         if (updatedSignal) {
           setSignal(updatedSignal);
@@ -371,12 +368,8 @@ export default function SignalDetails() {
     
     if (userInput === confirmText) {
       try {
-        // Delete all associated phases and detectors first
-        signalPhases.forEach(phase => phaseHooks.delete(phase.id));
-        signalDetectors.forEach(detector => detectorHooks.delete(detector.id));
-        
-        // Delete the signal
-        signalHooks.delete(signal.id);
+        // Delete the signal (this will also delete associated phases and detectors via signalStorage.delete)
+        signalHooks.delete(signal.signalId);
         
         toast({
           title: "Success",
@@ -386,6 +379,7 @@ export default function SignalDetails() {
         // Navigate back to main signals page
         navigate("/gtss-builder");
       } catch (error) {
+        console.error("Delete error:", error);
         toast({
           title: "Error",
           description: "Failed to delete signal",
