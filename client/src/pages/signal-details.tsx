@@ -719,6 +719,7 @@ export default function SignalDetails() {
                   center={[signal.latitude, signal.longitude]}
                   zoom={16}
                   style={{ height: "100%", width: "100%", zIndex: 1 }}
+                  key={`view-map-${signal.signalId}-${signal.latitude}-${signal.longitude}`}
                 >
                   <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
