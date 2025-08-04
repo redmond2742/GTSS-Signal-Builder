@@ -202,7 +202,7 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
               <div className="flex-1 ml-4 h-20">
                 {selectedSignal && selectedSignal.latitude && selectedSignal.longitude ? (
                   <div className="w-full h-full border border-grey-300 rounded-md overflow-hidden bg-white relative z-0">
-                    <SignalsMap signals={[selectedSignal]} />
+                    <SignalsMap signals={[selectedSignal]} className="w-full h-full" />
                   </div>
                 ) : (
                   <div className="w-full h-full border border-grey-300 rounded-md bg-grey-100 flex items-center justify-center">

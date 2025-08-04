@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Download, CheckCircle, AlertTriangle, XCircle, Info, TrendingUp, Users, Settings2, Target } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Download, CheckCircle, AlertTriangle, XCircle, Info, TrendingUp, Users, Settings2, Target, ChevronDown, ChevronRight } from "lucide-react";
 import { evaluateGTSSCompleteness } from "@/lib/gtssValidation";
 
 export default function ExportPanel() {
@@ -87,6 +88,7 @@ export default function ExportPanel() {
   
   // Get GTSS completeness analysis
   const completenessAnalysis = evaluateGTSSCompleteness(signals, phases, detectors);
+  const [isAnalysisExpanded, setIsAnalysisExpanded] = useState(false);
 
   const handleExportValidated = async () => {
     if (hasErrors) {
@@ -160,58 +162,69 @@ export default function ExportPanel() {
             </Card>
           </div>
 
-          {/* Signal-by-Signal Analysis */}
+          {/* Signal-by-Signal Analysis - Collapsible */}
           {completenessAnalysis.results.length > 0 && (
-            <div className="mb-6">
-              <h4 className="text-sm font-medium text-grey-700 mb-3">Signal Completeness Analysis</h4>
-              <div className="space-y-3">
-                {completenessAnalysis.results.map((result) => (
-                  <Card key={result.signalId} className="border-grey-200">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3">
-                            <Badge 
-                              variant={result.status === 'complete' ? 'default' : result.status === 'partial' ? 'secondary' : 'destructive'}
-                              className="text-xs"
-                            >
-                              {result.status === 'complete' ? 'Complete' : result.status === 'partial' ? 'Partial' : 'Incomplete'}
-                            </Badge>
-                            <div>
-                              <p className="text-sm font-medium text-grey-800">{result.signalId}</p>
-                              <p className="text-xs text-grey-600">{result.street}</p>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-3 gap-4 mt-3">
-                            <div className="flex items-center space-x-2">
-                              <Settings2 className="w-4 h-4 text-grey-500" />
+            <Collapsible open={isAnalysisExpanded} onOpenChange={setIsAnalysisExpanded} className="mb-6">
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="flex items-center space-x-2 p-0 h-auto text-left">
+                  {isAnalysisExpanded ? (
+                    <ChevronDown className="w-4 h-4" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4" />
+                  )}
+                  <h4 className="text-sm font-medium text-grey-700">Signal Completeness Analysis ({completenessAnalysis.results.length} signals)</h4>
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3">
+                <div className="space-y-3">
+                  {completenessAnalysis.results.map((result) => (
+                    <Card key={result.signalId} className="border-grey-200">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3">
+                              <Badge 
+                                variant={result.status === 'complete' ? 'default' : result.status === 'partial' ? 'secondary' : 'destructive'}
+                                className="text-xs"
+                              >
+                                {result.status === 'complete' ? 'Complete' : result.status === 'partial' ? 'Partial' : 'Incomplete'}
+                              </Badge>
                               <div>
-                                <p className="text-xs text-grey-500">Phases</p>
-                                <p className="text-sm font-medium">{result.phaseCount}/8 ({result.phaseCompleteness})</p>
+                                <p className="text-sm font-medium text-grey-800">{result.signalId}</p>
+                                <p className="text-xs text-grey-600">{result.street}</p>
                               </div>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <Target className="w-4 h-4 text-grey-500" />
-                              <div>
-                                <p className="text-xs text-grey-500">Detectors</p>
-                                <p className="text-sm font-medium">{result.detectorCount}/4 ({result.detectorCompleteness})</p>
+                            <div className="grid grid-cols-3 gap-4 mt-3">
+                              <div className="flex items-center space-x-2">
+                                <Settings2 className="w-4 h-4 text-grey-500" />
+                                <div>
+                                  <p className="text-xs text-grey-500">Phases</p>
+                                  <p className="text-sm font-medium">{result.phaseCount}/8 ({result.phaseCompleteness})</p>
+                                </div>
                               </div>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <TrendingUp className="w-4 h-4 text-grey-500" />
-                              <div>
-                                <p className="text-xs text-grey-500">Overall</p>
-                                <p className="text-sm font-medium">{result.overallScore}</p>
+                              <div className="flex items-center space-x-2">
+                                <Target className="w-4 h-4 text-grey-500" />
+                                <div>
+                                  <p className="text-xs text-grey-500">Detectors</p>
+                                  <p className="text-sm font-medium">{result.detectorCount}/4 ({result.detectorCompleteness})</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <TrendingUp className="w-4 h-4 text-grey-500" />
+                                <div>
+                                  <p className="text-xs text-grey-500">Overall</p>
+                                  <p className="text-sm font-medium">{result.overallScore}</p>
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           )}
 
           {/* Basic Validation Issues */}
