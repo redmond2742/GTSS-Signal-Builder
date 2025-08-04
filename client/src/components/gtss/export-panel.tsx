@@ -8,7 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Download, CheckCircle, AlertTriangle, XCircle, Info } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Download, CheckCircle, AlertTriangle, XCircle, Info, TrendingUp, Users, Settings2, Target } from "lucide-react";
+import { evaluateGTSSCompleteness } from "@/lib/gtssValidation";
 
 export default function ExportPanel() {
   const [packageName, setPackageName] = useState("GTSS_Export_Package");
@@ -81,6 +84,9 @@ export default function ExportPanel() {
 
   const validationIssues = getValidationStatus();
   const hasErrors = validationIssues.some(issue => issue.type === "error");
+  
+  // Get GTSS completeness analysis
+  const completenessAnalysis = evaluateGTSSCompleteness(signals, phases, detectors);
 
   const handleExportValidated = async () => {
     if (hasErrors) {
@@ -103,13 +109,119 @@ export default function ExportPanel() {
           <p className="text-sm text-grey-600">Review configuration before export</p>
         </CardHeader>
         <CardContent className="p-6">
+          {/* Completeness Overview Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <Card className="bg-primary-50 border-primary-200">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <TrendingUp className="w-5 h-5 text-primary-600" />
+                  <div>
+                    <p className="text-xs font-medium text-primary-700">Overall Completeness</p>
+                    <p className="text-lg font-bold text-primary-800">{completenessAnalysis.overallCompleteness}%</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-success-50 border-success-200">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="w-5 h-5 text-success-600" />
+                  <div>
+                    <p className="text-xs font-medium text-success-700">Complete Signals</p>
+                    <p className="text-lg font-bold text-success-800">{completenessAnalysis.completeSignals}/{completenessAnalysis.totalSignals}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-warning-50 border-warning-200">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <AlertTriangle className="w-5 h-5 text-warning-600" />
+                  <div>
+                    <p className="text-xs font-medium text-warning-700">Partial Signals</p>
+                    <p className="text-lg font-bold text-warning-800">{completenessAnalysis.partialSignals}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-red-50 border-red-200">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <XCircle className="w-5 h-5 text-red-600" />
+                  <div>
+                    <p className="text-xs font-medium text-red-700">Incomplete Signals</p>
+                    <p className="text-lg font-bold text-red-800">{completenessAnalysis.incompleteSignals}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Signal-by-Signal Analysis */}
+          {completenessAnalysis.results.length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-sm font-medium text-grey-700 mb-3">Signal Completeness Analysis</h4>
+              <div className="space-y-3">
+                {completenessAnalysis.results.map((result) => (
+                  <Card key={result.signalId} className="border-grey-200">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3">
+                            <Badge 
+                              variant={result.status === 'complete' ? 'default' : result.status === 'partial' ? 'secondary' : 'destructive'}
+                              className="text-xs"
+                            >
+                              {result.status === 'complete' ? 'Complete' : result.status === 'partial' ? 'Partial' : 'Incomplete'}
+                            </Badge>
+                            <div>
+                              <p className="text-sm font-medium text-grey-800">{result.signalId}</p>
+                              <p className="text-xs text-grey-600">{result.street}</p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-3 gap-4 mt-3">
+                            <div className="flex items-center space-x-2">
+                              <Settings2 className="w-4 h-4 text-grey-500" />
+                              <div>
+                                <p className="text-xs text-grey-500">Phases</p>
+                                <p className="text-sm font-medium">{result.phaseCount}/8 ({result.phaseCompleteness})</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Target className="w-4 h-4 text-grey-500" />
+                              <div>
+                                <p className="text-xs text-grey-500">Detectors</p>
+                                <p className="text-sm font-medium">{result.detectorCount}/4 ({result.detectorCompleteness})</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <TrendingUp className="w-4 h-4 text-grey-500" />
+                              <div>
+                                <p className="text-xs text-grey-500">Overall</p>
+                                <p className="text-sm font-medium">{result.overallScore}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Basic Validation Issues */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {validationIssues.length === 0 ? (
               <div className="md:col-span-2 flex items-center space-x-3 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <CheckCircle className="text-green-600 text-xl" />
                 <div>
-                  <p className="font-medium text-green-800">All Validations Passed</p>
-                  <p className="text-sm text-green-600">Configuration is ready for export</p>
+                  <p className="font-medium text-green-800">All Basic Validations Passed</p>
+                  <p className="text-sm text-green-600">No structural issues detected</p>
                 </div>
               </div>
             ) : (
