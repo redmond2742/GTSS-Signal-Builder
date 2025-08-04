@@ -56,7 +56,7 @@ export default function SignalDetails() {
   const phaseForm = useForm<InsertPhase>({
     resolver: zodResolver(insertPhaseSchema),
     defaultValues: {
-      signalId: signalId || "",
+      signalId: signalId && signalId !== 'new' ? signalId : "",
       phase: 1,
       movementType: "Through",
       compassBearing: null,
@@ -69,9 +69,9 @@ export default function SignalDetails() {
   const detectorForm = useForm<InsertDetector>({
     resolver: zodResolver(insertDetectorSchema),
     defaultValues: {
-      signalId: signalId || "",
+      signalId: signalId && signalId !== 'new' ? signalId : "",
       phase: 1,
-      channel: 1,
+      channel: "1",
       technologyType: "Inductive Loop",
       stopbarSetbackDist: null,
     },
@@ -122,7 +122,7 @@ export default function SignalDetails() {
           data.signalId = `SIG-${Date.now()}`;
         }
         
-        const newSignal = signalHooks.create(data);
+        const newSignal = signalHooks.save(data);
         setSignal(newSignal);
         setIsEditingSignal(false);
         
@@ -154,6 +154,15 @@ export default function SignalDetails() {
   };
 
   const handlePhaseAdd = () => {
+    if (isNewSignal) {
+      toast({
+        title: "Save Signal First",
+        description: "Please save the signal information before adding phases",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setEditingPhase(null);
     phaseForm.reset({
       signalId: signalId || "",
@@ -250,12 +259,20 @@ export default function SignalDetails() {
   };
 
   const handleDetectorAdd = () => {
+    if (isNewSignal) {
+      toast({
+        title: "Save Signal First",
+        description: "Please save the signal information before adding detectors",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setEditingDetector(null);
     detectorForm.reset({
       signalId: signalId || "",
       phase: signalPhases.length > 0 ? signalPhases[0].phase : 1,
       channel: (signalDetectors.length + 1).toString(),
-      purpose: "Detection",
       technologyType: "Inductive Loop",
       stopbarSetbackDist: null,
     });
@@ -509,7 +526,7 @@ export default function SignalDetails() {
                 </div>
               </form>
             </Form>
-          ) : (
+          ) : signal ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <div>
@@ -534,10 +551,14 @@ export default function SignalDetails() {
                 </div>
               </div>
             </div>
+          ) : (
+            <div className="text-center py-4 text-grey-500">
+              No signal data available
+            </div>
           )}
           
           {/* Map */}
-          {signal.latitude && signal.longitude && (
+          {signal && signal.latitude && signal.longitude && (
             <div className="mt-4">
               <h4 className="text-sm font-medium text-grey-700 mb-2">Location</h4>
               <div className="h-48 rounded-lg border overflow-hidden relative z-0">
@@ -845,6 +866,7 @@ export default function SignalDetails() {
                           max="8"
                           className="h-6 px-2"
                           style={{ fontSize: '12px' }}
+                          value={field.value || ""}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                         />
                       </FormControl>
@@ -902,7 +924,7 @@ export default function SignalDetails() {
                       <FormControl>
                         <div className="flex items-center space-x-2">
                           <Switch
-                            checked={field.value}
+                            checked={field.value || false}
                             onCheckedChange={field.onChange}
                           />
                           <span style={{ fontSize: '12px' }} className="text-grey-600">
