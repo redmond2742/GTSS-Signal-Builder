@@ -44,6 +44,8 @@ export const agencyStorage = {
       agencyTimezone: agency.agencyTimezone,
       agencyLanguage: agency.agencyLanguage ?? null,
       agencyEmail: agency.agencyEmail ?? null,
+      latitude: agency.latitude ?? null,
+      longitude: agency.longitude ?? null,
     };
     saveToStorage(STORAGE_KEYS.AGENCY, newAgency);
     return newAgency;
