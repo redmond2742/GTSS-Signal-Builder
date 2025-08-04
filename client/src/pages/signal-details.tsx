@@ -518,14 +518,24 @@ export default function SignalDetails() {
               <span>Signal Information</span>
             </CardTitle>
             {!isNewSignal && (
-              <Button
-                variant="outline"
-                onClick={() => setIsEditingSignal(!isEditingSignal)}
-                className="h-7 px-2 text-xs"
-              >
-                <Edit3 className="w-3 h-3 mr-1" />
-                {isEditingSignal ? "Cancel" : "Edit"}
-              </Button>
+              <div className="flex items-center space-x-2">
+                {isEditingSignal && (
+                  <Button
+                    onClick={signalForm.handleSubmit(handleSignalSave)}
+                    className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
+                  >
+                    Save Changes
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEditingSignal(!isEditingSignal)}
+                  className="h-7 px-2 text-xs"
+                >
+                  <Edit3 className="w-3 h-3 mr-1" />
+                  {isEditingSignal ? "Cancel" : "Edit"}
+                </Button>
+              </div>
             )}
           </div>
         </CardHeader>
