@@ -141,6 +141,15 @@ export default function SignalDetails() {
         const updatedSignal = signalHooks.update(signal.id, data);
         if (updatedSignal) {
           setSignal(updatedSignal);
+          // Force a refresh of the form with updated data
+          signalForm.reset({
+            signalId: updatedSignal.signalId,
+            streetName1: updatedSignal.streetName1,
+            streetName2: updatedSignal.streetName2,
+            latitude: updatedSignal.latitude,
+            longitude: updatedSignal.longitude,
+            agencyId: updatedSignal.agencyId,
+          });
         }
         setIsEditingSignal(false);
         toast({
@@ -339,6 +348,40 @@ export default function SignalDetails() {
         toast({
           title: "Error",
           description: "Failed to delete detector",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleSignalDelete = () => {
+    if (!signal) return;
+    
+    const confirmText = `DELETE`;
+    const userInput = prompt(
+      `This will permanently delete signal "${signal.signalId}" and all its phases and detectors.\n\nType "${confirmText}" to confirm deletion:`
+    );
+    
+    if (userInput === confirmText) {
+      try {
+        // Delete all associated phases and detectors first
+        signalPhases.forEach(phase => phaseHooks.delete(phase.id));
+        signalDetectors.forEach(detector => detectorHooks.delete(detector.id));
+        
+        // Delete the signal
+        signalHooks.delete(signal.id);
+        
+        toast({
+          title: "Success",
+          description: "Signal and all associated data deleted successfully",
+        });
+        
+        // Navigate back to main signals page
+        navigate("/gtss-builder");
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete signal",
           variant: "destructive",
         });
       }
@@ -1162,6 +1205,36 @@ export default function SignalDetails() {
             />
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Delete Signal Section */}
+      {!isNewSignal && signal && (
+        <Card className="border-red-200">
+          <CardHeader className="bg-red-50 border-b border-red-200 px-4 py-2">
+            <CardTitle className="text-base font-semibold text-red-700 flex items-center space-x-2">
+              <Trash2 className="w-4 h-4" />
+              <span>Danger Zone</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-grey-900">Delete Signal</p>
+                <p className="text-xs text-grey-600 mt-1">
+                  Permanently delete this signal and all associated phases and detectors. This action cannot be undone.
+                </p>
+              </div>
+              <Button
+                onClick={handleSignalDelete}
+                variant="destructive"
+                className="h-7 px-3 text-xs"
+              >
+                <Trash2 className="w-3 h-3 mr-1" />
+                Delete Signal
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
