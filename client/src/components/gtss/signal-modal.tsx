@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MapPicker } from "@/components/ui/map";
-import { X, MapPin, Edit3 } from "lucide-react";
+import { X, MapPin, Edit3, Trash2 } from "lucide-react";
 
 interface SignalModalProps {
   signal: Signal | null;

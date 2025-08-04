@@ -122,8 +122,10 @@ export default function SignalsMap({ signals, onSignalSelect, onSignalUpdate, cl
   
   // Use agency coordinates as starting point for map center
   const center: [number, number] = useMemo(() => {
-    // First priority: use agency coordinates if available (agencies don't have coordinates in current schema)
-    // Skip agency-based centering for now
+    // First priority: use agency coordinates if available
+    if (agency?.latitude && agency?.longitude) {
+      return [agency.latitude, agency.longitude];
+    }
     // Second priority: center on existing signals
     if (signals.length > 0 && signals[0].latitude && signals[0].longitude) {
       return [signals[0].latitude, signals[0].longitude];
@@ -133,12 +135,13 @@ export default function SignalsMap({ signals, onSignalSelect, onSignalUpdate, cl
   }, [agency?.latitude, agency?.longitude, signals]);
 
   return (
-    <div className={className}>
+    <div className={className} style={{ position: 'relative', zIndex: 1 }}>
       <MapContainer
         center={center}
-        zoom={signals.length > 0 ? 13 : 4}
-        style={{ height: "100%", width: "100%" }}
+        zoom={signals.length === 1 ? 15 : signals.length > 0 ? 13 : 4}
+        style={{ height: "100%", width: "100%", zIndex: 1 }}
         className="rounded-lg"
+        key={`map-${signals.length}-${center[0]}-${center[1]}`}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
