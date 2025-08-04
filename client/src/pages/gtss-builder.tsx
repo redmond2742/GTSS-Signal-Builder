@@ -11,14 +11,13 @@ import ExportPanel from "@/components/gtss/export-panel";
 import { useGTSSStore } from "@/store/gtss-store";
 import { cn } from "@/lib/utils";
 
-type TabType = "agency" | "signals" | "phases" | "detectors" | "export";
+type TabType = "agency" | "signals" | "phases" | "detectors";
 
 const tabs = [
   { id: "signals", label: "Traffic Signals", icon: MapPin },
   { id: "phases", label: "Phases", icon: ArrowUpDown },
   { id: "detectors", label: "Detectors", icon: Target },
   { id: "agency", label: "Agency Info", icon: Building },
-  { id: "export", label: "Export", icon: FolderOutput },
 ];
 
 const tabTitles = {
@@ -26,7 +25,6 @@ const tabTitles = {
   signals: { title: "Traffic Signals", desc: "Manage traffic signal installation locations" },
   phases: { title: "Signal Phases", desc: "Configure movement phases for each signal" },
   detectors: { title: "Detection Systems", desc: "Configure vehicle and pedestrian detection equipment" },
-  export: { title: "Export", desc: "Review configuration and export GTSS package" },
 };
 
 export default function GTSSBuilder() {
@@ -60,8 +58,6 @@ export default function GTSSBuilder() {
         return <PhasesTable triggerAdd={triggerAddPhase} triggerVisualEditor={triggerVisualEditor} />;
       case "detectors":
         return <DetectorsTable triggerAdd={triggerAddDetector} />;
-      case "export":
-        return <ExportPanel />;
       default:
         return <AgencyForm />;
     }
@@ -147,7 +143,7 @@ export default function GTSSBuilder() {
           <Button 
             variant="outline" 
             className="w-full h-7 text-xs bg-grey-100 text-grey-700 hover:bg-grey-200"
-            onClick={() => setActiveTab("export")}
+            onClick={() => window.location.href = '/export'}
           >
             <FolderOutput className="w-3 h-3 mr-1" />
             Import/Export

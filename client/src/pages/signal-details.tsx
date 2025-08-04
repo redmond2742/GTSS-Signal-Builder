@@ -18,6 +18,9 @@ import { Switch } from "@/components/ui/switch";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import { MapPin, Edit3, Plus, Trash2, Navigation, ArrowLeft, Settings, HelpCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import PhaseModal from "@/components/gtss/phase-modal";
+import DetectorModal from "@/components/gtss/detector-modal";
+import VisualPhaseEditor from "@/components/gtss/visual-phase-editor";
 
 export default function SignalDetails() {
   const params = useParams();
@@ -38,6 +41,7 @@ export default function SignalDetails() {
   const [isEditingSignal, setIsEditingSignal] = useState(false);
   const [showPhaseModal, setShowPhaseModal] = useState(false);
   const [showDetectorModal, setShowDetectorModal] = useState(false);
+  const [showVisualEditor, setShowVisualEditor] = useState(false);
   const [editingPhase, setEditingPhase] = useState<Phase | null>(null);
   const [editingDetector, setEditingDetector] = useState<Detector | null>(null);
 
@@ -341,6 +345,23 @@ export default function SignalDetails() {
     }
   };
 
+  const handleBulkPhasesCreate = async (phases: InsertPhase[]) => {
+    try {
+      for (const phaseData of phases) {
+        phaseHooks.save(phaseData);
+      }
+      // Refresh the phases list
+      const updatedPhases = phases.filter(p => p.signalId === signalId);
+      setSignalPhases(updatedPhases);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create some phases",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (!signal && !isNewSignal) {
     return (
       <div className="max-w-4xl">
@@ -587,13 +608,24 @@ export default function SignalDetails() {
               <Settings className="w-4 h-4 text-primary-600" />
               <span>Signal Phases ({signalPhases.length})</span>
             </CardTitle>
-            <Button
-              onClick={handlePhaseAdd}
-              className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
-            >
-              <Plus className="w-3 h-3 mr-1" />
-              Add Phase
-            </Button>
+            <div className="flex space-x-1">
+              <Button
+                onClick={() => setShowVisualEditor(true)}
+                variant="outline"
+                className="h-7 px-2 text-xs border-success-200 text-success-700 hover:bg-success-50"
+                disabled={isNewSignal}
+              >
+                <Navigation className="w-3 h-3 mr-1" />
+                Visual Editor
+              </Button>
+              <Button
+                onClick={handlePhaseAdd}
+                className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                Add Phase
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -1115,6 +1147,22 @@ export default function SignalDetails() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Visual Phase Editor Dialog */}
+      {showVisualEditor && signal && (
+        <Dialog open onOpenChange={() => setShowVisualEditor(false)}>
+          <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden p-0">
+            <DialogHeader className="p-6 pb-0">
+              <DialogTitle>Visual Phase Editor</DialogTitle>
+            </DialogHeader>
+            <VisualPhaseEditor
+              signal={signal}
+              onPhasesCreate={handleBulkPhasesCreate}
+              onClose={() => setShowVisualEditor(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

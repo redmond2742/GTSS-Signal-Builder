@@ -218,8 +218,8 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
             <Table>
               <TableHeader>
                 <TableRow className="bg-grey-50 border-b border-grey-200">
-                  <SortableHeader field="phase">Phase</SortableHeader>
                   <SortableHeader field="signalId">Signal ID</SortableHeader>
+                  <SortableHeader field="phase">Phase</SortableHeader>
                   <SortableHeader field="movementType">Movement</SortableHeader>
                   <SortableHeader field="bearing">Bearing</SortableHeader>
                   <SortableHeader field="postedSpeed">Speed</SortableHeader>
@@ -243,8 +243,8 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
                       className="hover:bg-grey-50 cursor-pointer transition-colors"
                       onClick={() => handleRowClick(phase)}
                     >
-                      <TableCell className="font-medium text-grey-900 text-xs py-1 px-2">{phase.phase}</TableCell>
-                      <TableCell className="text-grey-600 text-xs py-1 px-2">{phase.signalId}</TableCell>
+                      <TableCell className="font-medium text-grey-900 text-xs py-1 px-2">{phase.signalId}</TableCell>
+                      <TableCell className="text-grey-600 text-xs py-1 px-2">{phase.phase}</TableCell>
                       <TableCell className="text-grey-600 text-xs py-1 px-2">
                         <div className="flex items-center space-x-1">
                           <span>{phase.movementType}</span>
