@@ -121,9 +121,12 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
 
     setIsLoading(true);
     try {
-      // Save current phase first if it's new
+      // Save current phase first if it's new or being edited
       if (!phase) {
         phaseHooks.save(currentData);
+      } else {
+        // Update existing phase with current form data
+        phaseHooks.update(phase.id, currentData);
       }
 
       // Create the duplicated left turn phase
@@ -408,8 +411,8 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                 )}
               </div>
               <div className="flex space-x-3">
-                {/* Show duplicate button only for new Through phases with specific phase numbers */}
-                {!phase && form.watch("movementType") === "Through" && [2, 4, 6, 8].includes(form.watch("phase")) && (
+                {/* Show duplicate button for Through phases with specific phase numbers (both new and editing) */}
+                {form.watch("movementType") === "Through" && [2, 4, 6, 8].includes(form.watch("phase")) && (
                   <Button 
                     type="button" 
                     variant="outline"
