@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, ChevronUp, ChevronDown, MapPin } from "lucide-react";
+import SignalsMap from "@/components/ui/signals-map";
 
 type SortField = 'signalId' | 'detectorChannel' | 'phase' | 'detTechnologyType' | 'purpose';
 type SortDirection = 'asc' | 'desc';
@@ -153,24 +154,50 @@ export default function DetectorsTable({ triggerAdd }: DetectorsTableProps) {
   return (
     <div className="max-w-6xl">
       <Card>
-        <CardHeader className="bg-grey-50 border-b border-grey-200 px-3 py-2">
-          <div className="flex items-center space-x-2">
-            <Select value={selectedSignalId} onValueChange={setSelectedSignalId}>
-              <SelectTrigger className="w-80 h-7 text-xs">
-                <SelectValue placeholder="Choose signal to view detectors" />
-              </SelectTrigger>
-              <SelectContent>
-                {signals.map((signal) => (
-                  <SelectItem key={signal.id} value={signal.signalId}>
-                    {getSignalDisplayName(signal.signalId)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedSignalId && (
-              <span className="text-xs text-grey-600">({filteredDetectors.length} detector(s))</span>
+        <CardHeader className="bg-grey-50 border-b border-grey-200 flex flex-row items-center justify-start px-3 py-2">
+          <div className="flex space-x-2 items-center">
+            {signals.length === 0 ? (
+              <div className="p-2 bg-warning-50 border border-warning-200 rounded-md">
+                <p className="text-xs text-warning-700">
+                  No signals configured. Please add signals before creating detectors.
+                </p>
+              </div>
+            ) : (
+              <>
+                <Select value={selectedSignalId} onValueChange={setSelectedSignalId}>
+                  <SelectTrigger className="w-80 h-7 text-xs">
+                    <SelectValue placeholder="Choose signal to view detectors" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {signals.map((signal) => (
+                      <SelectItem key={signal.signalId} value={signal.signalId}>
+                        {getSignalDisplayName(signal.signalId)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedSignalId && (
+                  <span className="text-xs text-grey-600">({filteredDetectors.length} detector(s))</span>
+                )}
+              </>
             )}
           </div>
+          {selectedSignalId && (() => {
+            const selectedSignal = signals.find(s => s.signalId === selectedSignalId);
+            return (
+              <div className="flex-1 ml-4 h-20">
+                {selectedSignal && selectedSignal.latitude && selectedSignal.longitude ? (
+                  <div className="w-full h-full border border-grey-300 rounded-md overflow-hidden bg-white relative z-0">
+                    <SignalsMap signals={[selectedSignal]} className="w-full h-full" />
+                  </div>
+                ) : (
+                  <div className="w-full h-full border border-grey-300 rounded-md bg-grey-100 flex items-center justify-center">
+                    <MapPin className="w-6 h-6 text-grey-400" />
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">

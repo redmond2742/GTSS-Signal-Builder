@@ -178,13 +178,13 @@ export default function GTSSBuilder() {
             )}
             {activeTab === "phases" && (
               <div className="flex space-x-1">
-                <Button onClick={handleAddPhase} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700 text-white">
-                  <Plus className="w-3 h-3 mr-1" />
-                  Add Phase
-                </Button>
                 <Button onClick={handleVisualEditor} variant="outline" className="h-7 px-2 text-xs border-grey-300 text-grey-700 hover:bg-white hover:text-grey-900">
                   <Map className="w-3 h-3 mr-1" />
                   Visual Editor
+                </Button>
+                <Button onClick={handleAddPhase} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700 text-white">
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add Phase
                 </Button>
               </div>
             )}
