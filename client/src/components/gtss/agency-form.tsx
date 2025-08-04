@@ -37,7 +37,13 @@ export default function AgencyForm() {
     displayName?: string;
   } | null>(null);
   const [isGeocodingUserLocation, setIsGeocodingUserLocation] = useState(false);
-  const [mapCenter, setMapCenter] = useState<[number, number]>([39.8283, -98.5795]);
+  const [mapCenter, setMapCenter] = useState<[number, number]>(() => {
+    // Initialize map center with saved agency coordinates if available
+    if (agency?.latitude && agency?.longitude) {
+      return [agency.latitude, agency.longitude];
+    }
+    return [39.8283, -98.5795]; // Default center of US
+  });
 
   const saveAgency = (data: InsertAgency) => {
     try {

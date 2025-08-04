@@ -254,13 +254,17 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
 
         <MapContainer
           center={(() => {
-            // First try to use agency coordinates if available
+            // First priority: use selected signal coordinates (phases are signal-specific)
+            if (selectedSignal.latitude && selectedSignal.longitude) {
+              return [selectedSignal.latitude, selectedSignal.longitude];
+            }
+            // Fallback to agency coordinates if signal coordinates not available
             const { agency } = useGTSSStore.getState();
             if (agency?.latitude && agency?.longitude) {
               return [agency.latitude, agency.longitude];
             }
-            // Fallback to selected signal coordinates
-            return [selectedSignal.latitude || 0, selectedSignal.longitude || 0];
+            // Final fallback
+            return [39.8283, -98.5795];
           })()}
           zoom={18}
           style={{ height: "100%", width: "100%" }}

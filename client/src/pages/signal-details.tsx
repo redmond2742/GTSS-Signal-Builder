@@ -376,8 +376,8 @@ export default function SignalDetails() {
           description: "Signal and all associated data deleted successfully",
         });
         
-        // Navigate back to main signals page
-        navigate("/gtss-builder");
+        // Navigate back to traffic signals page
+        navigate("/gtss-builder?tab=signals");
       } catch (error) {
         console.error("Delete error:", error);
         toast({
@@ -394,9 +394,10 @@ export default function SignalDetails() {
       for (const phaseData of phases) {
         phaseHooks.save(phaseData);
       }
-      // Refresh the phases list
-      const updatedPhases = phases.filter(p => p.signalId === signalId);
-      setSignalPhases(updatedPhases);
+      // Refresh the phases list from localStorage
+      const { phases: updatedPhases } = useGTSSStore.getState();
+      const filteredPhases = updatedPhases.filter(p => p.signalId === signalId);
+      setSignalPhases(filteredPhases);
     } catch (error) {
       toast({
         title: "Error",
