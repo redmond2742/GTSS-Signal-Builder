@@ -8,7 +8,19 @@ GTSS Builder is a web application for configuring and exporting traffic signal s
 
 Preferred communication style: Simple, everyday language.
 
-## Recent Changes (February 1, 2025)
+## Recent Changes (February 2, 2025)
+
+✓ **RAPID PHASE INPUT ENHANCEMENT**: Added "Duplicate to Left Turn" button for efficient phase creation workflow
+✓ Button appears only for new Through phases with specific numbers (2, 4, 6, 8) following traffic engineering standards
+✓ Automated phase number mapping: Through 2→Left 5, Through 4→Left 7, Through 6→Left 1, Through 8→Left 3
+✓ Preserves compass bearing and posted speed from original phase while defaulting lanes to 1 for left turns
+✓ Streamlined government worker workflow by reducing manual input for standard left turn configurations
+✓ Interactive location editing added to signal details page with clickable map for coordinate updates
+✓ Fixed signal deletion navigation to properly redirect to traffic signals tab instead of 404 error
+✓ Agency information map now centers on saved coordinates from localStorage for consistent user experience
+✓ Visual phase editor prioritizes signal coordinates over agency coordinates for signal-specific phase management
+
+## Previous Changes (February 1, 2025)
 
 ✓ **AGENCY LOCATION STORAGE**: Added latitude/longitude fields to agency schema for reference location storage
 ✓ Agency coordinates now saved to localStorage when pin is set on map during agency configuration

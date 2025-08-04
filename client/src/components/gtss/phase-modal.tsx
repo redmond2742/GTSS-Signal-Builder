@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
-import { X, Trash2, MapPin } from "lucide-react";
+import { X, Trash2, MapPin, Copy } from "lucide-react";
 
 interface PhaseModalProps {
   phase: Phase | null;
@@ -85,6 +85,72 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
     if (phase && confirm("Are you sure you want to delete this phase?")) {
       phaseHooks.delete(phase.id);
       onClose();
+    }
+  };
+
+  const handleDuplicateToLeftTurn = async () => {
+    const currentData = form.getValues();
+    
+    // Only allow duplication for Through phases
+    if (currentData.movementType !== "Through") {
+      toast({
+        title: "Not Applicable",
+        description: "Duplicate to left turn only works for Through movements",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Determine the new phase number based on mapping rules
+    const phaseMapping: { [key: number]: number } = {
+      2: 5,
+      4: 7,
+      6: 1,
+      8: 3
+    };
+
+    const newPhaseNumber = phaseMapping[currentData.phase];
+    if (!newPhaseNumber) {
+      toast({
+        title: "Not Applicable",
+        description: "Duplicate to left turn only works for phases 2, 4, 6, or 8",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Save current phase first if it's new
+      if (!phase) {
+        phaseHooks.save(currentData);
+      }
+
+      // Create the duplicated left turn phase
+      const leftTurnPhase: InsertPhase = {
+        ...currentData,
+        phase: newPhaseNumber,
+        movementType: "Left Turn",
+        numOfLanes: 1, // Default to 1 lane as specified
+        // Keep same compass bearing and posted speed
+      };
+
+      phaseHooks.save(leftTurnPhase);
+      
+      toast({
+        title: "Success",
+        description: `Created left turn phase ${newPhaseNumber} from through phase ${currentData.phase}`,
+      });
+      
+      onClose();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to duplicate phase",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -342,6 +408,19 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                 )}
               </div>
               <div className="flex space-x-3">
+                {/* Show duplicate button only for new Through phases with specific phase numbers */}
+                {!phase && form.watch("movementType") === "Through" && [2, 4, 6, 8].includes(form.watch("phase")) && (
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={handleDuplicateToLeftTurn}
+                    disabled={isLoading}
+                    className="flex items-center space-x-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+                  >
+                    <Copy className="w-4 h-4" />
+                    <span>Duplicate to Left Turn</span>
+                  </Button>
+                )}
                 <Button type="button" variant="outline" onClick={onClose}>
                   Cancel
                 </Button>
