@@ -16,11 +16,23 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
 
+// Create red marker icon for hovered signals
+const redIcon = new L.Icon({
+  iconRetinaUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
 interface SignalsMapProps {
   signals: Signal[];
   onSignalSelect?: (signal: Signal) => void;
   onSignalUpdate?: (signalId: string, updates: Partial<Signal>) => void;
   className?: string;
+  hoveredSignalId?: string;
 }
 
 function MapBounds({ signals }: { signals: Signal[] }) {
@@ -117,7 +129,7 @@ function QuickEditPopup({ signal, onUpdate, onSignalSelect }: {
   );
 }
 
-export default function SignalsMap({ signals, onSignalSelect, onSignalUpdate, className }: SignalsMapProps) {
+export default function SignalsMap({ signals, onSignalSelect, onSignalUpdate, className, hoveredSignalId }: SignalsMapProps) {
   const agency = useGTSSStore((state) => state.agency);
   
   // Use agency coordinates as starting point for map center
@@ -154,6 +166,7 @@ export default function SignalsMap({ signals, onSignalSelect, onSignalUpdate, cl
           <Marker
             key={signal.id}
             position={[signal.latitude, signal.longitude]}
+            icon={hoveredSignalId === signal.signalId ? redIcon : undefined}
           >
             <Popup>
               <QuickEditPopup

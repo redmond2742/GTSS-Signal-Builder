@@ -18,7 +18,7 @@ const tabs = [
   { id: "phases", label: "Phases", icon: ArrowUpDown },
   { id: "detectors", label: "Detectors", icon: Target },
   { id: "agency", label: "Agency Info", icon: Building },
-  { id: "export", label: "Preview & Export", icon: FolderOutput },
+  { id: "export", label: "Export", icon: FolderOutput },
 ];
 
 const tabTitles = {
@@ -26,7 +26,7 @@ const tabTitles = {
   signals: { title: "Traffic Signals", desc: "Manage traffic signal installation locations" },
   phases: { title: "Signal Phases", desc: "Configure movement phases for each signal" },
   detectors: { title: "Detection Systems", desc: "Configure vehicle and pedestrian detection equipment" },
-  export: { title: "Preview & Export", desc: "Review configuration and export GTSS package" },
+  export: { title: "Export", desc: "Review configuration and export GTSS package" },
 };
 
 export default function GTSSBuilder() {
@@ -99,8 +99,8 @@ export default function GTSSBuilder() {
               <TrafficCone className="text-white" size={16} />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-grey-800">GTSS Builder</h1>
-              <p className="text-sm text-grey-500">OpenSignal</p>
+              <h1 className="text-lg font-bold text-grey-800">Signal Configurator</h1>
+              <p className="text-sm text-grey-500">GTSS Builder</p>
             </div>
           </div>
         </div>
