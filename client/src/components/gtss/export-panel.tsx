@@ -27,15 +27,33 @@ export default function ExportPanel() {
   const { agency, signals, phases, detectors } = useGTSSStore();
   const { toast } = useToast();
 
-  const { exportAsZip } = useExport();
+  const { exportAsZip, exportAsIndividualFiles } = useExport();
 
   const handleExport = async () => {
     try {
-      await exportAsZip();
-      toast({
-        title: "Success",
-        description: "GTSS package exported successfully",
-      });
+      if (exportFormat === "csv") {
+        // Export as individual CSV files
+        await exportAsIndividualFiles(includeFiles);
+        const fileCount = Object.values(includeFiles).filter(Boolean).length;
+        toast({
+          title: "Success",
+          description: `${fileCount} CSV file${fileCount > 1 ? 's' : ''} downloaded successfully`,
+        });
+      } else if (exportFormat === "zip") {
+        // Export as ZIP file
+        await exportAsZip(includeFiles);
+        toast({
+          title: "Success",
+          description: "GTSS ZIP package exported successfully",
+        });
+      } else {
+        // JSON format (fallback to ZIP for now)
+        await exportAsZip(includeFiles);
+        toast({
+          title: "Success",
+          description: "GTSS package exported successfully",
+        });
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -355,15 +373,19 @@ export default function ExportPanel() {
             <div className="flex items-center justify-between pt-4 border-t border-grey-200">
               <div className="flex items-center text-sm text-grey-600">
                 <Info className="text-primary-500 mr-2" size={16} />
-                Export will create a ZIP file with CSV files following GTSS specification
+                {exportFormat === "zip" 
+                  ? "Export will create a ZIP file with selected CSV files" 
+                  : exportFormat === "csv"
+                  ? "Export will download individual CSV files separately"
+                  : "Export will create a package with selected files"}
               </div>
               <Button 
                 onClick={handleExportValidated}
-                disabled={hasErrors}
+                disabled={hasErrors || Object.values(includeFiles).every(v => !v)}
                 className="bg-primary-600 hover:bg-primary-700 text-lg px-8 py-3"
               >
                 <Download className="w-5 h-5 mr-3" />
-                Generate & Download GTSS Package
+                {exportFormat === "csv" ? "Download CSV Files" : "Generate & Download Package"}
               </Button>
             </div>
           </div>

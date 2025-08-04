@@ -5,7 +5,8 @@ import {
   signalStorage, 
   phaseStorage, 
   detectorStorage,
-  exportAsZip
+  exportAsZip,
+  exportAsIndividualFiles
 } from './localStorage';
 import { 
   InsertAgency, 
@@ -125,6 +126,7 @@ export const useDetectors = () => {
 export const useExport = () => {
   return {
     exportAsZip,
+    exportAsIndividualFiles,
   };
 };
 

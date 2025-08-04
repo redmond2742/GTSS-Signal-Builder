@@ -295,36 +295,96 @@ function generateDetectionCSV(detectors: Detector[]): string {
   return [headers, ...rows].join('\n');
 }
 
-// Export as ZIP (browser implementation)
-export const exportAsZip = async (): Promise<void> => {
+// Download individual CSV files
+const downloadFile = (content: string, filename: string) => {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+// Export individual CSV files
+export const exportAsIndividualFiles = async (includeFiles: {
+  agency: boolean;
+  signals: boolean;
+  phases: boolean;
+  detection: boolean;
+}): Promise<void> => {
   try {
-    // Check if the browser supports the compression streams API
-    if (!('CompressionStream' in window)) {
-      throw new Error('ZIP compression not supported in this browser');
+    const data = exportData();
+    
+    // Generate and download each selected file
+    if (includeFiles.agency) {
+      const agencyCSV = generateAgencyCSV(data.agency);
+      downloadFile(agencyCSV, 'agency.csv');
     }
+    
+    if (includeFiles.signals) {
+      const signalsCSV = generateSignalsCSV(data.signals);
+      downloadFile(signalsCSV, 'signals.csv');
+    }
+    
+    if (includeFiles.phases) {
+      const phasesCSV = generatePhasesCSV(data.phases);
+      downloadFile(phasesCSV, 'phases.csv');
+    }
+    
+    if (includeFiles.detection) {
+      const detectionCSV = generateDetectionCSV(data.detectors);
+      downloadFile(detectionCSV, 'detection.csv');
+    }
+  } catch (error) {
+    console.error('Export failed:', error);
+    throw error;
+  }
+};
+
+// Export as ZIP using JSZip
+export const exportAsZip = async (includeFiles: {
+  agency: boolean;
+  signals: boolean;
+  phases: boolean;
+  detection: boolean;
+} = { agency: true, signals: true, phases: true, detection: true }): Promise<void> => {
+  try {
+    // Dynamically import JSZip
+    const JSZip = (await import('jszip')).default;
+    const zip = new JSZip();
 
     const data = exportData();
     
-    // Generate CSV content
-    const csvFiles = {
-      'agency.csv': generateAgencyCSV(data.agency),
-      'signals.csv': generateSignalsCSV(data.signals),
-      'phases.csv': generatePhasesCSV(data.phases),
-      'detection.csv': generateDetectionCSV(data.detectors),
-    };
+    // Add selected files to ZIP
+    if (includeFiles.agency) {
+      const agencyCSV = generateAgencyCSV(data.agency);
+      zip.file('agency.csv', agencyCSV);
+    }
+    
+    if (includeFiles.signals) {
+      const signalsCSV = generateSignalsCSV(data.signals);
+      zip.file('signals.csv', signalsCSV);
+    }
+    
+    if (includeFiles.phases) {
+      const phasesCSV = generatePhasesCSV(data.phases);
+      zip.file('phases.csv', phasesCSV);
+    }
+    
+    if (includeFiles.detection) {
+      const detectionCSV = generateDetectionCSV(data.detectors);
+      zip.file('detection.csv', detectionCSV);
+    }
 
-    // Create a simple ZIP-like structure using a blob
-    let zipContent = '';
-    Object.entries(csvFiles).forEach(([filename, content]) => {
-      zipContent += `=== ${filename} ===\n${content}\n\n`;
-    });
-
-    // Create and download the file
-    const blob = new Blob([zipContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
+    // Generate ZIP file and download
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(zipBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `gtss-export-${new Date().toISOString().split('T')[0]}.txt`;
+    link.download = `gtss-export-${new Date().toISOString().split('T')[0]}.zip`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
