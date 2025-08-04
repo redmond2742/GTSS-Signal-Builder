@@ -1,216 +1,48 @@
 # GTSS Builder
 
 ## Overview
-
-GTSS Builder is a web application for configuring and exporting traffic signal system data in a GTFS-like format (GTSS = General Traffic Signal Specification). The application allows users to manage agency information, signal locations, phases, and detectors through an intuitive tabbed interface, with the ability to export all data as a downloadable ZIP file containing CSV files.
+GTSS Builder is a web application designed for configuring and exporting traffic signal system data in a GTFS-like format (GTSS = General Traffic Signal Specification). It enables users to manage agency information, signal locations, phases, and detectors through an intuitive tabbed interface. The core capability includes exporting all configured data as a downloadable ZIP file containing CSV files, streamlining data exchange for government workers and traffic engineers. The project aims to provide a robust, client-side solution for traffic signal data management without server dependencies.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 
-## Recent Changes (February 2, 2025)
-
-✓ **RAPID PHASE INPUT ENHANCEMENT**: Added "Duplicate to Left Turn" button for efficient phase creation workflow
-✓ Button appears only for new Through phases with specific numbers (2, 4, 6, 8) following traffic engineering standards
-✓ Automated phase number mapping: Through 2→Left 5, Through 4→Left 7, Through 6→Left 1, Through 8→Left 3
-✓ Preserves compass bearing and posted speed from original phase while defaulting lanes to 1 for left turns
-✓ Streamlined government worker workflow by reducing manual input for standard left turn configurations
-✓ Interactive location editing added to signal details page with clickable map for coordinate updates
-✓ Fixed signal deletion navigation to properly redirect to traffic signals tab instead of 404 error
-✓ Agency information map now centers on saved coordinates from localStorage for consistent user experience
-✓ Visual phase editor prioritizes signal coordinates over agency coordinates for signal-specific phase management
-
-## Previous Changes (February 1, 2025)
-
-✓ **AGENCY LOCATION STORAGE**: Added latitude/longitude fields to agency schema for reference location storage
-✓ Agency coordinates now saved to localStorage when pin is set on map during agency configuration
-✓ Bulk signal creation map now uses agency coordinates as default center point for better user experience
-✓ Updated agency form to include location picker with coordinate persistence across application
-✓ **CLICKABLE SIGNAL ROWS**: Removed actions column from signals table for cleaner interface design
-✓ Made entire signal table rows clickable to navigate directly to signal details page
-✓ Improved user workflow by reducing clicks needed to access detailed signal management
-✓ **ENHANCED SIGNAL DETAILS**: Fixed all technical issues with signal details page functionality
-✓ Resolved phase validation to prevent duplicate phase numbers with clear error messaging
-✓ Made intersection dropdown wider (w-72) in detector modal for better signal name visibility
-✓ Fixed map view coordinate field references from cntLat/cntLon to latitude/longitude throughout
-✓ All TypeScript diagnostics resolved for proper signal details page operation
-✓ **PROFESSIONAL COLOR SCHEME UPDATE**: Updated application to government-friendly design with navy blue primary colors
-✓ Primary colors changed to professional navy blue (hsl(215, 45%, 35%)) for trustworthy appearance
-✓ Implemented neutral grays with subtle blue undertones for improved readability and government appeal
-✓ Added dedicated success (green) and warning (amber) color utilities for appropriate user feedback
-✓ Updated Visual Editor button styling to use success colors instead of bright green
-✓ Fixed all coordinate field references throughout application (latitude/longitude instead of cntLat/cntLon)
-✓ Converted remaining API calls to localStorage operations for complete client-side functionality
-✓ Added phase creation validation: prevents phase configuration when no signals exist
-✓ Enhanced detector modal validation: hides phase dropdown when signal has no phases configured
-✓ Fixed all TypeScript LSP diagnostics in visual phase editor (agency coordinate fields, schema field names)
-✓ Application now displays professional warning messages when prerequisites are missing
-✓ **COMPACT LAYOUT OPTIMIZATION**: Reduced font sizes from sm to xs throughout application
-✓ Minimized padding and spacing on all forms, buttons, and input fields for government efficiency
-✓ Tightened vertical rhythm with smaller line heights and reduced button heights (h-7 instead of default)
-✓ Optimized sidebar width from 64 to 56 units and reduced icon sizes for compact workflow
-✓ Compressed table cells with py-1.5 px-2 spacing and xs text for maximum data density
-✓ Updated all button icons from w-4 h-4 to w-3 h-3 for consistent compact design
-✓ **NEW SIGNAL DETAILS PAGE**: Created comprehensive signal management page with editable sections
-✓ Added signal details route (/signal/:signalId) with full CRUD operations for signal info, phases, and detectors
-✓ Implemented inline editing for signal information with map integration showing current location
-✓ Built dedicated phases management section with add/edit/delete functionality and validation
-✓ Created detectors management section with phase-aware dropdown and technology type selection
-✓ Added navigation from signals table to individual signal detail pages via eye icon button
-✓ Integrated validation preventing detector creation when no phases exist for the signal
-
-## Previous Major Schema Changes (February 1, 2025)
-✓ **MAJOR SCHEMA MIGRATION COMPLETED**: Updated all data models to match exact CSV export requirements
-✓ Agency schema simplified: removed contactPerson/contactEmail fields, added agencyEmail field only
-✓ Signal schema updated: cntLat/cntLon → latitude/longitude, removed cabinet and equipment fields
-✓ Phase schema updated: isPedestrian removed, numberOfLanes → numOfLanes, postedSpeedLimit → postedSpeed
-✓ Detector schema updated: detectorChannel → channel, detTechnologyType → technologyType, stopbarSetback → stopbarSetbackDist
-✓ Fixed all CSV export headers to match exact specification (agency.csv, signals.csv, phases.csv, detection.csv)
-✓ Updated all component forms, tables, and modals to use new field names throughout application
-✓ All localStorage operations adapted to work with new schema structure
-✓ Application maintains full functionality with simplified, standardized data model
-
-## Previous Major Changes
-✓ **MAJOR ARCHITECTURE CHANGE**: Complete conversion from server-based APIs to localStorage
-✓ Built comprehensive localStorage service with full CRUD operations for all data types
-✓ Created custom localStorage hooks to replace React Query patterns throughout application
-✓ Converted all major components to use browser-based storage: agency, signals, phases, detectors, export
-✓ Removed all React Query dependencies and QueryClientProvider from main App component
-✓ Fixed all modal components (signal, detector, bulk signal) to use localStorage instead of API calls
-✓ Application now works entirely in browser without requiring any server or database
-✓ All traffic signal data persists locally in user's browser across sessions
-✓ Maintained all existing functionality while eliminating server dependency
-✓ Created comprehensive README.md with installation instructions and GitHub deployment guide
-
-## Previous Major Features (January 2025)
-✓ Changed default timezone from America/New_York to America/Los_Angeles
-✓ Added bulk signal creation feature with dedicated map interface
-✓ Fixed map layout issues - hides map when modal dialogs are open
-✓ Added "Edit Full Details" button in map popup for comprehensive signal editing
-✓ Enhanced map popup with inline editing for Signal ID and street names
-✓ Implemented auto-save functionality for quick edits in map popup
-✓ Removed toast success messages from bulk signal creation (table display is sufficient)
-✓ Renamed application from "Traffic Signal Config" to "OpenSignal"
-✓ Enhanced Phase dialog to pre-select signal when one is already filtered/selected
-✓ Fixed duplicate close buttons (X) in all dialog boxes - now only shows system default
-✓ Added Visual Phase Editor with interactive map-based bearing selection and phase configuration
-✓ Implemented click-to-draw phase directions with automatic bearing calculation
-✓ Enhanced agency-based map centering with comprehensive city/state geographic detection
-✓ Removed intrusive "Location Added" toast messages from bulk signal creation for better UX
-✓ Added phase number editing capability in Visual Phase Editor for flexible phase organization
-✓ Implemented rapid multi-phase creation workflow - add up to 8 phases without closing dialog
-✓ Enhanced agency form with state detection and location picker using IP geolocation
-✓ Added map-based city selection with reverse geocoding for accurate agency location setup
-✓ Integrated location picker directly into agency config with tabbed interface
-✓ Added auto-population of agency name and ID based on selected map location
-✓ Built location picker directly into agency config (removed tabs) with "Use My Location" button
-✓ Updated signal maps to use agency coordinates as center point for better map positioning
-✓ Enhanced Visual Phase Editor to remain open after creating phases for rapid multi-phase creation
-✓ Removed success toast notifications from Visual Phase Editor for streamlined workflow
-✓ Added display of existing phases for signal below Close button in Visual Phase Editor
-✓ Flipped compass bearing calculation by 180° to represent traffic flow direction instead of raw geometric bearing
-✓ Enhanced agency coordinate integration - all signal maps now use saved agency lat/lon as center point
-✓ Simplified signal modal map picker to prioritize agency coordinates over complex city name mapping
-✓ Added duplicate phase button with auto-incremented phase numbers for rapid phase creation
-✓ Enhanced delete button security with double confirmation (warning + typed "DELETE" confirmation)
-✓ Added smart phase dropdown in detector modal showing actual phases from selected signal
-✓ Removed duplicate X close buttons from detector modal for cleaner interface
-
 ## System Architecture
+The application follows a client-side architecture optimized for browser-based operation, prioritizing local persistence over server-side interaction.
 
-The application follows a client-side architecture optimized for browser-based operation:
+### Core Technologies:
+- **Frontend**: React-based single-page application built with Vite.
+- **Storage**: Browser localStorage with a custom service layer and React hooks, enabling complete client-side data persistence.
+- **Data Persistence**: Client-side JSON serialization with automatic type conversion.
+- **Build System**: Vite for frontend bundling.
+- **Framework**: React 18 with TypeScript.
+- **Routing**: Wouter for lightweight client-side routing.
+- **State Management**: Zustand for global state management.
+- **UI Components**: Radix UI primitives with shadcn/ui styling.
+- **Styling**: Tailwind CSS with CSS variables for theming.
+- **Forms**: React Hook Form with Zod validation.
+- **Data Validation**: Zod schemas for runtime type checking and serialization.
+- **File Processing**: Client-side ZIP generation using browser APIs.
 
-- **Frontend**: React-based single-page application built with Vite
-- **Storage**: Browser localStorage with custom service layer and React hooks
-- **Data Persistence**: Client-side JSON serialization with automatic type conversion
-- **Build System**: Vite for frontend bundling, esbuild for backend compilation (development only)
-- **Server**: Express.js server used only for development hosting (not required for production)
-
-## Key Components
-
-### Frontend Architecture
-- **Framework**: React 18 with TypeScript
-- **Build Tool**: Vite with hot module replacement
-- **Routing**: Wouter for lightweight client-side routing
-- **State Management**: Zustand for global state management
-- **UI Components**: Radix UI primitives with shadcn/ui styling
-- **Styling**: Tailwind CSS with CSS variables for theming
-- **Forms**: React Hook Form with Zod validation
-- **HTTP Client**: TanStack Query for server state management
-
-### Data Management Architecture
-- **localStorage Service**: Custom TypeScript service with full CRUD operations
-- **React Integration**: Custom hooks (useAgency, useSignals, usePhases, useDetectors)
-- **Data Validation**: Zod schemas for runtime type checking and serialization
-- **File Processing**: Client-side ZIP generation using browser APIs
-- **Type Safety**: End-to-end TypeScript with shared schemas
-
-### Database Schema
-The application uses four main entities:
-- **Agencies**: Organization information (ID, name, contact details, timezone)
-- **Signals**: Traffic signal locations (coordinates, street intersections, equipment details)
-- **Phases**: Signal timing phases (movement types, pedestrian settings, detection)
-- **Detectors**: Detection equipment (channels, types, positioning)
-
-### API Structure
-RESTful API endpoints for each entity:
-- `GET/POST /api/agency` - Agency information management
-- `GET/POST/PUT/DELETE /api/signals/:id` - Signal CRUD operations
-- `GET/POST/PUT/DELETE /api/phases/:id` - Phase CRUD operations
-- `GET/POST/PUT/DELETE /api/detectors/:id` - Detector CRUD operations
-- `POST /api/export` - Generate and download GTSS package
-
-## Data Flow
-
-1. **User Input**: Forms collect and validate data using React Hook Form + Zod
-2. **State Management**: Zustand stores maintain local state for immediate UI updates
-3. **API Communication**: TanStack Query handles server synchronization and caching
-4. **Data Persistence**: Express routes validate and store data via Drizzle ORM
-5. **Export Process**: Backend generates CSV files from stored data and packages them into ZIP
-6. **File Download**: Client receives and downloads the generated package
+### Design Principles & Features:
+- **UI/UX Decisions**: Professional government-friendly design utilizing a navy blue primary color scheme, neutral grays, and compact layouts for efficiency. Features like clickable table rows, optimized spacing, and smaller font sizes enhance usability and data density.
+- **Technical Implementations**:
+    - **Client-Side Operation**: Complete conversion from server-based APIs to localStorage, making the application fully functional offline without server or database requirements.
+    - **Signal Details Page**: Comprehensive management page for signals, phases, and detectors with inline editing and map integration.
+    - **Visual Phase Editor**: Interactive map-based tool for configuring phases, including click-to-draw directions, rapid multi-phase creation, and automatic bearing calculation.
+    - **Bulk Signal Creation**: Feature with a dedicated map interface for efficient creation of multiple signals.
+    - **User Workflow Enhancements**: Features like "Duplicate to Left Turn" for phases, automatic phase number mapping, and interactive location editing on maps streamline configuration.
+    - **Schema Standardization**: Data models are aligned with exact CSV export requirements for consistent data exchange.
+- **System Design Choices**:
+    - **Monorepo Structure**: Frontend, backend (development only), and shared code are co-located for simplified development and type sharing.
+    - **Type Safety**: End-to-end TypeScript with shared schemas ensures data consistency and reduces errors.
+    - **Component Architecture**: Modular UI components utilizing shadcn/ui for consistency and reusability.
+    - **Validation Strategy**: Zod schemas are shared between client and (formerly) server for consistent validation logic.
 
 ## External Dependencies
 
-### Frontend Dependencies
-- **UI Framework**: React, Radix UI primitives for accessibility
-- **Styling**: Tailwind CSS, class-variance-authority for component variants
-- **Forms & Validation**: React Hook Form, Zod, @hookform/resolvers
-- **HTTP & State**: TanStack Query for server state management
-- **Routing**: Wouter for lightweight routing
-- **Date Handling**: date-fns for date formatting
-
-### Backend Dependencies
-- **Database**: @neondatabase/serverless (Neon PostgreSQL)
-- **ORM**: Drizzle ORM with drizzle-kit for migrations
-- **File Processing**: archiver for ZIP file creation
-- **Session Store**: connect-pg-simple for PostgreSQL sessions
-- **Validation**: Shared Zod schemas between frontend and backend
-
-### Development Dependencies
-- **Build Tools**: Vite, esbuild, TypeScript
-- **Linting & Code Quality**: TypeScript compiler for type checking
-- **Development Server**: Custom Vite middleware integration
-
-## Deployment Strategy
-
-### Development
-- **Frontend**: Vite dev server with HMR on port 5173
-- **Backend**: tsx for TypeScript execution with nodemon-like reloading
-- **Database**: Neon PostgreSQL (serverless) for development
-- **Environment**: NODE_ENV=development with development-specific middleware
-
-### Production
-- **Frontend**: Static build output served by Express
-- **Backend**: Compiled JavaScript bundle via esbuild
-- **Database**: Production PostgreSQL instance via DATABASE_URL
-- **Deployment**: Single server deployment with static file serving
-
-### Key Architectural Decisions
-
-1. **Monorepo Structure**: Frontend, backend, and shared code in single repository for easier development and type sharing
-2. **In-Memory Storage**: Development uses memory storage with interface design allowing easy database integration
-3. **Type Safety**: End-to-end TypeScript with shared schemas between frontend and backend
-4. **Component Architecture**: Modular UI components with shadcn/ui for consistency
-5. **State Management**: Zustand chosen for simplicity over Redux complexity
-6. **Validation Strategy**: Zod schemas shared between client and server for consistency
-7. **Build Strategy**: Separate frontend and backend builds with Express serving both
+### Frontend Dependencies:
+- **UI Framework**: React, Radix UI primitives
+- **Styling**: Tailwind CSS, `class-variance-authority`
+- **Forms & Validation**: React Hook Form, Zod, `@hookform/resolvers`
+- **Routing**: Wouter
+- **Date Handling**: `date-fns`
