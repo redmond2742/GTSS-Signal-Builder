@@ -155,19 +155,26 @@ export default function AgencyForm() {
         
         form.setValue("agencyName", agencyName);
         form.setValue("agencyId", agencyId);
-        
-        // Update store with coordinates for map centering
-        if (agency) {
-          setAgency({
-            ...agency,
-            agencyId,
-            agencyName,
-
-          });
-        }
+      }
+      
+      // Always save coordinates to form
+      form.setValue("latitude", lat);
+      form.setValue("longitude", lon);
+      
+      // Update store with coordinates for map centering
+      if (agency) {
+        setAgency({
+          ...agency,
+          latitude: lat,
+          longitude: lon,
+        });
       }
     } catch (error) {
       console.error("Geocoding failed:", error);
+      // Always save coordinates to form even if geocoding fails
+      form.setValue("latitude", lat);
+      form.setValue("longitude", lon);
+      
       setSelectedLocation({
         lat,
         lon,

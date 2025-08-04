@@ -96,8 +96,8 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
       return [signal.latitude, signal.longitude];
     }
     // Otherwise use agency coordinates if available
-    if (agency?.agencyLat && agency?.agencyLon) {
-      return [agency.agencyLat, agency.agencyLon];
+    if (agency?.latitude && agency?.longitude) {
+      return [agency.latitude, agency.longitude];
     }
     return [39.8283, -98.5795]; // Default center of US
   };
