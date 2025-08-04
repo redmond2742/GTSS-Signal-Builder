@@ -63,58 +63,67 @@ function QuickEditPopup({ signal, onUpdate, onSignalSelect }: {
     streetName1: signal.streetName1,
     streetName2: signal.streetName2,
   });
+  const [hasChanges, setHasChanges] = useState(false);
 
   const handleInputChange = (field: keyof typeof formData, value: string) => {
     const newData = { ...formData, [field]: value };
     setFormData(newData);
-    // Auto-save on change
-    onUpdate?.(newData);
+    setHasChanges(true);
+  };
+
+  const handleSave = () => {
+    if (hasChanges) {
+      onUpdate?.(formData);
+      setHasChanges(false);
+    }
   };
 
   return (
-    <div className="p-3 min-w-64">
-      <h4 className="font-semibold text-sm mb-3">Signal Details</h4>
-      <div className="space-y-3">
-        <div>
-          <label className="text-xs text-grey-600 block mb-1">Signal ID</label>
-          <Input
-            value={formData.signalId}
-            onChange={(e) => handleInputChange('signalId', e.target.value)}
-            className="text-xs h-7"
-            placeholder="Optional Signal ID"
-          />
+    <div className="p-2 min-w-48">
+      <h4 className="font-medium text-xs mb-2">Signal {signal.signalId}</h4>
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Input
+              value={formData.signalId}
+              onChange={(e) => handleInputChange('signalId', e.target.value)}
+              className="text-xs h-6"
+              placeholder="Signal ID"
+            />
+          </div>
+          <div>
+            <Button 
+              onClick={handleSave} 
+              disabled={!hasChanges}
+              size="sm" 
+              className="text-xs h-6 w-full bg-primary-600 hover:bg-primary-700"
+            >
+              Save
+            </Button>
+          </div>
         </div>
         <div>
-          <label className="text-xs text-grey-600 block mb-1">Street 1</label>
           <Input
             value={formData.streetName1}
             onChange={(e) => handleInputChange('streetName1', e.target.value)}
-            className="text-xs h-7"
-            placeholder="Main Street"
+            className="text-xs h-6"
+            placeholder="Street 1"
           />
         </div>
         <div>
-          <label className="text-xs text-grey-600 block mb-1">Street 2</label>
           <Input
             value={formData.streetName2}
             onChange={(e) => handleInputChange('streetName2', e.target.value)}
-            className="text-xs h-7"
-            placeholder="First Avenue"
+            className="text-xs h-6"
+            placeholder="Street 2"
           />
         </div>
-        <div className="pt-1 space-y-1">
-          <p className="text-xs text-grey-500">
-            Location: {signal.latitude?.toFixed(4)}, {signal.longitude?.toFixed(4)}
-          </p>
-          <p className="text-xs text-grey-500">
-            Agency: {signal.agencyId}
-          </p>
+        <div className="text-xs text-grey-500">
+          {signal.latitude?.toFixed(4)}, {signal.longitude?.toFixed(4)}
         </div>
-        <div className="pt-2">
-          <Button onClick={() => onSignalSelect?.(signal)} variant="outline" size="sm" className="text-xs h-6 w-full">
-            Edit Full Details
-          </Button>
-        </div>
+        <Button onClick={() => onSignalSelect?.(signal)} variant="outline" size="sm" className="text-xs h-6 w-full">
+          Full Details
+        </Button>
       </div>
     </div>
   );

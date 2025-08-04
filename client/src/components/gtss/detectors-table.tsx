@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, ChevronUp, ChevronDown, MapPin } from "lucide-react";
 import SignalsMap from "@/components/ui/signals-map";
 
-type SortField = 'signalId' | 'detectorChannel' | 'phase' | 'detTechnologyType' | 'purpose';
+type SortField = 'signalId' | 'channel' | 'phase' | 'technologyType' | 'purpose';
 type SortDirection = 'asc' | 'desc';
 import DetectorModal from "./detector-modal";
 
@@ -97,17 +97,17 @@ export default function DetectorsTable({ triggerAdd }: DetectorsTableProps) {
           aValue = a.signalId;
           bValue = b.signalId;
           break;
-        case 'detectorChannel':
-          aValue = a.detectorChannel;
-          bValue = b.detectorChannel;
+        case 'channel':
+          aValue = a.channel;
+          bValue = b.channel;
           break;
         case 'phase':
           aValue = a.phase || 0;
           bValue = b.phase || 0;
           break;
-        case 'detTechnologyType':
-          aValue = a.detTechnologyType;
-          bValue = b.detTechnologyType;
+        case 'technologyType':
+          aValue = a.technologyType;
+          bValue = b.technologyType;
           break;
         case 'purpose':
           aValue = a.purpose;
