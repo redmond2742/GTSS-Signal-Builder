@@ -126,7 +126,7 @@ export default function GTSSBuilder() {
                   <div className="flex-1">
                     <span className="text-xs font-medium">{tab.label}</span>
                   </div>
-                  {count > 0 && tab.id !== "phases" && (
+                  {count > 0 && tab.id !== "phases" && tab.id !== "detectors" && (
                     <Badge 
                       variant={isActive ? "default" : "secondary"} 
                       className="text-xs px-1.5 py-0 min-w-[18px] h-4"
