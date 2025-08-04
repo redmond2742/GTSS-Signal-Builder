@@ -72,8 +72,8 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
   };
 
   const handleAdd = () => {
-    setEditingSignal(null);
-    setShowModal(true);
+    // Navigate to signal details page for creating a new signal
+    navigate('/signal/new');
   };
 
   const handleModalClose = () => {

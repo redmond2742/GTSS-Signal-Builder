@@ -23,6 +23,7 @@ export default function SignalDetails() {
   const params = useParams();
   const [, navigate] = useLocation();
   const signalId = params.signalId;
+  const isNewSignal = signalId === 'new';
   const { toast } = useToast();
   const { agency } = useGTSSStore();
   
@@ -77,7 +78,21 @@ export default function SignalDetails() {
   });
 
   useEffect(() => {
-    if (signalId) {
+    if (isNewSignal) {
+      // Initialize for new signal creation
+      setSignal(null);
+      setSignalPhases([]);
+      setSignalDetectors([]);
+      setIsEditingSignal(true); // Start in editing mode for new signal
+      signalForm.reset({
+        signalId: "",
+        streetName1: "",
+        streetName2: "",
+        latitude: agency?.latitude || 39.8283,
+        longitude: agency?.longitude || -98.5795,
+        agencyId: agency?.agencyId || "",
+      });
+    } else if (signalId) {
       const foundSignal = signals.find(s => s.signalId === signalId);
       if (foundSignal) {
         setSignal(foundSignal);
@@ -97,11 +112,28 @@ export default function SignalDetails() {
       const filteredDetectors = detectors.filter(d => d.signalId === signalId);
       setSignalDetectors(filteredDetectors);
     }
-  }, [signalId, signals, phases, detectors]);
+  }, [signalId, isNewSignal, signals, phases, detectors, agency]);
 
   const handleSignalSave = (data: InsertSignal) => {
-    if (signal) {
-      try {
+    try {
+      if (isNewSignal) {
+        // Generate a unique signal ID if not provided
+        if (!data.signalId) {
+          data.signalId = `SIG-${Date.now()}`;
+        }
+        
+        const newSignal = signalHooks.create(data);
+        setSignal(newSignal);
+        setIsEditingSignal(false);
+        
+        // Navigate to the actual signal details page with the new ID
+        navigate(`/signal/${newSignal.signalId}`);
+        
+        toast({
+          title: "Success",
+          description: "Signal created successfully",
+        });
+      } else if (signal) {
         const updatedSignal = signalHooks.update(signal.id, data);
         if (updatedSignal) {
           setSignal(updatedSignal);
@@ -111,13 +143,13 @@ export default function SignalDetails() {
           title: "Success",
           description: "Signal updated successfully",
         });
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update signal",
-          variant: "destructive",
-        });
       }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: isNewSignal ? "Failed to create signal" : "Failed to update signal",
+        variant: "destructive",
+      });
     }
   };
 
@@ -292,13 +324,13 @@ export default function SignalDetails() {
     }
   };
 
-  if (!signal) {
+  if (!signal && !isNewSignal) {
     return (
       <div className="max-w-4xl">
         <div className="flex items-center space-x-2 mb-4">
           <Button
             variant="outline"
-            onClick={() => navigate("/signals")}
+            onClick={() => navigate("/")}
             className="h-7 px-2 text-xs"
           >
             <ArrowLeft className="w-3 h-3 mr-1" />
@@ -328,13 +360,22 @@ export default function SignalDetails() {
             Back to Signals
           </Button>
           <div>
-            <h1 className="text-lg font-bold text-grey-800">Signal Details</h1>
-            <p className="text-xs text-grey-500">{signal.streetName1} & {signal.streetName2}</p>
+            <h1 className="text-lg font-bold text-grey-800">
+              {isNewSignal ? "New Signal" : "Signal Details"}
+            </h1>
+            <p className="text-xs text-grey-500">
+              {isNewSignal 
+                ? "Configure new traffic signal information" 
+                : `${signal?.streetName1} & ${signal?.streetName2}`
+              }
+            </p>
           </div>
         </div>
-        <Badge variant="outline" className="text-xs">
-          Signal ID: {signal.signalId}
-        </Badge>
+        {!isNewSignal && signal && (
+          <Badge variant="outline" className="text-xs">
+            Signal ID: {signal.signalId}
+          </Badge>
+        )}
       </div>
 
       {/* Signal Information */}
@@ -345,14 +386,16 @@ export default function SignalDetails() {
               <MapPin className="w-4 h-4 text-primary-600" />
               <span>Signal Information</span>
             </CardTitle>
-            <Button
-              variant="outline"
-              onClick={() => setIsEditingSignal(!isEditingSignal)}
-              className="h-7 px-2 text-xs"
-            >
-              <Edit3 className="w-3 h-3 mr-1" />
-              {isEditingSignal ? "Cancel" : "Edit"}
-            </Button>
+            {!isNewSignal && (
+              <Button
+                variant="outline"
+                onClick={() => setIsEditingSignal(!isEditingSignal)}
+                className="h-7 px-2 text-xs"
+              >
+                <Edit3 className="w-3 h-3 mr-1" />
+                {isEditingSignal ? "Cancel" : "Edit"}
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-4">

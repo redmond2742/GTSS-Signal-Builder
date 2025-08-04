@@ -68,7 +68,8 @@ export default function GTSSBuilder() {
   };
 
   const handleAddSignal = () => {
-    setTriggerAdd(prev => prev + 1);
+    // Navigate directly to signal details page for new signal creation
+    window.location.href = '/signal/new';
   };
 
   const handleAddMultiple = () => {
