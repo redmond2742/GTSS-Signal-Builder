@@ -138,7 +138,11 @@ export default function SignalDetails() {
           description: "Signal created successfully",
         });
       } else if (signal) {
-        const updatedSignal = signalHooks.update(signal.id, data);
+        console.log("Updating signal with data:", data);
+        console.log("Signal ID:", signal.signalId);
+        const updatedSignal = signalHooks.update(signal.signalId, data);
+        console.log("Updated signal result:", updatedSignal);
+        
         if (updatedSignal) {
           setSignal(updatedSignal);
           // Force a refresh of the form with updated data
@@ -150,12 +154,15 @@ export default function SignalDetails() {
             longitude: updatedSignal.longitude,
             agencyId: updatedSignal.agencyId,
           });
+          
+          setIsEditingSignal(false);
+          toast({
+            title: "Success",
+            description: "Signal updated successfully",
+          });
+        } else {
+          throw new Error("Failed to update signal - no result returned");
         }
-        setIsEditingSignal(false);
-        toast({
-          title: "Success",
-          description: "Signal updated successfully",
-        });
       }
     } catch (error) {
       toast({
