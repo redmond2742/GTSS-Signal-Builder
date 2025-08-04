@@ -163,7 +163,11 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
             </div>
           ) : (
             <div className="w-full h-full relative z-0">
-              <SignalsMap signals={signals} />
+              <SignalsMap 
+                signals={signals} 
+                onSignalSelect={(signal) => navigate(`/signal/${signal.signalId}`)}
+                className="w-full h-full"
+              />
             </div>
           )}
         </div>
