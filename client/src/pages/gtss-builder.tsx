@@ -144,7 +144,11 @@ export default function GTSSBuilder() {
 
         {/* Footer Actions */}
         <div className="p-2 border-t border-grey-200">
-          <Button variant="outline" className="w-full h-7 text-xs bg-grey-100 text-grey-700 hover:bg-grey-200">
+          <Button 
+            variant="outline" 
+            className="w-full h-7 text-xs bg-grey-100 text-grey-700 hover:bg-grey-200"
+            onClick={() => setActiveTab("export")}
+          >
             <FolderOutput className="w-3 h-3 mr-1" />
             Import/Export
           </Button>

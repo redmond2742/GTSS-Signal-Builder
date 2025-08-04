@@ -14,7 +14,7 @@ import PhaseModal from "./phase-modal";
 import VisualPhaseEditor from "./visual-phase-editor";
 import SignalsMap from "@/components/ui/signals-map";
 
-type SortField = 'phase' | 'signalId' | 'movementType' | 'bearing';
+type SortField = 'phase' | 'signalId' | 'movementType' | 'bearing' | 'postedSpeed' | 'numOfLanes';
 type SortDirection = 'asc' | 'desc';
 
 interface PhasesTableProps {
