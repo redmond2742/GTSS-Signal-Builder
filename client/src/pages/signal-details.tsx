@@ -15,12 +15,22 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { MapContainer, TileLayer, Marker } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import { MapPin, Edit3, Plus, Trash2, Navigation, ArrowLeft, Settings, HelpCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import PhaseModal from "@/components/gtss/phase-modal";
 import DetectorModal from "@/components/gtss/detector-modal";
 import VisualPhaseEditor from "@/components/gtss/visual-phase-editor";
+
+// Location picker component for interactive map editing
+function LocationPicker({ onLocationSelect }: { onLocationSelect: (lat: number, lon: number) => void }) {
+  useMapEvents({
+    click(e) {
+      onLocationSelect(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
 
 export default function SignalDetails() {
   const params = useParams();
@@ -577,6 +587,35 @@ export default function SignalDetails() {
                     )}
                   />
                 </div>
+                
+                {/* Interactive Map for Location Selection */}
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium text-grey-700 mb-2">Click map to update location</h4>
+                  <div className="h-48 rounded-lg border overflow-hidden relative z-0">
+                    <MapContainer
+                      center={[signalForm.watch("latitude") || signal?.latitude || 0, signalForm.watch("longitude") || signal?.longitude || 0]}
+                      zoom={16}
+                      style={{ height: "100%", width: "100%", zIndex: 1 }}
+                      key={`edit-map-${signalForm.watch("latitude")}-${signalForm.watch("longitude")}`}
+                    >
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                      <LocationPicker 
+                        onLocationSelect={(lat, lon) => {
+                          signalForm.setValue("latitude", lat);
+                          signalForm.setValue("longitude", lon);
+                        }} 
+                      />
+                      <Marker position={[signalForm.watch("latitude") || signal?.latitude || 0, signalForm.watch("longitude") || signal?.longitude || 0]} />
+                    </MapContainer>
+                  </div>
+                  <p className="text-xs text-grey-500 mt-1">
+                    Current: {signalForm.watch("latitude")?.toFixed(6)}, {signalForm.watch("longitude")?.toFixed(6)}
+                  </p>
+                </div>
+                
                 <div className="flex justify-end space-x-2">
                   <Button
                     type="button"
