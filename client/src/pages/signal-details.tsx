@@ -16,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
-import { MapPin, Edit3, Plus, Trash2, Navigation, ArrowLeft, Settings, HelpCircle } from "lucide-react";
+import { MapPin, Edit3, Plus, Trash2, Navigation, ArrowLeft, Settings, HelpCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import PhaseModal from "@/components/gtss/phase-modal";
 import DetectorModal from "@/components/gtss/detector-modal";
@@ -465,9 +465,47 @@ export default function SignalDetails() {
           </div>
         </div>
         {!isNewSignal && signal && (
-          <Badge variant="outline" className="text-xs">
-            Signal ID: {signal.signalId}
-          </Badge>
+          <div className="flex items-center space-x-2">
+            {/* Navigation arrows */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const currentIndex = signals.findIndex(s => s.signalId === signal.signalId);
+                const prevIndex = currentIndex > 0 ? currentIndex - 1 : signals.length - 1;
+                const prevSignal = signals[prevIndex];
+                if (prevSignal) {
+                  navigate(`/signal/${prevSignal.signalId}`);
+                }
+              }}
+              disabled={signals.length <= 1}
+              className="h-6 w-6 p-0"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            
+            {/* Signal pill with ID and street names */}
+            <Badge variant="outline" className="text-xs px-3 py-1">
+              {signal.signalId} • {signal.streetName1} & {signal.streetName2}
+            </Badge>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const currentIndex = signals.findIndex(s => s.signalId === signal.signalId);
+                const nextIndex = currentIndex < signals.length - 1 ? currentIndex + 1 : 0;
+                const nextSignal = signals[nextIndex];
+                if (nextSignal) {
+                  navigate(`/signal/${nextSignal.signalId}`);
+                }
+              }}
+              disabled={signals.length <= 1}
+              className="h-6 w-6 p-0"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         )}
       </div>
 
