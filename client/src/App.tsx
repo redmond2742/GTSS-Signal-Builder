@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import GTSSBuilder from "@/pages/gtss-builder";
 import SignalDetails from "@/pages/signal-details";
+import ExportPage from "@/pages/export";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -11,6 +12,7 @@ function Router() {
     <Switch>
       <Route path="/" component={GTSSBuilder} />
       <Route path="/signal/:signalId" component={SignalDetails} />
+      <Route path="/export" component={ExportPage} />
       <Route component={NotFound} />
     </Switch>
   );

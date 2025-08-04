@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useLoadFromStorage } from "@/lib/localStorageHooks";
 import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Navigation, Plus, Map } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ const tabTitles = {
 
 export default function GTSSBuilder() {
   const [activeTab, setActiveTab] = useState<TabType>("signals");
+  const [, navigate] = useLocation();
   const { signals, phases, detectors } = useGTSSStore();
   
   // Load data from localStorage on mount
@@ -143,7 +145,7 @@ export default function GTSSBuilder() {
           <Button 
             variant="outline" 
             className="w-full h-7 text-xs bg-grey-100 text-grey-700 hover:bg-grey-200"
-            onClick={() => window.location.href = '/export'}
+            onClick={() => navigate('/export')}
           >
             <FolderOutput className="w-3 h-3 mr-1" />
             Import/Export
