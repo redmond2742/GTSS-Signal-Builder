@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLoadFromStorage } from "@/lib/localStorageHooks";
-import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Save, FolderOpen, Navigation, Plus, Map } from "lucide-react";
+import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Navigation, Plus, Map } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import AgencyForm from "@/components/gtss/agency-form";
@@ -143,14 +143,10 @@ export default function GTSSBuilder() {
         </nav>
 
         {/* Footer Actions */}
-        <div className="p-2 border-t border-grey-200 space-y-1">
+        <div className="p-2 border-t border-grey-200">
           <Button variant="outline" className="w-full h-7 text-xs bg-grey-100 text-grey-700 hover:bg-grey-200">
-            <Save className="w-3 h-3 mr-1" />
-            Save Config
-          </Button>
-          <Button variant="outline" className="w-full h-7 text-xs bg-grey-100 text-grey-700 hover:bg-grey-200">
-            <FolderOpen className="w-3 h-3 mr-1" />
-            Load Config
+            <FolderOutput className="w-3 h-3 mr-1" />
+            Import/Export
           </Button>
         </div>
       </div>

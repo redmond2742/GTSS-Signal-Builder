@@ -181,13 +181,12 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
                     <SortableHeader field="streetName1">Street 1</SortableHeader>
                     <SortableHeader field="streetName2">Street 2</SortableHeader>
                     <SortableHeader field="coordinates">Coordinates</SortableHeader>
-                    <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider py-1.5 px-2">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {signals.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-xs text-grey-500">
+                      <TableCell colSpan={4} className="text-center py-8 text-xs text-grey-500">
                         <div className="flex flex-col items-center space-y-2">
                           <MapPin className="w-8 h-8 text-grey-300" />
                           <p>No traffic signals configured</p>
@@ -199,7 +198,8 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
                     getSortedSignals().map((signal) => (
                       <TableRow 
                         key={signal.id}
-                        className="hover:bg-grey-50 transition-colors"
+                        className="hover:bg-grey-50 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/signal/${signal.signalId}`)}
                       >
                         <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">{signal.signalId}</TableCell>
                         <TableCell className="text-grey-600 text-xs py-1.5 px-2">{signal.streetName1}</TableCell>
@@ -209,26 +209,6 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
                             ? `${signal.latitude.toFixed(4)}, ${signal.longitude.toFixed(4)}`
                             : 'Not set'
                           }
-                        </TableCell>
-                        <TableCell className="py-1.5 px-2">
-                          <div className="flex items-center space-x-1">
-                            <Button
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => navigate(`/signal/${signal.signalId}`)}
-                              className="h-6 w-6 p-0 text-primary-600 hover:text-primary-700 hover:bg-primary-50"
-                            >
-                              <Edit3 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(signal)}
-                              className="h-6 w-6 p-0 text-grey-600 hover:text-grey-700 hover:bg-grey-100"
-                            >
-                              <MapPin className="w-3 h-3" />
-                            </Button>
-                          </div>
                         </TableCell>
                       </TableRow>
                     ))

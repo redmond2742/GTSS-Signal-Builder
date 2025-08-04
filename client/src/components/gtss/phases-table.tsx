@@ -222,13 +222,14 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
                   <SortableHeader field="signalId">Signal ID</SortableHeader>
                   <SortableHeader field="movementType">Movement</SortableHeader>
                   <SortableHeader field="bearing">Bearing</SortableHeader>
-
+                  <SortableHeader field="postedSpeed">Speed</SortableHeader>
+                  <SortableHeader field="numOfLanes">Lanes</SortableHeader>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredPhases.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8 text-grey-500">
+                    <TableCell colSpan={6} className="text-center py-8 text-grey-500">
                       {filterSignal === "all" 
                         ? "No phases configured. Add your first phase to get started."
                         : "No phases found for the selected signal."
@@ -242,22 +243,27 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
                       className="hover:bg-grey-50 cursor-pointer transition-colors"
                       onClick={() => handleRowClick(phase)}
                     >
-                      <TableCell className="font-medium text-grey-900">{phase.phase}</TableCell>
-                      <TableCell className="text-grey-600">{phase.signalId}</TableCell>
-                      <TableCell className="text-grey-600">
-                        <div className="flex items-center space-x-2">
+                      <TableCell className="font-medium text-grey-900 text-xs py-1 px-2">{phase.phase}</TableCell>
+                      <TableCell className="text-grey-600 text-xs py-1 px-2">{phase.signalId}</TableCell>
+                      <TableCell className="text-grey-600 text-xs py-1 px-2">
+                        <div className="flex items-center space-x-1">
                           <span>{phase.movementType}</span>
                           {phase.isOverlap && (
-                            <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-xs">
+                            <Badge variant="secondary" className="bg-orange-100 text-orange-800" style={{ fontSize: '10px', padding: '1px 4px' }}>
                               Overlap
                             </Badge>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-grey-600">
+                      <TableCell className="text-grey-600 text-xs py-1 px-2">
                         {phase.compassBearing ? `${phase.compassBearing}°` : 'N/A'}
                       </TableCell>
-
+                      <TableCell className="text-grey-600 text-xs py-1 px-2">
+                        {phase.postedSpeed ? `${phase.postedSpeed} mph` : 'N/A'}
+                      </TableCell>
+                      <TableCell className="text-grey-600 text-xs py-1 px-2">
+                        {phase.numOfLanes}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
