@@ -30,7 +30,7 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [sortField, setSortField] = useState<SortField>('signalId');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [hoveredSignalId, setHoveredSignalId] = useState<string | null>(null);
+
   const { signals } = useGTSSStore();
   const { toast } = useToast();
   const signalHooks = useSignals();
@@ -168,7 +168,7 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
                 signals={signals} 
                 onSignalSelect={(signal) => navigate(`/signal/${signal.signalId}`)}
                 className="w-full h-full"
-                hoveredSignalId={hoveredSignalId || undefined}
+
               />
             </div>
           )}
@@ -206,8 +206,7 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
                         key={signal.id}
                         className="hover:bg-grey-50 cursor-pointer transition-colors"
                         onClick={() => navigate(`/signal/${signal.signalId}`)}
-                        onMouseEnter={() => setHoveredSignalId(signal.signalId)}
-                        onMouseLeave={() => setHoveredSignalId(null)}
+
                       >
                         <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">{signal.signalId}</TableCell>
                         <TableCell className="text-grey-600 text-xs py-1.5 px-2">{signal.streetName1}</TableCell>
