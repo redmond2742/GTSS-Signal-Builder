@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useLoadFromStorage } from "@/lib/localStorageHooks";
-import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Navigation, Plus, Map } from "lucide-react";
+import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Navigation, Plus, Map, Coffee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import AgencyForm from "@/components/gtss/agency-form";
@@ -203,6 +203,21 @@ export default function GTSSBuilder() {
         <main className="flex-1 overflow-auto p-3">
           {renderTabContent()}
         </main>
+
+        {/* Footer with Buy me a Coffee */}
+        <footer className="border-t border-grey-200 bg-white px-4 py-3">
+          <div className="flex items-center justify-center">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3 text-xs border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300"
+              onClick={() => window.open('https://buymeacoffee.com/gtssbuilder', '_blank')}
+            >
+              <Coffee className="w-4 h-4 mr-2" />
+              Buy me a Coffee
+            </Button>
+          </div>
+        </footer>
       </div>
     </div>
   );
