@@ -150,6 +150,20 @@ export default function GTSSBuilder() {
             <FolderOutput className="w-3 h-3 mr-1" />
             Import/Export
           </Button>
+          
+          {/* Support this Tool section */}
+          <div className="mt-4 pt-3 border-t border-grey-200">
+            <p className="text-xs font-medium text-grey-600 mb-2 px-2">Support this Tool</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-7 text-xs border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300"
+              onClick={() => window.open('https://buymeacoffee.com/gtssbuilder', '_blank')}
+            >
+              <Coffee className="w-3 h-3 mr-1" />
+              Buy me a Coffee
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -204,20 +218,7 @@ export default function GTSSBuilder() {
           {renderTabContent()}
         </main>
 
-        {/* Footer with Buy me a Coffee */}
-        <footer className="border-t border-grey-200 bg-white px-4 py-3">
-          <div className="flex items-center justify-center">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 px-3 text-xs border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300"
-              onClick={() => window.open('https://buymeacoffee.com/gtssbuilder', '_blank')}
-            >
-              <Coffee className="w-4 h-4 mr-2" />
-              Buy me a Coffee
-            </Button>
-          </div>
-        </footer>
+
       </div>
     </div>
   );
