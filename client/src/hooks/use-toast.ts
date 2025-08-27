@@ -149,6 +149,9 @@ function toast({ ...props }: Toast) {
     })
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
 
+  // Set duration based on variant: 1 second for success, 3 seconds for error
+  const duration = props.variant === "destructive" ? 3000 : 1000
+
   dispatch({
     type: "ADD_TOAST",
     toast: {
@@ -160,6 +163,11 @@ function toast({ ...props }: Toast) {
       },
     },
   })
+
+  // Auto-dismiss after the appropriate duration
+  setTimeout(() => {
+    dismiss()
+  }, duration)
 
   return {
     id: id,
