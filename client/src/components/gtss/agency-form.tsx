@@ -239,6 +239,58 @@ export default function AgencyForm() {
     }
   };
 
+  // Function to geocode city name from agency information
+  const geocodeCityFromAgencyName = async (agencyName: string) => {
+    if (!agencyName || selectedLocation) {
+      return; // Don't geocode if location is already set
+    }
+
+    // Extract potential city names from agency name
+    const cityKeywords = agencyName.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g);
+    if (!cityKeywords) return;
+
+    // Filter out common transportation department words
+    const commonWords = ['Department', 'Transportation', 'Traffic', 'City', 'County', 'State', 'Municipal', 'Metro', 'Authority', 'Commission'];
+    const potentialCities = cityKeywords.filter(word => !commonWords.includes(word));
+
+    if (potentialCities.length === 0) return;
+
+    try {
+      // Try geocoding the first potential city name
+      const cityName = potentialCities[0];
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cityName)}&limit=1&countrycodes=us`);
+      const data = await response.json();
+
+      if (data && data.length > 0) {
+        const result = data[0];
+        const lat = parseFloat(result.lat);
+        const lon = parseFloat(result.lon);
+
+        // Only update if we don't already have a selected location
+        if (!selectedLocation) {
+          setSelectedLocation({
+            lat,
+            lon,
+            city: cityName,
+            displayName: result.display_name,
+          });
+          setMapCenter([lat, lon]);
+          
+          // Update form coordinates
+          form.setValue("latitude", lat);
+          form.setValue("longitude", lon);
+
+          toast({
+            title: "Location Found",
+            description: `Automatically located ${cityName} on the map`,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("City geocoding failed:", error);
+    }
+  };
+
 
 
 
@@ -350,7 +402,14 @@ export default function AgencyForm() {
                             <Input 
                               placeholder="e.g., Los Angeles Department of Transportation" 
                               className="h-7 px-2 text-xs"
-                              {...field} 
+                              {...field}
+                              onBlur={(e) => {
+                                field.onBlur();
+                                // Trigger city geocoding when user finishes typing agency name
+                                if (e.target.value) {
+                                  geocodeCityFromAgencyName(e.target.value);
+                                }
+                              }}
                             />
                           </FormControl>
                           <FormMessage />
