@@ -231,6 +231,14 @@ export const detectorStorage = {
   },
 };
 
+// Clear all GTSS data
+export const clearAllData = (): void => {
+  agencyStorage.clear();
+  signalStorage.clear();
+  phaseStorage.clear();
+  detectorStorage.clear();
+};
+
 // Export all data
 export const exportData = () => {
   return {
@@ -241,13 +249,7 @@ export const exportData = () => {
   };
 };
 
-// Clear all data
-export const clearAllData = () => {
-  agencyStorage.clear();
-  signalStorage.clear();
-  phaseStorage.clear();
-  detectorStorage.clear();
-};
+
 
 // CSV export functions
 function generateAgencyCSV(agency: Agency | null): string {

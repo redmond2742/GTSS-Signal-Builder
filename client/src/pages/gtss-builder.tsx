@@ -1,15 +1,18 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useLoadFromStorage } from "@/lib/localStorageHooks";
-import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Navigation, Plus, Map, Coffee } from "lucide-react";
+import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Navigation, Plus, Map, Coffee, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import AgencyForm from "@/components/gtss/agency-form";
 import SignalsTable from "@/components/gtss/signals-table";
 import PhasesTable from "@/components/gtss/phases-table";
 import DetectorsTable from "@/components/gtss/detectors-table";
 import ExportPanel from "@/components/gtss/export-panel";
 import { useGTSSStore } from "@/store/gtss-store";
+import { useToast } from "@/hooks/use-toast";
+import { clearAllData } from "@/lib/localStorage";
 import { cn } from "@/lib/utils";
 
 type TabType = "agency" | "signals" | "phases" | "detectors";
@@ -31,7 +34,8 @@ const tabTitles = {
 export default function GTSSBuilder() {
   const [activeTab, setActiveTab] = useState<TabType>("signals");
   const [, navigate] = useLocation();
-  const { signals, phases, detectors } = useGTSSStore();
+  const { signals, phases, detectors, setAgency, setSignals, setPhases, setDetectors } = useGTSSStore();
+  const { toast } = useToast();
   
   // Load data from localStorage on mount
   useLoadFromStorage();
@@ -84,6 +88,20 @@ export default function GTSSBuilder() {
 
   const handleAddDetector = () => {
     setTriggerAddDetector(prev => prev + 1);
+  };
+
+  const handleClearAllData = () => {
+    clearAllData();
+    // Reset store to empty state
+    setAgency(null);
+    setSignals([]);
+    setPhases([]);
+    setDetectors([]);
+    
+    toast({
+      title: "Data Cleared",
+      description: "All signal, phase, detector, and agency data has been cleared",
+    });
   };
 
   return (
@@ -150,6 +168,37 @@ export default function GTSSBuilder() {
             <FolderOutput className="w-3 h-3 mr-1" />
             Import/Export
           </Button>
+
+          {/* Clear All Data */}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full h-7 text-xs mt-2 border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300"
+              >
+                <Trash2 className="w-3 h-3 mr-1" />
+                Clear All Data
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Clear All Data</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete all agency information, signals, phases, and detectors. 
+                  This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleClearAllData}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  Clear All Data
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           
           {/* Support this Tool section */}
           <div className="mt-4 pt-3 border-t border-grey-200">
