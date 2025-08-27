@@ -240,9 +240,14 @@ export default function AgencyForm() {
   };
 
   // Function to geocode city name from agency information
-  const geocodeCityFromAgencyName = async (agencyName: string) => {
-    if (!agencyName || selectedLocation) {
-      return; // Don't geocode if location is already set
+  const geocodeCityFromAgencyName = async (agencyName: string, forceUpdate = false) => {
+    if (!agencyName) {
+      return;
+    }
+
+    // If forceUpdate is false and we already have a location, don't geocode
+    if (!forceUpdate && selectedLocation) {
+      return;
     }
 
     // Extract potential city names from agency name
@@ -266,25 +271,22 @@ export default function AgencyForm() {
         const lat = parseFloat(result.lat);
         const lon = parseFloat(result.lon);
 
-        // Only update if we don't already have a selected location
-        if (!selectedLocation) {
-          setSelectedLocation({
-            lat,
-            lon,
-            city: cityName,
-            displayName: result.display_name,
-          });
-          setMapCenter([lat, lon]);
-          
-          // Update form coordinates
-          form.setValue("latitude", lat);
-          form.setValue("longitude", lon);
+        setSelectedLocation({
+          lat,
+          lon,
+          city: cityName,
+          displayName: result.display_name,
+        });
+        setMapCenter([lat, lon]);
+        
+        // Update form coordinates
+        form.setValue("latitude", lat);
+        form.setValue("longitude", lon);
 
-          toast({
-            title: "Location Found",
-            description: `Automatically located ${cityName} on the map`,
-          });
-        }
+        toast({
+          title: "Location Updated",
+          description: `Map updated to ${cityName}`,
+        });
       }
     } catch (error) {
       console.error("City geocoding failed:", error);
@@ -404,11 +406,18 @@ export default function AgencyForm() {
                               placeholder="e.g., Los Angeles Department of Transportation" 
                               className="h-7 px-2 text-xs"
                               {...field}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                // Trigger city geocoding on every change with force update
+                                if (e.target.value && e.target.value.length > 10) {
+                                  geocodeCityFromAgencyName(e.target.value, true);
+                                }
+                              }}
                               onBlur={(e) => {
                                 field.onBlur();
-                                // Trigger city geocoding when user finishes typing agency name
+                                // Also trigger on blur as a fallback
                                 if (e.target.value) {
-                                  geocodeCityFromAgencyName(e.target.value);
+                                  geocodeCityFromAgencyName(e.target.value, true);
                                 }
                               }}
                             />
