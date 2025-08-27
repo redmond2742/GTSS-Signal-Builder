@@ -138,7 +138,7 @@ export default function AgencyForm() {
     return `${stateCode}_${cityCode}_001`;
   };
 
-  const handleLocationClick = async (lat: number, lon: number) => {
+  const handleLocationClick = async (lat: number, lon: number, isUserLocation = false) => {
     try {
       // Reverse geocode the selected location
       const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`);
@@ -154,13 +154,20 @@ export default function AgencyForm() {
       
       setSelectedLocation(locationInfo);
       
-      // Auto-populate agency name and ID
+      // Auto-populate agency name and ID for both map clicks and "Use My Location"
       if (locationInfo.city && locationInfo.state) {
         const agencyName = `${locationInfo.city} Department of Transportation`;
         const agencyId = generateAgencyId(locationInfo.state, agencyName);
         
         form.setValue("agencyName", agencyName);
         form.setValue("agencyId", agencyId);
+        
+        if (isUserLocation) {
+          toast({
+            title: "Location & Agency Updated",
+            description: `Set to ${locationInfo.city}, ${locationInfo.state}`,
+          });
+        }
       }
       
       // Always save coordinates to form
@@ -198,7 +205,7 @@ export default function AgencyForm() {
           const lat = position.coords.latitude;
           const lon = position.coords.longitude;
           setMapCenter([lat, lon]);
-          handleLocationClick(lat, lon);
+          handleLocationClick(lat, lon, true);
           setIsGeocodingUserLocation(false);
         },
         (error) => {
@@ -212,7 +219,7 @@ export default function AgencyForm() {
                 const lat = data.latitude;
                 const lon = data.longitude;
                 setMapCenter([lat, lon]);
-                handleLocationClick(lat, lon);
+                handleLocationClick(lat, lon, true);
               }
             })
             .catch(() => {
@@ -229,7 +236,7 @@ export default function AgencyForm() {
             const lat = data.latitude;
             const lon = data.longitude;
             setMapCenter([lat, lon]);
-            handleLocationClick(lat, lon);
+            handleLocationClick(lat, lon, true);
           }
           setIsGeocodingUserLocation(false);
         })
