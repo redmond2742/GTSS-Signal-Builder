@@ -332,6 +332,7 @@ export default function AgencyForm() {
                     zoom={selectedLocation ? 12 : 6}
                     style={{ height: "100%", width: "100%" }}
                     className="rounded-lg border"
+                    key={`agency-map-${mapCenter[0]}-${mapCenter[1]}`}
                   >
                     <TileLayer
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
