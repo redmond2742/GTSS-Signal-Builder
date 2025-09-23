@@ -105,9 +105,9 @@ export default function GTSSBuilder() {
   };
 
   return (
-    <div className="min-h-screen flex bg-grey-50">
+    <div className="h-screen flex bg-grey-50">
       {/* Sidebar */}
-      <div className="w-56 bg-white shadow-lg border-r border-grey-200 flex flex-col">
+      <div className="w-56 bg-white shadow-lg border-r border-grey-200 flex flex-col h-full">
         {/* Header */}
         <div className="p-3 border-b border-grey-200">
           <div className="flex items-center space-x-2">
@@ -122,7 +122,7 @@ export default function GTSSBuilder() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-2">
+        <nav className="flex-1 p-2 overflow-y-auto">
           <div className="space-y-1">
             {tabs.map((tab) => {
               const Icon = tab.icon;
