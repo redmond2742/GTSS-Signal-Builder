@@ -227,13 +227,15 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Through">Through</SelectItem>
-                        <SelectItem value="Left Turn">Left Turn</SelectItem>
-                        <SelectItem value="Right Turn">Right Turn</SelectItem>
-                        <SelectItem value="Through-Right">Through-Right</SelectItem>
-                        <SelectItem value="U-Turn">U-Turn</SelectItem>
-                        <SelectItem value="Flashing Yellow Arrow">Flashing Yellow Arrow</SelectItem>
-                        <SelectItem value="Pedestrian">Pedestrian</SelectItem>
+                        <SelectItem value="Through">Through (T)</SelectItem>
+                        <SelectItem value="Left Turn">Left (L)</SelectItem>
+                        <SelectItem value="Left Through Shared">Left Through Shared Lane (LT)</SelectItem>
+                        <SelectItem value="Permissive Phase">Permissive Phase (TL)</SelectItem>
+                        <SelectItem value="Flashing Yellow Arrow">Flashing Yellow Arrow (FYA)</SelectItem>
+                        <SelectItem value="U-Turn">U-turn (U)</SelectItem>
+                        <SelectItem value="Right Turn">Right Turn (R)</SelectItem>
+                        <SelectItem value="Through-Right">Through-Right (TR)</SelectItem>
+                        <SelectItem value="Pedestrian">Pedestrian Phase (PED)</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
