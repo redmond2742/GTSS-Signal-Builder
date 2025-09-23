@@ -23,7 +23,6 @@ interface PendingPhase {
   movementType: string;
   isPedestrian: boolean;
   isOverlap: boolean;
-  channelOutput: string;
   postedSpeedLimit?: number;
   vehicleDetectionIds: string;
   pedAudibleEnabled: boolean;
@@ -54,6 +53,11 @@ function BearingDrawer({
         // Start drawing from signal location
         setIsDrawing(true);
         setStartPoint(L.latLng(signal.latitude || 0, signal.longitude || 0));
+        // Set cursor to pointer for second click
+        const mapContainer = e.target.getContainer();
+        if (mapContainer) {
+          mapContainer.style.cursor = 'pointer';
+        }
       } else {
         // End drawing and calculate bearing
         if (startPoint) {
@@ -61,6 +65,11 @@ function BearingDrawer({
           onPhaseAdd(bearing);
           setIsDrawing(false);
           setStartPoint(null);
+          // Reset cursor
+          const mapContainer = e.target.getContainer();
+          if (mapContainer) {
+            mapContainer.style.cursor = '';
+          }
         }
       }
     },
@@ -109,7 +118,7 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
   const [selectedSignalId, setSelectedSignalId] = useState<string>(signal.signalId);
   const [pendingPhases, setPendingPhases] = useState<PendingPhase[]>([]);
   const [editingPhase, setEditingPhase] = useState<PendingPhase | null>(null);
-  const [isDrawMode, setIsDrawMode] = useState(true);
+  const [isDrawMode] = useState(true);
   const [editingExistingPhase, setEditingExistingPhase] = useState<Phase | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   
@@ -177,7 +186,6 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
       movementType: "Through",
       isPedestrian: false,
       isOverlap: false,
-      channelOutput: "",
       postedSpeedLimit: undefined,
       vehicleDetectionIds: "",
       pedAudibleEnabled: false,
@@ -204,11 +212,10 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
   const handleSaveAll = () => {
     const phasesToCreate: InsertPhase[] = pendingPhases.map(p => ({
       phase: p.phase,
-      signalId: signal.signalId,
+      signalId: selectedSignalId,
       movementType: p.movementType as any,
       isPedestrian: p.isPedestrian,
       isOverlap: p.isOverlap,
-      channelOutput: p.channelOutput,
       compassBearing: p.bearing,
       postedSpeedLimit: p.postedSpeedLimit,
       vehicleDetectionIds: p.vehicleDetectionIds,
@@ -243,8 +250,8 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
             </Select>
           </div>
           <div className="flex items-center space-x-3">
-            <Badge variant={isDrawMode ? "default" : "secondary"}>
-              {isDrawMode ? "Click to draw phase directions" : "Edit mode"}
+            <Badge variant="default">
+              Click to draw phase directions
             </Badge>
           </div>
           <div className="text-xs text-grey-600 mt-1">
@@ -368,14 +375,6 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center justify-between">
               Phases ({pendingPhases.length})
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsDrawMode(!isDrawMode)}
-                className="text-xs"
-              >
-                {isDrawMode ? "Edit Mode" : "Draw Mode"}
-              </Button>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -484,15 +483,6 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
                 />
               </div>
 
-              <div>
-                <Label className="text-xs">Channel Output</Label>
-                <Input
-                  value={editingPhase.channelOutput}
-                  onChange={(e) => handlePhaseUpdate(editingPhase.id, { channelOutput: e.target.value })}
-                  placeholder="e.g., 1,2"
-                  className="h-8"
-                />
-              </div>
 
               <div>
                 <Label className="text-xs">Posted Speed Limit (mph)</Label>
