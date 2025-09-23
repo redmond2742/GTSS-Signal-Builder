@@ -332,7 +332,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                       <Input 
                         type="number"
                         min="1"
-                        max="8"
+                        max="99"
                         placeholder="e.g., 1, 2, 3" 
                         {...field} 
                         disabled={!isSignalSelected}
