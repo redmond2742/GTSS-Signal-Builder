@@ -167,7 +167,7 @@ export default function GTSSBuilder() {
               variant="outline"
               size="sm"
               className="w-full h-7 text-xs border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300"
-              onClick={() => window.open('https://buymeacoffee.com/gtssbuilder', '_blank')}
+              onClick={() => window.open('https://buymeacoffee.com/mr2742', '_blank')}
             >
               <Coffee className="w-3 h-3 mr-1" />
               Buy me a Coffee
