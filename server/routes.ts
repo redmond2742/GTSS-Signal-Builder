@@ -210,10 +210,24 @@ function generateSignalsCSV(signals: any[]): string {
 }
 
 function generatePhasesCSV(phases: any[]): string {
+  // Movement type mapping to shorthand codes
+  const movementTypeMap: { [key: string]: string } = {
+    "Through": "T",
+    "Left Turn": "L",
+    "Left Through Shared": "LT",
+    "Permissive Phase": "TL",
+    "Flashing Yellow Arrow": "FYA",
+    "U-Turn": "U",
+    "Right Turn": "R",
+    "Through-Right": "TR",
+    "Pedestrian": "PED"
+  };
+
   const headers = 'Phase,SignalID,Movement_Type,is_pedestrian,is_overlap,channel_output,Compass_Bearing,Posted_Speed_Limit,vehicle_detection_ids,ped_audible_enabled\n';
-  const rows = phases.map(p => 
-    `${p.phase},${p.signalId},"${p.movementType}",${p.isPedestrian},${p.isOverlap},"${p.channelOutput || ''}",${p.compassBearing || ''},${p.postedSpeedLimit || ''},"${p.vehicleDetectionIds || ''}",${p.pedAudibleEnabled}`
-  ).join('\n');
+  const rows = phases.map(p => {
+    const shorthandMovementType = movementTypeMap[p.movementType] || p.movementType;
+    return `${p.phase},${p.signalId},"${shorthandMovementType}",${p.isPedestrian},${p.isOverlap},"${p.channelOutput || ''}",${p.compassBearing || ''},${p.postedSpeedLimit || ''},"${p.vehicleDetectionIds || ''}",${p.pedAudibleEnabled}`;
+  }).join('\n');
   return headers + (rows ? rows + '\n' : '');
 }
 
