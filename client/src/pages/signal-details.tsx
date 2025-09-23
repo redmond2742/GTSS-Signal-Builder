@@ -80,16 +80,6 @@ export default function SignalDetails() {
     },
   });
 
-  const detectorForm = useForm<InsertDetector>({
-    resolver: zodResolver(insertDetectorSchema),
-    defaultValues: {
-      signalId: signalId && signalId !== 'new' ? signalId : "",
-      phase: 1,
-      channel: "1",
-      technologyType: "Inductive Loop",
-      stopbarSetbackDist: null,
-    },
-  });
 
   useEffect(() => {
     if (isNewSignal) {
@@ -296,56 +286,20 @@ export default function SignalDetails() {
     }
     
     setEditingDetector(null);
-    detectorForm.reset({
-      signalId: signalId || "",
-      phase: signalPhases.length > 0 ? signalPhases[0].phase : 1,
-      channel: (signalDetectors.length + 1).toString(),
-      technologyType: "Inductive Loop",
-      stopbarSetbackDist: null,
-    });
     setShowDetectorModal(true);
   };
 
   const handleDetectorEdit = (detector: Detector) => {
     setEditingDetector(detector);
-    detectorForm.reset({
-      signalId: detector.signalId,
-      phase: detector.phase,
-      channel: detector.channel,
-      purpose: detector.purpose,
-      technologyType: detector.technologyType,
-      length: detector.length,
-      description: detector.description,
-      vehicleType: detector.vehicleType,
-      lane: detector.lane,
-      stopbarSetbackDist: detector.stopbarSetbackDist,
-    });
     setShowDetectorModal(true);
   };
 
-  const handleDetectorSave = (data: InsertDetector) => {
-    try {
-      if (editingDetector) {
-        detectorHooks.update(editingDetector.id, data);
-      } else {
-        detectorHooks.save(data);
-      }
-      
-      const updatedDetectors = detectors.filter(d => d.signalId === signalId);
-      setSignalDetectors(updatedDetectors);
-      setShowDetectorModal(false);
-      
-      toast({
-        title: "Success",
-        description: editingDetector ? "Detector updated successfully" : "Detector added successfully",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save detector",
-        variant: "destructive",
-      });
-    }
+  const handleDetectorModalClose = () => {
+    setShowDetectorModal(false);
+    setEditingDetector(null);
+    // Refresh detectors list after modal closes
+    const updatedDetectors = detectors.filter(d => d.signalId === signalId);
+    setSignalDetectors(updatedDetectors);
   };
 
   const handleDetectorDelete = (detector: Detector) => {
@@ -1122,164 +1076,13 @@ export default function SignalDetails() {
       </Dialog>
 
       {/* Detector Modal */}
-      <Dialog open={showDetectorModal} onOpenChange={setShowDetectorModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-base">
-              {editingDetector ? 'Edit Detector' : 'Add Detector'}
-            </DialogTitle>
-          </DialogHeader>
-          <Form {...detectorForm}>
-            <form onSubmit={detectorForm.handleSubmit(handleDetectorSave)} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <FormField
-                  control={detectorForm.control}
-                  name="channel"
-                  render={({ field }) => (
-                    <FormItem className="space-y-0.5">
-                      <div className="flex items-center space-x-1">
-                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Channel</FormLabel>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-xs">Unique channel number for this detector. Used to identify which physical detector input on the signal controller.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          type="number" 
-                          min="1"
-                          className="h-6 px-2"
-                          style={{ fontSize: '12px' }}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={detectorForm.control}
-                  name="phase"
-                  render={({ field }) => (
-                    <FormItem className="space-y-0.5">
-                      <div className="flex items-center space-x-1">
-                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Phase</FormLabel>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-xs">Which traffic phase this detector serves. Must match an existing phase for this signal.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
-                        <FormControl>
-                          <SelectTrigger className="h-6 w-full min-w-0" style={{ fontSize: '12px' }}>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent className="w-72">
-                          {signalPhases.sort((a, b) => a.phase - b.phase).map((phase) => (
-                            <SelectItem key={phase.id} value={phase.phase.toString()} className="w-full">
-                              Phase {phase.phase} - {phase.movementType}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={detectorForm.control}
-                  name="technologyType"
-                  render={({ field }) => (
-                    <FormItem className="space-y-0.5 col-span-2">
-                      <div className="flex items-center space-x-1">
-                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Technology Type</FormLabel>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-xs">Detection technology: Inductive Loop (wire in pavement), Video (camera-based), Radar (microwave), Microwave (motion-based), or Thermal (heat-based).</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="h-6" style={{ fontSize: '12px' }}>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Inductive Loop">Inductive Loop</SelectItem>
-                          <SelectItem value="Video">Video</SelectItem>
-                          <SelectItem value="Radar">Radar</SelectItem>
-                          <SelectItem value="Microwave">Microwave</SelectItem>
-                          <SelectItem value="Thermal">Thermal</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={detectorForm.control}
-                  name="stopbarSetbackDist"
-                  render={({ field }) => (
-                    <FormItem className="space-y-0.5 col-span-2">
-                      <div className="flex items-center space-x-1">
-                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Stopbar Setback Distance (ft)</FormLabel>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-xs">Distance in feet from the stop line to the detector. Typical values: 50-200 feet for advance detection, 4-6 feet for stop line detection.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          type="number" 
-                          min="0"
-                          className="h-6 px-2"
-                          style={{ fontSize: '12px' }}
-                          value={field.value || ""}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || null)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowDetectorModal(false)}
-                  className="h-6 px-2"
-                  style={{ fontSize: '12px' }}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" className="h-6 px-2 bg-primary-600 hover:bg-primary-700" style={{ fontSize: '12px' }}>
-                  {editingDetector ? 'Update' : 'Add'} Detector
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+      {showDetectorModal && (
+        <DetectorModal
+          detector={editingDetector}
+          onClose={handleDetectorModalClose}
+          preSelectedSignalId={signalId || ""}
+        />
+      )}
 
       {/* Visual Phase Editor Dialog */}
       {showVisualEditor && signal && (
