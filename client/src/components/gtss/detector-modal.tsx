@@ -314,6 +314,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                         <SelectItem value="Commercial">Commercial</SelectItem>
                         <SelectItem value="Transit">Transit</SelectItem>
                         <SelectItem value="Emergency">Emergency</SelectItem>
+                        <SelectItem value="Bike">Bike</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

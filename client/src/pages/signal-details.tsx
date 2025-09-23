@@ -1185,7 +1185,7 @@ export default function SignalDetails() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent className="w-72">
-                          {signalPhases.map((phase) => (
+                          {signalPhases.sort((a, b) => a.phase - b.phase).map((phase) => (
                             <SelectItem key={phase.id} value={phase.phase.toString()} className="w-full">
                               Phase {phase.phase} - {phase.movementType}
                             </SelectItem>
