@@ -331,7 +331,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                           onCheckedChange={field.onChange}
                         />
                       </FormControl>
-                      <FormLabel>Is Overlap Phase</FormLabel>
+                      <FormLabel>{field.value ? "Overlap" : "Not Overlap"}</FormLabel>
                       <FormMessage />
                     </FormItem>
                   )}
