@@ -160,6 +160,20 @@ export default function GTSSBuilder() {
 
         {/* Footer Actions */}
         <div className="p-2 border-t border-grey-200">
+          {/* Support this Tool section - moved above other buttons */}
+          <div className="mb-4 pb-3 border-b border-grey-200">
+            <p className="text-xs font-medium text-grey-600 mb-2 px-2">Support this Tool</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-7 text-xs border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300"
+              onClick={() => window.open('https://buymeacoffee.com/gtssbuilder', '_blank')}
+            >
+              <Coffee className="w-3 h-3 mr-1" />
+              Buy me a Coffee
+            </Button>
+          </div>
+
           <Button 
             variant="outline" 
             className="w-full h-7 text-xs bg-grey-100 text-grey-700 hover:bg-grey-200"
@@ -199,20 +213,6 @@ export default function GTSSBuilder() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-          
-          {/* Support this Tool section */}
-          <div className="mt-4 pt-3 border-t border-grey-200">
-            <p className="text-xs font-medium text-grey-600 mb-2 px-2">Support this Tool</p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full h-7 text-xs border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300"
-              onClick={() => window.open('https://buymeacoffee.com/gtssbuilder', '_blank')}
-            >
-              <Coffee className="w-3 h-3 mr-1" />
-              Buy me a Coffee
-            </Button>
-          </div>
         </div>
       </div>
 
