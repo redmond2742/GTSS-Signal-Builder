@@ -198,7 +198,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
 
               {(() => {
                 const selectedSignalId = form.watch("signalId");
-                const signalPhases = selectedSignalId ? phases.filter(p => p.signalId === selectedSignalId) : [];
+                const signalPhases = selectedSignalId ? phases.filter(p => p.signalId === selectedSignalId).sort((a, b) => a.phase - b.phase) : [];
                 
                 // Only show phase field if signal has phases
                 if (!selectedSignalId || signalPhases.length === 0) {

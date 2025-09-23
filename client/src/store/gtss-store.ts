@@ -8,7 +8,7 @@ interface GTSSStore {
   phases: Phase[];
   detectors: Detector[];
   
-  setAgency: (agency: Agency) => void;
+  setAgency: (agency: Agency | null) => void;
   setSignals: (signals: Signal[]) => void;
   addSignal: (signal: Signal) => void;
   updateSignal: (signalId: string, signal: Signal) => void;
