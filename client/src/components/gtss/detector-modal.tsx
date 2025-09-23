@@ -392,7 +392,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                           // Lock the value when manually changed
                           setLockedValues(prev => ({ ...prev, stopbarSetbackDist: true }));
                         }}
-                        value={field.value || ""}
+                        value={field.value !== null && field.value !== undefined ? field.value : ""}
                       />
                     </FormControl>
                     <FormMessage />
