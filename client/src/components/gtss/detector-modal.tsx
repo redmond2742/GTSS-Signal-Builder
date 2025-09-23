@@ -388,7 +388,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                         disabled={!isSignalSelected}
                         onChange={(e) => {
                           const value = e.target.value;
-                          field.onChange(value ? parseFloat(value) : undefined);
+                          field.onChange(value !== "" ? parseFloat(value) : undefined);
                           // Lock the value when manually changed
                           setLockedValues(prev => ({ ...prev, stopbarSetbackDist: true }));
                         }}
