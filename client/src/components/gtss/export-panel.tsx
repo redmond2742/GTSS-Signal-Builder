@@ -364,7 +364,7 @@ export default function ExportPanel() {
                     }
                   />
                   <Label htmlFor="detection" className="text-sm text-grey-700">
-                    detection.txt ({detectors.length} records)
+                    detectors.txt ({detectors.length} records)
                   </Label>
                 </div>
               </div>
