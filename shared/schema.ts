@@ -52,6 +52,8 @@ export const detectors = pgTable("detectors", {
 
 export const insertAgencySchema = createInsertSchema(agencies).omit({
   id: true,
+}).extend({
+  agencyLanguage: z.string().optional(),
 });
 
 export const insertSignalSchema = createInsertSchema(signals).omit({
