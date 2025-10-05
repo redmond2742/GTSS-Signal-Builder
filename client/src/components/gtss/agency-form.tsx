@@ -476,51 +476,6 @@ export default function AgencyForm() {
 
               <FormField
                 control={form.control}
-                name="agencyLanguage"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Language</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ""}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-language">
-                          <SelectValue placeholder="Select language" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="zh">Mandarin Chinese</SelectItem>
-                        <SelectItem value="hi">Hindi</SelectItem>
-                        <SelectItem value="es">Spanish</SelectItem>
-                        <SelectItem value="fr">French</SelectItem>
-                        <SelectItem value="ar">Arabic</SelectItem>
-                        <SelectItem value="bn">Bengali</SelectItem>
-                        <SelectItem value="pt">Portuguese</SelectItem>
-                        <SelectItem value="ru">Russian</SelectItem>
-                        <SelectItem value="ur">Urdu</SelectItem>
-                        <SelectItem value="id">Indonesian</SelectItem>
-                        <SelectItem value="de">German</SelectItem>
-                        <SelectItem value="ja">Japanese</SelectItem>
-                        <SelectItem value="sw">Swahili</SelectItem>
-                        <SelectItem value="mr">Marathi</SelectItem>
-                        <SelectItem value="te">Telugu</SelectItem>
-                        <SelectItem value="tr">Turkish</SelectItem>
-                        <SelectItem value="ta">Tamil</SelectItem>
-                        <SelectItem value="vi">Vietnamese</SelectItem>
-                        <SelectItem value="ko">Korean</SelectItem>
-                        <SelectItem value="it">Italian</SelectItem>
-                        <SelectItem value="th">Thai</SelectItem>
-                        <SelectItem value="gu">Gujarati</SelectItem>
-                        <SelectItem value="fa">Persian (Farsi)</SelectItem>
-                        <SelectItem value="pl">Polish</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
                 name="agencyEmail"
                 render={({ field }) => (
                   <FormItem>
