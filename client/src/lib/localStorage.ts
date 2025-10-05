@@ -319,9 +319,9 @@ function generateDetectionCSV(detectors: Detector[]): string {
   return [headers, ...rows].join('\n');
 }
 
-// Download individual CSV files
+// Download individual TXT files
 const downloadFile = (content: string, filename: string) => {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -332,7 +332,7 @@ const downloadFile = (content: string, filename: string) => {
   URL.revokeObjectURL(url);
 };
 
-// Export individual CSV files
+// Export individual TXT files
 export const exportAsIndividualFiles = async (includeFiles: {
   agency: boolean;
   signals: boolean;
@@ -345,22 +345,22 @@ export const exportAsIndividualFiles = async (includeFiles: {
     // Generate and download each selected file
     if (includeFiles.agency) {
       const agencyCSV = generateAgencyCSV(data.agency);
-      downloadFile(agencyCSV, 'agency.csv');
+      downloadFile(agencyCSV, 'agency.txt');
     }
     
     if (includeFiles.signals) {
       const signalsCSV = generateSignalsCSV(data.signals);
-      downloadFile(signalsCSV, 'signals.csv');
+      downloadFile(signalsCSV, 'signals.txt');
     }
     
     if (includeFiles.phases) {
       const phasesCSV = generatePhasesCSV(data.phases);
-      downloadFile(phasesCSV, 'phases.csv');
+      downloadFile(phasesCSV, 'phases.txt');
     }
     
     if (includeFiles.detection) {
       const detectionCSV = generateDetectionCSV(data.detectors);
-      downloadFile(detectionCSV, 'detection.csv');
+      downloadFile(detectionCSV, 'detection.txt');
     }
   } catch (error) {
     console.error('Export failed:', error);
@@ -385,22 +385,22 @@ export const exportAsZip = async (includeFiles: {
     // Add selected files to ZIP
     if (includeFiles.agency) {
       const agencyCSV = generateAgencyCSV(data.agency);
-      zip.file('agency.csv', agencyCSV);
+      zip.file('agency.txt', agencyCSV);
     }
     
     if (includeFiles.signals) {
       const signalsCSV = generateSignalsCSV(data.signals);
-      zip.file('signals.csv', signalsCSV);
+      zip.file('signals.txt', signalsCSV);
     }
     
     if (includeFiles.phases) {
       const phasesCSV = generatePhasesCSV(data.phases);
-      zip.file('phases.csv', phasesCSV);
+      zip.file('phases.txt', phasesCSV);
     }
     
     if (includeFiles.detection) {
       const detectionCSV = generateDetectionCSV(data.detectors);
-      zip.file('detection.csv', detectionCSV);
+      zip.file('detection.txt', detectionCSV);
     }
 
     // Generate ZIP file and download
