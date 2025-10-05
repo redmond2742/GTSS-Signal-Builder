@@ -253,11 +253,11 @@ export const exportData = () => {
 
 // CSV export functions
 function generateAgencyCSV(agency: Agency | null): string {
-  if (!agency) return 'agency_id,agency_name,agency_url,agency_timezone,agency_language,agency_email\n';
+  if (!agency) return 'agency_id,agency_name,agency_url,agency_timezone,agency_email\n';
   
   return [
-    'agency_id,agency_name,agency_url,agency_timezone,agency_language,agency_email',
-    `"${agency.agencyId}","${agency.agencyName}","${agency.agencyUrl || ''}","${agency.agencyTimezone}","${agency.agencyLanguage || ''}","${agency.agencyEmail || ''}"`
+    'agency_id,agency_name,agency_url,agency_timezone,agency_email',
+    `"${agency.agencyId}","${agency.agencyName}","${agency.agencyUrl || ''}","${agency.agencyTimezone}","${agency.agencyEmail || ''}"`
   ].join('\n');
 }
 
