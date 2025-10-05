@@ -278,9 +278,31 @@ function generatePhasesCSV(phases: Phase[]): string {
   
   if (phases.length === 0) return headers + '\n';
   
-  const rows = phases.map(phase => 
-    `"${phase.phase}","${phase.signalId}","${phase.movementType}","${phase.numOfLanes || 1}","${phase.compassBearing || ''}","${phase.postedSpeed || ''}","${phase.isOverlap || false}"`
-  );
+  // Movement type encoding mapping
+  const movementTypeMap: { [key: string]: string } = {
+    "Through": "T",
+    "Left Turn": "L",
+    "Left Through Shared": "LT",
+    "Permissive Phase": "TL",
+    "Flashing Yellow Arrow": "FYA",
+    "U-Turn": "U",
+    "Right Turn": "R",
+    "Through-Right": "TR",
+    "Pedestrian": "PED"
+  };
+  
+  // Sort phases by signal ID first, then by phase number
+  const sortedPhases = [...phases].sort((a, b) => {
+    if (a.signalId !== b.signalId) {
+      return a.signalId.localeCompare(b.signalId);
+    }
+    return a.phase - b.phase;
+  });
+  
+  const rows = sortedPhases.map(phase => {
+    const encodedMovementType = movementTypeMap[phase.movementType] || phase.movementType;
+    return `${phase.phase},${phase.signalId},${encodedMovementType},${phase.numOfLanes || 1},${phase.compassBearing || ''},${phase.postedSpeed || ''},${phase.isOverlap || false}`;
+  });
   
   return [headers, ...rows].join('\n');
 }
