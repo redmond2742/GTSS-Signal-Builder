@@ -1,0 +1,3 @@
+channel,signal_id,phase,description,purpose,vehicle_type,lane,technology_type,length,stopbar_setback_dist
+1,TEST_SIG_001,2,Test Detector One,Count Detector,Vehicle,,Inductance Loop,,
+2,TEST_SIG_001,2,Test Detector Two,Count Detector,Vehicle,,Inductance Loop,,
