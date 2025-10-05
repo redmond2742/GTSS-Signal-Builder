@@ -485,7 +485,7 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
 
 
               <div>
-                <Label className="text-xs">Posted Speed Limit (mph)</Label>
+                <Label className="text-xs">Posted Speed</Label>
                 <Input
                   type="number"
                   value={editingPhase.postedSpeedLimit || ""}
@@ -627,7 +627,7 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
               </div>
 
               <div>
-                <Label className="text-sm font-medium">Posted Speed Limit (mph)</Label>
+                <Label className="text-sm font-medium">Posted Speed</Label>
                 <Input
                   type="number"
                   min="0"

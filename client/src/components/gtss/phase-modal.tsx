@@ -275,7 +275,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                 name="postedSpeed"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Posted Speed Limit (mph)</FormLabel>
+                    <FormLabel>Posted Speed</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
