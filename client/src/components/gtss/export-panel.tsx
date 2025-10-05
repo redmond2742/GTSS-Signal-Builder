@@ -31,13 +31,13 @@ export default function ExportPanel() {
 
   const handleExport = async () => {
     try {
-      if (exportFormat === "csv") {
-        // Export as individual CSV files
+      if (exportFormat === "txt") {
+        // Export as individual TXT files
         await exportAsIndividualFiles(includeFiles);
         const fileCount = Object.values(includeFiles).filter(Boolean).length;
         toast({
           title: "Success",
-          description: `${fileCount} CSV file${fileCount > 1 ? 's' : ''} downloaded successfully`,
+          description: `${fileCount} TXT file${fileCount > 1 ? 's' : ''} downloaded successfully`,
         });
       } else if (exportFormat === "zip") {
         // Export as ZIP file
@@ -309,7 +309,7 @@ export default function ExportPanel() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="zip">GTSS ZIP Package</SelectItem>
-                    <SelectItem value="csv">Individual CSV Files</SelectItem>
+                    <SelectItem value="txt">Individual TXT Files</SelectItem>
                     <SelectItem value="json">JSON Configuration</SelectItem>
                   </SelectContent>
                 </Select>
@@ -374,9 +374,9 @@ export default function ExportPanel() {
               <div className="flex items-center text-sm text-grey-600">
                 <Info className="text-primary-500 mr-2" size={16} />
                 {exportFormat === "zip" 
-                  ? "Export will create a ZIP file with selected CSV files" 
-                  : exportFormat === "csv"
-                  ? "Export will download individual CSV files separately"
+                  ? "Export will create a ZIP file with selected TXT files" 
+                  : exportFormat === "txt"
+                  ? "Export will download individual TXT files separately"
                   : "Export will create a package with selected files"}
               </div>
               <Button 
@@ -385,7 +385,7 @@ export default function ExportPanel() {
                 className="bg-primary-600 hover:bg-primary-700 text-lg px-8 py-3"
               >
                 <Download className="w-5 h-5 mr-3" />
-                {exportFormat === "csv" ? "Download CSV Files" : "Generate & Download Package"}
+                {exportFormat === "txt" ? "Download TXT Files" : "Generate & Download Package"}
               </Button>
             </div>
           </div>
