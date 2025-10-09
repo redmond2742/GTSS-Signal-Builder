@@ -164,9 +164,8 @@ export default function GTSSBuilder() {
           <div className="mb-4 pb-3 border-b border-grey-200">
             <p className="text-xs font-medium text-grey-600 mb-2 px-2">Support this Tool</p>
             <Button
-              variant="outline"
               size="sm"
-              className="w-full h-7 text-xs border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300"
+              className="w-full h-7 text-xs bg-orange-500 text-white hover:bg-orange-600 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105"
               onClick={() => window.open('https://buymeacoffee.com/mr2742', '_blank')}
             >
               <Coffee className="w-3 h-3 mr-1" />
