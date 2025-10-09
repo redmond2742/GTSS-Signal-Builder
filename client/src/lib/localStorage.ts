@@ -257,7 +257,7 @@ function generateAgencyCSV(agency: Agency | null): string {
   
   return [
     'agency_id,agency_name,agency_url,agency_timezone,agency_email',
-    `"${agency.agencyId}","${agency.agencyName}","${agency.agencyUrl || ''}","${agency.agencyTimezone}","${agency.agencyEmail || ''}"`
+    `${agency.agencyId},${agency.agencyName},${agency.agencyUrl || ''},${agency.agencyTimezone},${agency.agencyEmail || ''}`
   ].join('\n');
 }
 
