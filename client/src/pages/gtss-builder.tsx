@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useLoadFromStorage } from "@/lib/localStorageHooks";
-import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Navigation, Plus, Map, Coffee, Trash2, Menu, X } from "lucide-react";
+import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Navigation, Plus, Map, Coffee, Trash2, Menu, X, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -175,7 +175,22 @@ export default function GTSSBuilder() {
 
         {/* Footer Actions */}
         <div className="p-2 border-t border-grey-200">
-          {/* Support this Tool section - moved above other buttons */}
+          {/* About GTSS section */}
+          <div className="mb-4 pb-3 border-b border-grey-200">
+            <p className="text-xs font-medium text-grey-600 mb-2 px-2">About GTSS</p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full h-7 text-xs text-grey-700 hover:bg-grey-100"
+              onClick={() => window.open('https://gtss.dev', '_blank')}
+              data-testid="button-about-gtss"
+            >
+              <ExternalLink className="w-3 h-3 mr-1" />
+              Learn More
+            </Button>
+          </div>
+
+          {/* Support this Tool section */}
           <div className="mb-4 pb-3 border-b border-grey-200">
             <p className="text-xs font-medium text-grey-600 mb-2 px-2">Support this Tool</p>
             <Button
