@@ -115,8 +115,7 @@ export default function GTSSBuilder() {
               <TrafficCone className="text-white" size={16} />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-grey-800">Signal Configurator</h1>
-              <p className="text-sm text-grey-500">GTSS Builder</p>
+              <h1 className="text-lg font-bold text-grey-800">GTSS Builder</h1>
             </div>
           </div>
         </div>
