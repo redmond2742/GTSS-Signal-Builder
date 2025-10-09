@@ -5,6 +5,7 @@ import ExportPanel from "@/components/gtss/export-panel";
 import { ImportPanel } from "@/components/gtss/import-panel";
 import { useLoadFromStorage } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function ExportPage() {
   const [, navigate] = useLocation();
@@ -28,18 +29,28 @@ export default function ExportPage() {
             Back to Main
           </Button>
           <div>
-            <h1 className="text-lg font-bold text-grey-800">Preview and Export</h1>
+            <h1 className="text-lg font-bold text-grey-800">Import and Export</h1>
             <p className="text-xs text-grey-500">
-              Review your configuration and export GTSS package
+              Import or export GTSS data packages
             </p>
           </div>
         </div>
 
-        {/* Export Panel */}
-        <ExportPanel />
-
-        {/* Import Panel */}
-        <ImportPanel onImportComplete={loadFromStorage} />
+        {/* Tabs for Export and Import */}
+        <Tabs defaultValue="export" className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="export" data-testid="tab-export">Export</TabsTrigger>
+            <TabsTrigger value="import" data-testid="tab-import">Import</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="export" className="mt-4">
+            <ExportPanel />
+          </TabsContent>
+          
+          <TabsContent value="import" className="mt-4">
+            <ImportPanel onImportComplete={loadFromStorage} />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
