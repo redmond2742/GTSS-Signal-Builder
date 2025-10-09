@@ -180,8 +180,7 @@ export default function GTSSBuilder() {
             <p className="text-xs font-medium text-grey-600 mb-2 px-2">About GTSS</p>
             <Button
               size="sm"
-              variant="outline"
-              className="w-full h-7 text-xs text-grey-700 hover:bg-grey-100"
+              className="w-full h-7 text-xs bg-blue-500 text-white hover:bg-blue-600 shadow-sm transition-all duration-200"
               onClick={() => window.open('https://gtss.dev', '_blank')}
               data-testid="button-about-gtss"
             >
