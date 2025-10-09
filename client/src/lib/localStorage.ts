@@ -267,7 +267,7 @@ function generateSignalsCSV(signals: Signal[]): string {
   if (signals.length === 0) return headers + '\n';
   
   const rows = signals.map(signal => 
-    `"${signal.signalId}","${signal.agencyId}","${signal.streetName1}","${signal.streetName2}","${signal.latitude}","${signal.longitude}"`
+    `${signal.signalId},${signal.agencyId},${signal.streetName1},${signal.streetName2},${signal.latitude},${signal.longitude}`
   );
   
   return [headers, ...rows].join('\n');
