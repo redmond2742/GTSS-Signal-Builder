@@ -230,9 +230,9 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
   };
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] space-x-4">
+    <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-8rem)] space-y-4 lg:space-y-0 lg:space-x-4">
       {/* Map Section */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative h-96 lg:h-auto">
         <div className="absolute top-4 left-4 z-[1000] bg-white p-3 rounded-lg shadow-lg border">
           <div className="mb-3">
             <Label className="text-sm font-medium mb-2 block">Select Signal</Label>
@@ -369,7 +369,7 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
       </div>
 
       {/* Phase List and Editor */}
-      <div className="w-96 space-y-4 overflow-y-auto">
+      <div className="w-full lg:w-96 space-y-4 overflow-y-auto max-h-96 lg:max-h-none">
         {/* Phase List */}
         <Card>
           <CardHeader className="pb-3">

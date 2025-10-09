@@ -333,7 +333,7 @@ export default function AgencyForm() {
                   </Button>
                 </div>
 
-                <div className="h-64 relative">
+                <div className="h-48 sm:h-64 relative">
                   <MapContainer
                     center={mapCenter}
                     zoom={selectedLocation ? 12 : 6}

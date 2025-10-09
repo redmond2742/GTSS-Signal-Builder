@@ -394,23 +394,23 @@ export default function SignalDetails() {
   }
 
   return (
-    <div className="max-w-6xl space-y-4">
+    <div className="max-w-6xl space-y-3 sm:space-y-4 p-3 sm:p-0">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center space-x-2 sm:space-x-3">
           <Button
             variant="outline"
             onClick={() => navigate("/")}
             className="h-7 px-2 text-xs"
           >
-            <ArrowLeft className="w-3 h-3 mr-1" />
-            Back to Signals
+            <ArrowLeft className="w-3 h-3 sm:mr-1" />
+            <span className="hidden sm:inline">Back to Signals</span>
           </Button>
           <div>
-            <h1 className="text-lg font-bold text-grey-800">
+            <h1 className="text-base sm:text-lg font-bold text-grey-800">
               {isNewSignal ? "New Signal" : "Signal Details"}
             </h1>
-            <p className="text-xs text-grey-500">
+            <p className="text-xs text-grey-500 hidden sm:block">
               {isNewSignal 
                 ? "Configure new traffic signal information" 
                 : `${signal?.streetName1} & ${signal?.streetName2}`

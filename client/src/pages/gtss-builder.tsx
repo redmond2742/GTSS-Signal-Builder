@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useLoadFromStorage } from "@/lib/localStorageHooks";
-import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Navigation, Plus, Map, Coffee, Trash2 } from "lucide-react";
+import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Navigation, Plus, Map, Coffee, Trash2, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -33,6 +33,7 @@ const tabTitles = {
 
 export default function GTSSBuilder() {
   const [activeTab, setActiveTab] = useState<TabType>("signals");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [, navigate] = useLocation();
   const { signals, phases, detectors, setAgency, setSignals, setPhases, setDetectors } = useGTSSStore();
   const { toast } = useToast();
@@ -106,8 +107,20 @@ export default function GTSSBuilder() {
 
   return (
     <div className="h-screen flex bg-grey-50">
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <div className="w-56 bg-white shadow-lg border-r border-grey-200 flex flex-col h-full">
+      <div className={cn(
+        "w-56 bg-white shadow-lg border-r border-grey-200 flex flex-col h-full transition-transform duration-300 z-50",
+        "fixed lg:static inset-y-0 left-0",
+        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      )}>
         {/* Header */}
         <div className="p-3 border-b border-grey-200">
           <div className="flex items-center space-x-2">
@@ -131,7 +144,10 @@ export default function GTSSBuilder() {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as TabType)}
+                  onClick={() => {
+                    setActiveTab(tab.id as TabType);
+                    setIsMobileMenuOpen(false);
+                  }}
                   className={cn(
                     "w-full flex items-center space-x-2 px-2 py-2 rounded-md text-left transition-all duration-200",
                     isActive
@@ -219,41 +235,53 @@ export default function GTSSBuilder() {
         {/* Top Bar */}
         <header className="bg-white border-b border-grey-200 px-4 py-2">
           <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-grey-800">
-                {tabTitles[activeTab].title}
-              </h2>
-              <p className="text-xs text-grey-500">{tabTitles[activeTab].desc}</p>
+            <div className="flex items-center gap-2">
+              {/* Mobile Menu Button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="lg:hidden h-8 w-8 p-0"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                data-testid="button-mobile-menu"
+              >
+                {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              </Button>
+              <div>
+                <h2 className="text-base lg:text-lg font-bold text-grey-800">
+                  {tabTitles[activeTab].title}
+                </h2>
+                <p className="text-xs text-grey-500 hidden sm:block">{tabTitles[activeTab].desc}</p>
+              </div>
             </div>
             {activeTab === "signals" && (
               <div className="flex space-x-1">
-                <Button onClick={handleAddMultiple} variant="outline" className="h-7 px-2 text-xs border-primary-200 text-primary-700 hover:bg-primary-50">
-                  <Navigation className="w-3 h-3 mr-1" />
-                  Add Multiple
+                <Button onClick={handleAddMultiple} variant="outline" className="h-7 px-2 text-xs border-primary-200 text-primary-700 hover:bg-primary-50 hidden sm:flex">
+                  <Navigation className="w-3 h-3 sm:mr-1" />
+                  <span className="hidden sm:inline">Add Multiple</span>
                 </Button>
                 <Button onClick={handleAddSignal} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
-                  <Plus className="w-3 h-3 mr-1" />
-                  Add Signal
+                  <Plus className="w-3 h-3 sm:mr-1" />
+                  <span className="hidden sm:inline">Add Signal</span>
                 </Button>
               </div>
             )}
             {activeTab === "phases" && (
               <div className="flex space-x-1">
-                <Button onClick={handleVisualEditor} variant="outline" className="h-7 px-2 text-xs border-grey-300 text-grey-700 hover:bg-white hover:text-grey-900">
-                  <Map className="w-3 h-3 mr-1" />
-                  Visual Editor
+                <Button onClick={handleVisualEditor} variant="outline" className="h-7 px-2 text-xs border-grey-300 text-grey-700 hover:bg-white hover:text-grey-900 hidden sm:flex">
+                  <Map className="w-3 h-3 sm:mr-1" />
+                  <span className="hidden sm:inline">Visual Editor</span>
                 </Button>
                 <Button onClick={handleAddPhase} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700 text-white">
-                  <Plus className="w-3 h-3 mr-1" />
-                  Add Phase
+                  <Plus className="w-3 h-3 sm:mr-1" />
+                  <span className="hidden sm:inline">Add Phase</span>
                 </Button>
               </div>
             )}
             {activeTab === "detectors" && (
               <div className="flex space-x-1">
                 <Button onClick={handleAddDetector} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
-                  <Plus className="w-3 h-3 mr-1" />
-                  Add Detector
+                  <Plus className="w-3 h-3 sm:mr-1" />
+                  <span className="hidden sm:inline">Add Detector</span>
                 </Button>
               </div>
             )}
