@@ -418,3 +418,387 @@ export const exportAsZip = async (includeFiles: {
     throw error;
   }
 };
+
+// Movement type reverse mapping for import
+const MOVEMENT_TYPE_REVERSE_MAP: { [key: string]: string } = {
+  "T": "Through",
+  "L": "Left Turn",
+  "LT": "Left Through Shared",
+  "TL": "Permissive Phase",
+  "FYA": "Flashing Yellow Arrow",
+  "U": "U-Turn",
+  "R": "Right Turn",
+  "TR": "Through-Right",
+  "PED": "Pedestrian"
+};
+
+// Parse agency.txt file
+export function parseAgencyTXT(content: string): Agency | null {
+  const lines = content.trim().split('\n').filter(line => line.trim());
+  if (lines.length < 2) {
+    throw new Error('Agency file must contain header and at least one data row');
+  }
+  
+  const dataLine = lines[1].trim();
+  const values = dataLine.split(',').map(v => v.trim());
+  
+  if (values.length < 5) {
+    throw new Error('Agency data must have at least 5 fields: agencyId, agencyName, agencyUrl, agencyTimezone, agencyEmail');
+  }
+
+  // Validate required fields
+  if (!values[0]) {
+    throw new Error('Agency ID is required');
+  }
+  if (!values[1]) {
+    throw new Error('Agency Name is required');
+  }
+  if (!values[3]) {
+    throw new Error('Agency Timezone is required');
+  }
+  
+  return {
+    id: nanoid(),
+    agencyId: values[0],
+    agencyName: values[1],
+    agencyUrl: values[2] || null,
+    agencyTimezone: values[3],
+    agencyLanguage: null,
+    agencyEmail: values[4] || null,
+    latitude: null,
+    longitude: null,
+  };
+}
+
+// Parse signals.txt file
+export function parseSignalsTXT(content: string): Signal[] {
+  const lines = content.trim().split('\n').filter(line => line.trim());
+  if (lines.length < 2) {
+    throw new Error('Signals file must contain header and at least one data row');
+  }
+  
+  const signals: Signal[] = [];
+  const errors: string[] = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',').map(v => v.trim());
+    
+    if (values.length < 6) {
+      errors.push(`Row ${i + 1}: Must have 6 fields (signalId, agencyId, streetName1, streetName2, latitude, longitude)`);
+      continue;
+    }
+
+    // Validate required fields
+    if (!values[0]) {
+      errors.push(`Row ${i + 1}: Signal ID is required`);
+      continue;
+    }
+    if (!values[1]) {
+      errors.push(`Row ${i + 1}: Agency ID is required`);
+      continue;
+    }
+    if (!values[2]) {
+      errors.push(`Row ${i + 1}: Street Name 1 is required`);
+      continue;
+    }
+    if (!values[3]) {
+      errors.push(`Row ${i + 1}: Street Name 2 is required`);
+      continue;
+    }
+
+    // Validate numeric fields - strict validation, no partial numbers
+    // Check regex BEFORE converting to ensure no malformed input
+    if (!values[4] || values[4].trim() === '' || !/^-?\d*\.?\d+$/.test(values[4])) {
+      errors.push(`Row ${i + 1}: Latitude must be a valid number, got "${values[4]}"`);
+      continue;
+    }
+    if (!values[5] || values[5].trim() === '' || !/^-?\d*\.?\d+$/.test(values[5])) {
+      errors.push(`Row ${i + 1}: Longitude must be a valid number, got "${values[5]}"`);
+      continue;
+    }
+
+    const latitude = Number(values[4]);
+    const longitude = Number(values[5]);
+
+    signals.push({
+      id: nanoid(),
+      signalId: values[0],
+      agencyId: values[1],
+      streetName1: values[2],
+      streetName2: values[3],
+      latitude,
+      longitude,
+    });
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Signals validation errors:\n${errors.join('\n')}`);
+  }
+
+  if (signals.length === 0) {
+    throw new Error('No valid signals found in file');
+  }
+
+  return signals;
+}
+
+// Parse phases.txt file
+export function parsePhasesTXT(content: string): Phase[] {
+  const lines = content.trim().split('\n').filter(line => line.trim());
+  if (lines.length < 2) {
+    throw new Error('Phases file must contain header and at least one data row');
+  }
+  
+  const phases: Phase[] = [];
+  const errors: string[] = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',').map(v => v.trim());
+    
+    if (values.length < 7) {
+      errors.push(`Row ${i + 1}: Must have 7 fields (phase, signalId, movementType, numOfLanes, compassBearing, postedSpeed, isOverlap)`);
+      continue;
+    }
+
+    // Validate required fields - strict integer validation
+    // Check regex BEFORE converting to ensure no malformed input
+    if (!values[0] || !/^-?\d+$/.test(values[0])) {
+      errors.push(`Row ${i + 1}: Phase number must be a valid integer, got "${values[0]}"`);
+      continue;
+    }
+
+    if (!values[1]) {
+      errors.push(`Row ${i + 1}: Signal ID is required`);
+      continue;
+    }
+
+    if (!values[2]) {
+      errors.push(`Row ${i + 1}: Movement type is required`);
+      continue;
+    }
+
+    if (!values[3] || !/^-?\d+$/.test(values[3])) {
+      errors.push(`Row ${i + 1}: Number of lanes must be a valid integer, got "${values[3]}"`);
+      continue;
+    }
+
+    const phaseNum = Number(values[0]);
+    const numOfLanes = Number(values[3]);
+
+    // Decode movement type
+    const encodedMovement = values[2];
+    const movementType = MOVEMENT_TYPE_REVERSE_MAP[encodedMovement] || encodedMovement;
+
+    // Validate movement type is recognized (warn if not in reverse map)
+    if (!MOVEMENT_TYPE_REVERSE_MAP[encodedMovement]) {
+      // If it's not a known code, verify it's a valid full movement type name
+      const validTypes = ["Through", "Left Turn", "Left Through Shared", "Permissive Phase", "Flashing Yellow Arrow", "U-Turn", "Right Turn", "Through-Right", "Pedestrian"];
+      if (!validTypes.includes(encodedMovement)) {
+        errors.push(`Row ${i + 1}: Movement type "${encodedMovement}" is not recognized. Expected codes: T, L, LT, TL, FYA, U, R, TR, PED or full names.`);
+        continue;
+      }
+    }
+
+    // Parse optional numeric fields - strict validation
+    // Check regex BEFORE converting to ensure no malformed input
+    let compassBearing: number | null = null;
+    let postedSpeed: number | null = null;
+
+    if (values[4] && values[4].trim() !== '') {
+      if (!/^-?\d+$/.test(values[4])) {
+        errors.push(`Row ${i + 1}: Compass bearing must be a valid integer or empty, got "${values[4]}"`);
+        continue;
+      }
+      compassBearing = Number(values[4]);
+    }
+
+    if (values[5] && values[5].trim() !== '') {
+      if (!/^-?\d+$/.test(values[5])) {
+        errors.push(`Row ${i + 1}: Posted speed must be a valid integer or empty, got "${values[5]}"`);
+        continue;
+      }
+      postedSpeed = Number(values[5]);
+    }
+
+    // Validate overlap boolean
+    const overlapValue = values[6].toLowerCase();
+    if (overlapValue !== 'true' && overlapValue !== 'false') {
+      errors.push(`Row ${i + 1}: Overlap must be "true" or "false", got "${values[6]}"`);
+      continue;
+    }
+    
+    phases.push({
+      id: nanoid(),
+      phase: phaseNum,
+      signalId: values[1],
+      movementType: movementType,
+      numOfLanes: numOfLanes,
+      compassBearing,
+      postedSpeed,
+      isOverlap: overlapValue === 'true',
+    });
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Phases validation errors:\n${errors.join('\n')}`);
+  }
+
+  if (phases.length === 0) {
+    throw new Error('No valid phases found in file');
+  }
+
+  return phases;
+}
+
+// Parse detectors.txt file
+export function parseDetectorsTXT(content: string): Detector[] {
+  const lines = content.trim().split('\n').filter(line => line.trim());
+  if (lines.length < 2) {
+    throw new Error('Detectors file must contain header and at least one data row');
+  }
+  
+  const detectors: Detector[] = [];
+  const errors: string[] = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',').map(v => v.trim());
+    
+    if (values.length < 10) {
+      errors.push(`Row ${i + 1}: Must have 10 fields (channel, signalId, phase, description, purpose, vehicleType, lane, technologyType, length, stopbarSetbackDist)`);
+      continue;
+    }
+
+    // Validate required fields
+    if (!values[0]) {
+      errors.push(`Row ${i + 1}: Channel is required`);
+      continue;
+    }
+
+    if (!values[1]) {
+      errors.push(`Row ${i + 1}: Signal ID is required`);
+      continue;
+    }
+
+    // Check regex BEFORE converting to ensure no malformed input
+    if (!values[2] || !/^-?\d+$/.test(values[2])) {
+      errors.push(`Row ${i + 1}: Phase must be a valid integer, got "${values[2]}"`);
+      continue;
+    }
+
+    if (!values[4]) {
+      errors.push(`Row ${i + 1}: Purpose is required`);
+      continue;
+    }
+
+    if (!values[7]) {
+      errors.push(`Row ${i + 1}: Technology type is required`);
+      continue;
+    }
+
+    const phase = Number(values[2]);
+
+    // Parse optional numeric fields - strict validation
+    let length: number | null = null;
+    let stopbarSetbackDist: number | null = null;
+
+    if (values[8] && values[8].trim() !== '') {
+      if (!/^-?\d*\.?\d+$/.test(values[8])) {
+        errors.push(`Row ${i + 1}: Length must be a valid number or empty, got "${values[8]}"`);
+        continue;
+      }
+      length = Number(values[8]);
+    }
+
+    if (values[9] && values[9].trim() !== '') {
+      if (!/^-?\d*\.?\d+$/.test(values[9])) {
+        errors.push(`Row ${i + 1}: Stopbar setback distance must be a valid number or empty, got "${values[9]}"`);
+        continue;
+      }
+      stopbarSetbackDist = Number(values[9]);
+    }
+
+    detectors.push({
+      id: nanoid(),
+      channel: values[0],
+      signalId: values[1],
+      phase,
+      description: values[3] || null,
+      purpose: values[4],
+      vehicleType: values[5] || null,
+      lane: values[6] || null,
+      technologyType: values[7],
+      length,
+      stopbarSetbackDist,
+    });
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Detectors validation errors:\n${errors.join('\n')}`);
+  }
+
+  if (detectors.length === 0) {
+    throw new Error('No valid detectors found in file');
+  }
+
+  return detectors;
+}
+
+// Import data with replace or merge mode
+export function importData(
+  parsedData: {
+    agency?: Agency | null;
+    signals?: Signal[];
+    phases?: Phase[];
+    detectors?: Detector[];
+  },
+  mode: 'replace' | 'merge' = 'replace'
+): void {
+  if (mode === 'replace') {
+    // Replace all data
+    if (parsedData.agency !== undefined) {
+      if (parsedData.agency) {
+        saveToStorage(STORAGE_KEYS.AGENCY, parsedData.agency);
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.AGENCY);
+      }
+    }
+    
+    if (parsedData.signals !== undefined) {
+      saveToStorage(STORAGE_KEYS.SIGNALS, parsedData.signals);
+    }
+    
+    if (parsedData.phases !== undefined) {
+      saveToStorage(STORAGE_KEYS.PHASES, parsedData.phases);
+    }
+    
+    if (parsedData.detectors !== undefined) {
+      saveToStorage(STORAGE_KEYS.DETECTORS, parsedData.detectors);
+    }
+  } else {
+    // Merge mode
+    if (parsedData.agency) {
+      saveToStorage(STORAGE_KEYS.AGENCY, parsedData.agency);
+    }
+    
+    if (parsedData.signals && parsedData.signals.length > 0) {
+      const existingSignals = getFromStorage<Signal[]>(STORAGE_KEYS.SIGNALS, []);
+      const existingSignalIds = new Set(existingSignals.map(s => s.signalId));
+      const newSignals = parsedData.signals.filter(s => !existingSignalIds.has(s.signalId));
+      saveToStorage(STORAGE_KEYS.SIGNALS, [...existingSignals, ...newSignals]);
+    }
+    
+    if (parsedData.phases && parsedData.phases.length > 0) {
+      const existingPhases = getFromStorage<Phase[]>(STORAGE_KEYS.PHASES, []);
+      const existingKeys = new Set(existingPhases.map(p => `${p.signalId}-${p.phase}`));
+      const newPhases = parsedData.phases.filter(p => !existingKeys.has(`${p.signalId}-${p.phase}`));
+      saveToStorage(STORAGE_KEYS.PHASES, [...existingPhases, ...newPhases]);
+    }
+    
+    if (parsedData.detectors && parsedData.detectors.length > 0) {
+      const existingDetectors = getFromStorage<Detector[]>(STORAGE_KEYS.DETECTORS, []);
+      const existingKeys = new Set(existingDetectors.map(d => `${d.signalId}-${d.channel}`));
+      const newDetectors = parsedData.detectors.filter(d => !existingKeys.has(`${d.signalId}-${d.channel}`));
+      saveToStorage(STORAGE_KEYS.DETECTORS, [...existingDetectors, ...newDetectors]);
+    }
+  }
+}

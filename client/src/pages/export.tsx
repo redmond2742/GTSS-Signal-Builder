@@ -2,10 +2,13 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import ExportPanel from "@/components/gtss/export-panel";
+import { ImportPanel } from "@/components/gtss/import-panel";
 import { useLoadFromStorage } from "@/lib/localStorageHooks";
+import { useGTSSStore } from "@/store/gtss-store";
 
 export default function ExportPage() {
   const [, navigate] = useLocation();
+  const { loadFromStorage } = useGTSSStore();
   
   // Load data from localStorage on mount
   useLoadFromStorage();
@@ -19,6 +22,7 @@ export default function ExportPage() {
             variant="outline"
             onClick={() => navigate("/")}
             className="h-7 px-2 text-xs"
+            data-testid="button-back-to-main"
           >
             <ArrowLeft className="w-3 h-3 mr-1" />
             Back to Main
@@ -33,6 +37,9 @@ export default function ExportPage() {
 
         {/* Export Panel */}
         <ExportPanel />
+
+        {/* Import Panel */}
+        <ImportPanel onImportComplete={loadFromStorage} />
       </div>
     </div>
   );
