@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useExport } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
@@ -15,7 +15,17 @@ import { Download, CheckCircle, AlertTriangle, XCircle, Info, TrendingUp, Users,
 import { evaluateGTSSCompleteness } from "@/lib/gtssValidation";
 
 export default function ExportPanel() {
-  const [packageName, setPackageName] = useState("GTSS_Export_Package");
+  const { agency, signals, phases, detectors } = useGTSSStore();
+  
+  // Generate default package name with agency name and date
+  const getDefaultPackageName = () => {
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0]; // yyyy-mm-dd format
+    const agencyName = agency?.agencyName ? agency.agencyName.replace(/\s+/g, '_') : 'Export';
+    return `GTSS_${agencyName}_${dateStr}`;
+  };
+  
+  const [packageName, setPackageName] = useState(getDefaultPackageName());
   const [exportFormat, setExportFormat] = useState("zip");
   const [includeFiles, setIncludeFiles] = useState({
     agency: true,
@@ -23,11 +33,14 @@ export default function ExportPanel() {
     phases: true,
     detection: true,
   });
-  
-  const { agency, signals, phases, detectors } = useGTSSStore();
   const { toast } = useToast();
 
   const { exportAsZip, exportAsIndividualFiles } = useExport();
+
+  // Update package name when agency changes
+  useEffect(() => {
+    setPackageName(getDefaultPackageName());
+  }, [agency?.agencyName]);
 
   const handleExport = async () => {
     try {
@@ -45,13 +58,6 @@ export default function ExportPanel() {
         toast({
           title: "Success",
           description: "GTSS ZIP package exported successfully",
-        });
-      } else {
-        // JSON format (fallback to ZIP for now)
-        await exportAsZip(includeFiles);
-        toast({
-          title: "Success",
-          description: "GTSS package exported successfully",
         });
       }
     } catch (error) {
@@ -310,7 +316,6 @@ export default function ExportPanel() {
                   <SelectContent>
                     <SelectItem value="zip">GTSS ZIP Package</SelectItem>
                     <SelectItem value="txt">Individual TXT Files</SelectItem>
-                    <SelectItem value="json">JSON Configuration</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
