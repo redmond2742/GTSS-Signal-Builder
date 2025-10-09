@@ -24,7 +24,7 @@ The application follows a client-side architecture optimized for browser-based o
 - **File Processing**: Client-side ZIP generation using browser APIs.
 
 ### Design Principles & Features:
-- **UI/UX Decisions**: Professional government-friendly design utilizing a navy blue primary color scheme, neutral grays, and compact layouts for efficiency. Features like clickable table rows, optimized spacing, and smaller font sizes enhance usability and data density.
+- **UI/UX Decisions**: Professional government-friendly design utilizing a navy blue primary color scheme, neutral grays, and compact layouts for efficiency. Features like clickable table rows, optimized spacing, and smaller font sizes enhance usability and data density. Fully responsive design ensures optimal viewing and functionality across all device sizes from mobile phones to desktop displays.
 - **Technical Implementations**:
     - **Client-Side Operation**: Complete conversion from server-based APIs to localStorage, making the application fully functional offline without server or database requirements.
     - **Desktop Application**: Electron-based desktop app support allows packaging as downloadable installers for Windows, macOS, and Linux. The desktop version shares the same codebase as the web app and works completely offline.
