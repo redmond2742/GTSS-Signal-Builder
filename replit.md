@@ -34,6 +34,7 @@ The application follows a client-side architecture optimized for browser-based o
     - **Bulk Signal Creation**: Feature with a dedicated map interface for efficient creation of multiple signals.
     - **User Workflow Enhancements**: Features like "Duplicate to Left Turn" for phases, automatic phase number mapping, and interactive location editing on maps streamline configuration.
     - **Schema Standardization**: Data models are aligned with exact TXT export requirements for consistent data exchange.
+    - **SEO & Social Sharing**: Comprehensive meta tags including Open Graph and Twitter Card support for professional social media previews with custom traffic signal imagery, optimized for search engine visibility.
 - **System Design Choices**:
     - **Monorepo Structure**: Frontend, backend (development only), and shared code are co-located for simplified development and type sharing.
     - **Type Safety**: End-to-end TypeScript with shared schemas ensures data consistency and reduces errors.
