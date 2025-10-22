@@ -15,14 +15,13 @@ import { useToast } from "@/hooks/use-toast";
 import { clearAllData } from "@/lib/localStorage";
 import { cn } from "@/lib/utils";
 
-type TabType = "agency" | "signals" | "phases" | "detectors" | "export";
+type TabType = "agency" | "signals" | "phases" | "detectors";
 
 const tabs = [
   { id: "signals", label: "Traffic Signals", icon: MapPin },
   { id: "phases", label: "Phases", icon: ArrowUpDown },
   { id: "detectors", label: "Detectors", icon: Target },
   { id: "agency", label: "Agency Info", icon: Building },
-  { id: "export", label: "Import/Export", icon: FolderOutput },
 ];
 
 const tabTitles = {
@@ -30,12 +29,12 @@ const tabTitles = {
   signals: { title: "Traffic Signals", desc: "Manage traffic signal installation locations" },
   phases: { title: "Signal Phases", desc: "Configure movement phases for each signal" },
   detectors: { title: "Detection Systems", desc: "Configure vehicle and pedestrian detection equipment" },
-  export: { title: "Import/Export", desc: "Import and export your traffic signal data" },
 };
 
 export default function GTSSBuilder() {
   const [activeTab, setActiveTab] = useState<TabType>("signals");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showExportPanel, setShowExportPanel] = useState(false);
   const { signals, phases, detectors, currentView, setAgency, setSignals, setPhases, setDetectors, navigateToSignalDetails } = useGTSSStore();
   const { toast } = useToast();
   
@@ -57,6 +56,11 @@ export default function GTSSBuilder() {
   const [triggerAddDetector, setTriggerAddDetector] = useState(0);
 
   const renderTabContent = () => {
+    // If export panel is shown, render it regardless of active tab
+    if (showExportPanel) {
+      return <ExportPanel />;
+    }
+    
     switch (activeTab) {
       case "agency":
         return <AgencyForm />;
@@ -66,8 +70,6 @@ export default function GTSSBuilder() {
         return <PhasesTable triggerAdd={triggerAddPhase} triggerVisualEditor={triggerVisualEditor} />;
       case "detectors":
         return <DetectorsTable triggerAdd={triggerAddDetector} />;
-      case "export":
-        return <ExportPanel />;
       default:
         return <AgencyForm />;
     }
@@ -210,6 +212,23 @@ export default function GTSSBuilder() {
             </Button>
           </div>
 
+          {/* Import/Export section */}
+          <div className="mb-4 pb-3 border-b border-grey-200">
+            <p className="text-xs font-medium text-grey-600 mb-2 px-2">Data Management</p>
+            <Button
+              variant="outline"
+              className="w-full h-7 text-xs bg-grey-100 text-grey-700 hover:bg-grey-200"
+              onClick={() => {
+                setShowExportPanel(!showExportPanel);
+                setIsMobileMenuOpen(false);
+              }}
+              data-testid="button-import-export"
+            >
+              <FolderOutput className="w-3 h-3 mr-1" />
+              Import/Export
+            </Button>
+          </div>
+
           {/* Clear All Data */}
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -261,12 +280,14 @@ export default function GTSSBuilder() {
               </Button>
               <div>
                 <h2 className="text-base lg:text-lg font-bold text-grey-800">
-                  {tabTitles[activeTab].title}
+                  {showExportPanel ? "Import/Export" : tabTitles[activeTab].title}
                 </h2>
-                <p className="text-xs text-grey-500 hidden sm:block">{tabTitles[activeTab].desc}</p>
+                <p className="text-xs text-grey-500 hidden sm:block">
+                  {showExportPanel ? "Import and export your traffic signal data" : tabTitles[activeTab].desc}
+                </p>
               </div>
             </div>
-            {activeTab === "signals" && (
+            {!showExportPanel && activeTab === "signals" && (
               <div className="flex space-x-1">
                 <Button onClick={handleAddMultiple} variant="outline" className="h-7 px-2 text-xs border-primary-200 text-primary-700 hover:bg-primary-50 hidden sm:flex">
                   <Navigation className="w-3 h-3 sm:mr-1" />
@@ -278,7 +299,7 @@ export default function GTSSBuilder() {
                 </Button>
               </div>
             )}
-            {activeTab === "phases" && (
+            {!showExportPanel && activeTab === "phases" && (
               <div className="flex space-x-1">
                 <Button onClick={handleVisualEditor} variant="outline" className="h-7 px-2 text-xs border-grey-300 text-grey-700 hover:bg-white hover:text-grey-900 hidden sm:flex">
                   <Map className="w-3 h-3 sm:mr-1" />
@@ -290,7 +311,7 @@ export default function GTSSBuilder() {
                 </Button>
               </div>
             )}
-            {activeTab === "detectors" && (
+            {!showExportPanel && activeTab === "detectors" && (
               <div className="flex space-x-1">
                 <Button onClick={handleAddDetector} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
                   <Plus className="w-3 h-3 sm:mr-1" />
