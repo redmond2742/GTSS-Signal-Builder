@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
 import { Signal } from "@shared/schema";
 import { useSignals } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
@@ -31,10 +30,9 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
   const [sortField, setSortField] = useState<SortField>('signalId');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-  const { signals } = useGTSSStore();
+  const { signals, navigateToSignalDetails } = useGTSSStore();
   const { toast } = useToast();
   const signalHooks = useSignals();
-  const [, navigate] = useLocation();
 
   // Handle triggers from parent component
   useEffect(() => {
@@ -91,8 +89,8 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
   };
 
   const handleAdd = () => {
-    // Navigate to signal details page for creating a new signal
-    navigate('/signal/new');
+    // Navigate to signal details view for creating a new signal
+    navigateToSignalDetails(null);
   };
 
   const handleModalClose = () => {
@@ -184,7 +182,7 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
             <div className="w-full h-full relative z-0">
               <SignalsMap 
                 signals={signals} 
-                onSignalSelect={(signal) => navigate(`/signal/${signal.signalId}`)}
+                onSignalSelect={(signal) => navigateToSignalDetails(signal.signalId)}
                 onSignalUpdate={handleSignalUpdate}
                 className="w-full h-full"
               />
@@ -223,8 +221,8 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
                       <TableRow 
                         key={signal.id}
                         className="hover:bg-grey-50 cursor-pointer transition-colors"
-                        onClick={() => navigate(`/signal/${signal.signalId}`)}
-
+                        onClick={() => navigateToSignalDetails(signal.signalId)}
+                        data-testid={`row-signal-${signal.signalId}`}
                       >
                         <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">{signal.signalId}</TableCell>
                         <TableCell className="text-grey-600 text-xs py-1.5 px-2">{signal.streetName1}</TableCell>

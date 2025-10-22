@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
 import { useLoadFromStorage } from "@/lib/localStorageHooks";
 import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Navigation, Plus, Map, Coffee, Trash2, Menu, X, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import SignalsTable from "@/components/gtss/signals-table";
 import PhasesTable from "@/components/gtss/phases-table";
 import DetectorsTable from "@/components/gtss/detectors-table";
 import ExportPanel from "@/components/gtss/export-panel";
+import SignalDetails from "@/pages/signal-details";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
 import { clearAllData } from "@/lib/localStorage";
@@ -34,8 +34,7 @@ const tabTitles = {
 export default function GTSSBuilder() {
   const [activeTab, setActiveTab] = useState<TabType>("signals");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [, navigate] = useLocation();
-  const { signals, phases, detectors, setAgency, setSignals, setPhases, setDetectors } = useGTSSStore();
+  const { signals, phases, detectors, currentView, setAgency, setSignals, setPhases, setDetectors, navigateToSignalDetails } = useGTSSStore();
   const { toast } = useToast();
   
   // Load data from localStorage on mount
@@ -71,8 +70,8 @@ export default function GTSSBuilder() {
   };
 
   const handleAddSignal = () => {
-    // Navigate directly to signal details page for new signal creation
-    navigate('/signal/new');
+    // Navigate to signal details view for new signal creation
+    navigateToSignalDetails(null);
   };
 
   const handleAddMultiple = () => {
@@ -104,6 +103,11 @@ export default function GTSSBuilder() {
       description: "All signal, phase, detector, and agency data has been cleared",
     });
   };
+
+  // Conditionally render signal details view or main view
+  if (currentView === 'signal-details') {
+    return <SignalDetails />;
+  }
 
   return (
     <div className="h-screen flex bg-grey-50">

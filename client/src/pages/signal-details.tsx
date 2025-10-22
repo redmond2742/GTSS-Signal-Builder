@@ -33,14 +33,10 @@ function LocationPicker({ onLocationSelect }: { onLocationSelect: (lat: number, 
 }
 
 export default function SignalDetails() {
-  const params = useParams();
-  const [, navigate] = useLocation();
-  const signalId = params.signalId;
-  const isNewSignal = signalId === 'new';
   const { toast } = useToast();
-  const { agency } = useGTSSStore();
-  
-  const { signals, phases, detectors } = useGTSSStore();
+  const { agency, signals, phases, detectors, currentSignalId, navigateToMain, navigateToSignalDetails } = useGTSSStore();
+  const signalId = currentSignalId;
+  const isNewSignal = signalId === null;
   const signalHooks = useSignals();
   const phaseHooks = usePhases();
   const detectorHooks = useDetectors();
@@ -130,8 +126,8 @@ export default function SignalDetails() {
         setSignal(newSignal);
         setIsEditingSignal(false);
         
-        // Navigate to the actual signal details page with the new ID
-        navigate(`/signal/${newSignal.signalId}`);
+        // Update the navigation state to show the created signal
+        navigateToSignalDetails(newSignal.signalId);
         
         toast({
           title: "Success",
@@ -340,8 +336,8 @@ export default function SignalDetails() {
           description: "Signal and all associated data deleted successfully",
         });
         
-        // Navigate back to traffic signals page
-        navigate("/gtss-builder?tab=signals");
+        // Navigate back to main page
+        navigateToMain();
       } catch (error) {
         console.error("Delete error:", error);
         toast({
@@ -377,7 +373,7 @@ export default function SignalDetails() {
         <div className="flex items-center space-x-2 mb-4">
           <Button
             variant="outline"
-            onClick={() => navigate("/")}
+            onClick={() => navigateToMain()}
             className="h-7 px-2 text-xs"
           >
             <ArrowLeft className="w-3 h-3 mr-1" />
@@ -400,7 +396,7 @@ export default function SignalDetails() {
         <div className="flex items-center space-x-2 sm:space-x-3">
           <Button
             variant="outline"
-            onClick={() => navigate("/")}
+            onClick={() => navigateToMain()}
             className="h-7 px-2 text-xs"
           >
             <ArrowLeft className="w-3 h-3 sm:mr-1" />
@@ -429,7 +425,7 @@ export default function SignalDetails() {
                 const prevIndex = currentIndex > 0 ? currentIndex - 1 : signals.length - 1;
                 const prevSignal = signals[prevIndex];
                 if (prevSignal) {
-                  navigate(`/signal/${prevSignal.signalId}`);
+                  navigateToSignalDetails(prevSignal.signalId);
                 }
               }}
               disabled={signals.length <= 1}
@@ -451,7 +447,7 @@ export default function SignalDetails() {
                 const nextIndex = currentIndex < signals.length - 1 ? currentIndex + 1 : 0;
                 const nextSignal = signals[nextIndex];
                 if (nextSignal) {
-                  navigate(`/signal/${nextSignal.signalId}`);
+                  navigateToSignalDetails(nextSignal.signalId);
                 }
               }}
               disabled={signals.length <= 1}
