@@ -8,6 +8,10 @@ interface GTSSStore {
   phases: Phase[];
   detectors: Detector[];
   
+  // Navigation state (for single-page app without URL routing)
+  currentView: 'main' | 'signal-details';
+  currentSignalId: string | null; // null = new signal, string = edit existing
+  
   setAgency: (agency: Agency | null) => void;
   setSignals: (signals: Signal[]) => void;
   addSignal: (signal: Signal) => void;
@@ -24,6 +28,10 @@ interface GTSSStore {
   updateDetector: (id: string, detector: Detector) => void;
   deleteDetector: (id: string) => void;
   
+  // Navigation actions
+  navigateToMain: () => void;
+  navigateToSignalDetails: (signalId: string | null) => void;
+  
   // Load from localStorage
   loadFromStorage: () => void;
 }
@@ -33,6 +41,10 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
   signals: signalStorage.getAll(),
   phases: phaseStorage.getAll(),
   detectors: detectorStorage.getAll(),
+  
+  // Initial navigation state
+  currentView: 'main',
+  currentSignalId: null,
   
   setAgency: (agency) => set({ agency }),
   
@@ -64,6 +76,10 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
   deleteDetector: (id) => set((state) => ({
     detectors: state.detectors.filter(d => d.id !== id)
   })),
+  
+  // Navigation actions
+  navigateToMain: () => set({ currentView: 'main', currentSignalId: null }),
+  navigateToSignalDetails: (signalId) => set({ currentView: 'signal-details', currentSignalId: signalId }),
   
   loadFromStorage: () => set({
     agency: agencyStorage.get(),
