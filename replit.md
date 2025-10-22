@@ -15,7 +15,7 @@ The application follows a client-side architecture optimized for browser-based o
 - **Data Persistence**: Client-side JSON serialization with automatic type conversion.
 - **Build System**: Vite for frontend bundling.
 - **Framework**: React 18 with TypeScript.
-- **Routing**: Wouter for lightweight client-side routing.
+- **Navigation**: State-based navigation using Zustand store (no URL routing) for perfect static site hosting compatibility.
 - **State Management**: Zustand for global state management.
 - **UI Components**: Radix UI primitives with shadcn/ui styling.
 - **Styling**: Tailwind CSS with CSS variables for theming.
@@ -27,6 +27,7 @@ The application follows a client-side architecture optimized for browser-based o
 - **UI/UX Decisions**: Professional government-friendly design utilizing a navy blue primary color scheme, neutral grays, and compact layouts for efficiency. Features like clickable table rows, optimized spacing, and smaller font sizes enhance usability and data density. Fully responsive design ensures optimal viewing and functionality across all device sizes from mobile phones to desktop displays.
 - **Technical Implementations**:
     - **Client-Side Operation**: Complete conversion from server-based APIs to localStorage, making the application fully functional offline without server or database requirements.
+    - **State-Based Navigation**: The app uses Zustand state management for navigation instead of URL routing, keeping the URL constant at the root path. This architecture enables perfect static site hosting without requiring server-side routing or rewrite rules. All navigation (signal details, tabs, etc.) happens through state changes, making the app a true single-page application.
     - **Desktop Application**: Electron-based desktop app support allows packaging as downloadable installers for Windows, macOS, and Linux. The desktop version shares the same codebase as the web app and works completely offline.
     - **Import/Export System**: Comprehensive data exchange system with TXT file export (agency.txt, signals.txt, phases.txt, detectors.txt) and strict validation-based import with replace/merge modes. Movement type encoding/decoding ensures data integrity across import/export cycles.
     - **Signal Details Page**: Comprehensive management page for signals, phases, and detectors with inline editing and map integration.
@@ -47,5 +48,5 @@ The application follows a client-side architecture optimized for browser-based o
 - **UI Framework**: React, Radix UI primitives
 - **Styling**: Tailwind CSS, `class-variance-authority`
 - **Forms & Validation**: React Hook Form, Zod, `@hookform/resolvers`
-- **Routing**: Wouter
+- **State Management**: Zustand (includes navigation state)
 - **Date Handling**: `date-fns`

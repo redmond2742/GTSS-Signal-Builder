@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useParams, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertSignalSchema, insertPhaseSchema, insertDetectorSchema, type Signal, type Phase, type Detector, type InsertSignal, type InsertPhase, type InsertDetector } from "@shared/schema";
