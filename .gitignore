@@ -12,6 +12,10 @@ build/
 .vite/
 .next/
 out/
+electron-dist/
+./node_modules/electron/dist/
+
+
 
 # Environment variables
 .env
