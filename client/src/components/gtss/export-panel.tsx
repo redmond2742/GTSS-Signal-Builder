@@ -17,7 +17,7 @@ import { evaluateGTSSCompleteness } from "@/lib/gtssValidation";
 import GTSSFileViewer, { GTSSFilePreview } from "@/components/gtss/gtss-file-viewer";
 
 export default function ExportPanel() {
-  const { agency, signals, phases, detectors } = useGTSSStore();
+  const { agency, signals, phases, detectors, navigateToSignalDetails } = useGTSSStore();
   
   // Generate default package name with agency name and date
   const getDefaultPackageName = () => {
@@ -222,7 +222,7 @@ export default function ExportPanel() {
                   {completenessAnalysis.results.map((result) => (
                     <Card key={result.signalId} className="border-grey-200">
                       <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex-1">
                             <div className="flex items-center space-x-3">
                               <Badge 
@@ -260,6 +260,14 @@ export default function ExportPanel() {
                               </div>
                             </div>
                           </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigateToSignalDetails(result.signalId)}
+                            className="self-start sm:self-center"
+                          >
+                            Configure
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>

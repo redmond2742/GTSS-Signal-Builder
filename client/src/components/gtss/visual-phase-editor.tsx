@@ -23,7 +23,8 @@ interface PendingPhase {
   movementType: string;
   isPedestrian: boolean;
   isOverlap: boolean;
-  postedSpeedLimit?: number;
+  postedSpeed?: number;
+  numOfLanes: number;
   vehicleDetectionIds: string;
   pedAudibleEnabled: boolean;
 }
@@ -186,7 +187,8 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
       movementType: "Through",
       isPedestrian: false,
       isOverlap: false,
-      postedSpeedLimit: undefined,
+      postedSpeed: undefined,
+      numOfLanes: 1,
       vehicleDetectionIds: "",
       pedAudibleEnabled: false,
     };
@@ -217,7 +219,8 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
       isPedestrian: p.isPedestrian,
       isOverlap: p.isOverlap,
       compassBearing: p.bearing,
-      postedSpeedLimit: p.postedSpeedLimit,
+      postedSpeed: p.postedSpeed,
+      numOfLanes: p.numOfLanes,
       vehicleDetectionIds: p.vehicleDetectionIds,
       pedAudibleEnabled: p.pedAudibleEnabled,
     }));
@@ -488,8 +491,20 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
                 <Label className="text-xs">Posted Speed</Label>
                 <Input
                   type="number"
-                  value={editingPhase.postedSpeedLimit || ""}
-                  onChange={(e) => handlePhaseUpdate(editingPhase.id, { postedSpeedLimit: parseInt(e.target.value) || undefined })}
+                  value={editingPhase.postedSpeed || ""}
+                  onChange={(e) => handlePhaseUpdate(editingPhase.id, { postedSpeed: parseInt(e.target.value) || undefined })}
+                  className="h-8"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs">Number of Lanes</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="8"
+                  value={editingPhase.numOfLanes || 1}
+                  onChange={(e) => handlePhaseUpdate(editingPhase.id, { numOfLanes: parseInt(e.target.value) || 1 })}
                   className="h-8"
                 />
               </div>
