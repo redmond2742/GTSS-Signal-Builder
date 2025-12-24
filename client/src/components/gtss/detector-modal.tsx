@@ -15,6 +15,41 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import { X, MapPin, Target, Trash2 } from "lucide-react";
 // Removed image import for simplified interface
 
+const compassDirections = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+
+const bearingToDirection = (bearing?: number | null) => {
+  if (bearing === null || bearing === undefined || Number.isNaN(bearing)) {
+    return "";
+  }
+  const normalized = ((bearing % 360) + 360) % 360;
+  const index = Math.round(normalized / 45) % compassDirections.length;
+  return compassDirections[index];
+};
+
+const formatPurposeForDescription = (purpose?: string) => {
+  if (!purpose) {
+    return "";
+  }
+  if (purpose === "Stop Bar") {
+    return "Stopbar";
+  }
+  return purpose;
+};
+
+const buildDetectorDescription = (direction: string, purpose: string, lane: string) => {
+  const parts: string[] = [];
+  if (direction) {
+    parts.push(direction);
+  }
+  if (purpose) {
+    parts.push(purpose);
+  }
+  if (lane) {
+    parts.push(`Lane ${lane}`);
+  }
+  return parts.join(" ").trim();
+};
+
 interface DetectorModalProps {
   detector: Detector | null;
   onClose: () => void;
@@ -28,6 +63,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
   const [selectedZone, setSelectedZone] = useState<'stopbar' | 'advance' | 'count' | null>(null);
   const [selectedSignalId, setSelectedSignalId] = useState<string>(detector?.signalId || preSelectedSignalId || "");
   const [lockedValues, setLockedValues] = useState({ length: false, stopbarSetback: false });
+  const [isDescriptionDirty, setIsDescriptionDirty] = useState(Boolean(detector?.description));
 
   const form = useForm<InsertDetector>({
     resolver: zodResolver(insertDetectorSchema),
@@ -36,12 +72,12 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
       channel: "",
       phase: 2,
       description: "",
-      purpose: "Advance",
+      purpose: "Stop Bar",
       vehicleType: "Vehicle",
-      lane: "",
+      lane: "1",
       technologyType: "Inductance Loop",
       length: undefined,
-      stopbarSetbackDist: undefined,
+      stopbarSetbackDist: 0,
     },
   });
 
@@ -60,6 +96,9 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
         stopbarSetbackDist: detector.stopbarSetbackDist ?? undefined,
       });
       setSelectedSignalId(detector.signalId);
+      setIsDescriptionDirty(Boolean(detector.description));
+    } else {
+      setIsDescriptionDirty(false);
     }
   }, [detector, form]);
 
@@ -80,7 +119,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
     // Auto-configure detector based on zone
     if (zone === 'stopbar') {
       form.setValue('purpose', 'Stop Bar');
-      if (!lockedValues.stopbarSetback) form.setValue('stopbarSetbackDist', 4.0);
+      if (!lockedValues.stopbarSetback) form.setValue('stopbarSetbackDist', 0);
       if (!lockedValues.length) form.setValue('length', 6.0);
     } else if (zone === 'advance') {
       form.setValue('purpose', 'Advanced Loop');
@@ -133,6 +172,23 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
   };
 
   const [isLoading, setIsLoading] = useState(false);
+  const watchedPurpose = form.watch("purpose");
+  const watchedPhase = form.watch("phase");
+  const watchedLane = form.watch("lane");
+
+  useEffect(() => {
+    if (isDescriptionDirty) {
+      return;
+    }
+    const selectedPhase = phases.find(
+      (phase) => phase.signalId === selectedSignalId && phase.phase === watchedPhase,
+    );
+    const direction = bearingToDirection(selectedPhase?.compassBearing ?? null);
+    const formattedPurpose = formatPurposeForDescription(watchedPurpose ?? "");
+    const laneValue = watchedLane?.toString().trim() ?? "";
+    const description = buildDetectorDescription(direction, formattedPurpose, laneValue);
+    form.setValue("description", description);
+  }, [form, isDescriptionDirty, phases, selectedSignalId, watchedLane, watchedPhase, watchedPurpose]);
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -232,9 +288,8 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                           </FormControl>
                           <SelectContent>
                             {signalPhases.map((phase) => {
-                              const bearingLabel = phase.compassBearing !== null && phase.compassBearing !== undefined
-                                ? ` (${phase.compassBearing}°)`
-                                : "";
+                              const direction = bearingToDirection(phase.compassBearing);
+                              const bearingLabel = direction ? ` (${direction})` : "";
                               return (
                                 <SelectItem key={phase.id} value={phase.phase.toString()}>
                                   Phase {phase.phase} - {phase.movementType}{bearingLabel}
@@ -335,15 +390,14 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                     <FormLabel>Lane Number</FormLabel>
                     <FormControl>
                       <Input 
-                        type="number"
-                        min="1"
-                        max="99"
-                        placeholder="e.g., 1, 2, 3" 
+                        type="text"
+                        placeholder="e.g., 1-3" 
                         {...field} 
                         disabled={!isSignalSelected}
                         value={field.value || ""}
                       />
                     </FormControl>
+                    <p className="text-xs text-gray-500">Example: 1-3 for multiple lanes.</p>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -388,7 +442,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                         type="number"
                         step="0.1"
                         min="0"
-                        placeholder="4.0"
+                        placeholder="0.0"
                         {...field}
                         disabled={!isSignalSelected}
                         onChange={(e) => {
@@ -417,6 +471,10 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                         {...field} 
                         disabled={!isSignalSelected}
                         value={field.value || ""}
+                        onChange={(event) => {
+                          setIsDescriptionDirty(true);
+                          field.onChange(event);
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
