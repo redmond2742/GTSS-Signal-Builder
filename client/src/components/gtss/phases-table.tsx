@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Map, ChevronUp, ChevronDown, MapPin, AlertTriangle, Trash2 } from "lucide-react";
+import { Plus, Map, ChevronUp, ChevronDown, MapPin, AlertTriangle, Trash2, Copy } from "lucide-react";
 import PhaseModal from "./phase-modal";
 import VisualPhaseEditor from "./visual-phase-editor";
 import SignalsMap from "@/components/ui/signals-map";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type SortField = 'phase' | 'signalId' | 'movementType' | 'bearing' | 'postedSpeed' | 'numOfLanes';
 type SortDirection = 'asc' | 'desc';
@@ -29,6 +30,7 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
   const [filterSignal, setFilterSignal] = useState<string>("");
   const [sortField, setSortField] = useState<SortField>('phase');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [selectedPhaseIds, setSelectedPhaseIds] = useState<Set<string>>(new Set());
   const { signals, phases } = useGTSSStore();
   const { toast } = useToast();
   const phaseHooks = usePhases();
@@ -55,6 +57,9 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
 
   const filteredPhases = phases.filter(phase => phase.signalId === filterSignal);
   const orphanPhases = phases.filter(phase => !signals.some(signal => signal.signalId === phase.signalId));
+  const selectedPhases = filteredPhases.filter(phase => selectedPhaseIds.has(phase.id));
+  const isAllSelected = filteredPhases.length > 0 && selectedPhaseIds.size === filteredPhases.length;
+  const isSomeSelected = selectedPhaseIds.size > 0 && !isAllSelected;
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -148,6 +153,80 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
     });
   };
 
+  useEffect(() => {
+    setSelectedPhaseIds(new Set());
+  }, [filterSignal]);
+
+  useEffect(() => {
+    setSelectedPhaseIds((prev) => new Set([...prev].filter((id) => phases.some((phase) => phase.id === id))));
+  }, [phases]);
+
+  const handleToggleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedPhaseIds(new Set(filteredPhases.map((phase) => phase.id)));
+    } else {
+      setSelectedPhaseIds(new Set());
+    }
+  };
+
+  const handleToggleSelection = (phaseId: string, checked: boolean) => {
+    setSelectedPhaseIds((prev) => {
+      const updated = new Set(prev);
+      if (checked) {
+        updated.add(phaseId);
+      } else {
+        updated.delete(phaseId);
+      }
+      return updated;
+    });
+  };
+
+  const handleDuplicateSelectedToLeftTurns = () => {
+    const phaseMapping: Record<number, number> = {
+      2: 5,
+      4: 7,
+      6: 1,
+      8: 3,
+    };
+
+    const eligiblePhases = selectedPhases.filter(
+      (phase) => phase.movementType === "Through" && phaseMapping[phase.phase]
+    );
+
+    if (eligiblePhases.length === 0) {
+      toast({
+        title: "Not Applicable",
+        description: "Select through phases 2, 4, 6, or 8 to duplicate to left turns.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      eligiblePhases.forEach((phase) => {
+        const newPhaseNumber = phaseMapping[phase.phase];
+        const leftTurnPhase: InsertPhase = {
+          ...phase,
+          phase: newPhaseNumber,
+          movementType: "Left Turn",
+          numOfLanes: 1,
+        };
+        phaseHooks.save(leftTurnPhase);
+      });
+
+      toast({
+        title: "Success",
+        description: `Created ${eligiblePhases.length} left turn phase${eligiblePhases.length > 1 ? "s" : ""}.`,
+      });
+      setSelectedPhaseIds(new Set());
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to duplicate selected phases.",
+        variant: "destructive",
+      });
+    }
+  };
 
 
 
@@ -215,6 +294,24 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
               </>
             )}
           </div>
+          <div className="ml-auto flex items-center gap-2">
+            {selectedPhases.length > 0 && (
+              <span className="text-xs text-grey-500">
+                {selectedPhases.length} selected
+              </span>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleDuplicateSelectedToLeftTurns}
+              disabled={selectedPhases.length === 0}
+              className="h-7 px-2 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+            >
+              <Copy className="w-3 h-3 mr-1" />
+              Duplicate to Left Turns
+            </Button>
+          </div>
           {filterSignal && (() => {
             const selectedSignal = signals.find(s => s.signalId === filterSignal);
             return (
@@ -260,6 +357,15 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
             <Table>
               <TableHeader>
                 <TableRow className="bg-grey-50 border-b border-grey-200">
+                  <TableHead className="w-8">
+                    <div className="flex items-center justify-center">
+                      <Checkbox
+                        checked={isAllSelected ? true : (isSomeSelected ? "indeterminate" : false)}
+                        onCheckedChange={(checked) => handleToggleSelectAll(Boolean(checked))}
+                        aria-label="Select all phases"
+                      />
+                    </div>
+                  </TableHead>
                   <SortableHeader field="signalId">Signal ID</SortableHeader>
                   <SortableHeader field="phase">Phase</SortableHeader>
                   <SortableHeader field="movementType">Movement</SortableHeader>
@@ -271,7 +377,7 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
               <TableBody>
                 {filteredPhases.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-grey-500">
+                    <TableCell colSpan={7} className="text-center py-8 text-grey-500">
                       {filterSignal === "all" 
                         ? "No phases configured. Add your first phase to get started."
                         : "No phases found for the selected signal."
@@ -285,6 +391,16 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
                       className="hover:bg-grey-50 cursor-pointer transition-colors"
                       onClick={() => handleRowClick(phase)}
                     >
+                      <TableCell className="py-1 px-2">
+                        <div className="flex items-center justify-center">
+                          <Checkbox
+                            checked={selectedPhaseIds.has(phase.id)}
+                            onCheckedChange={(checked) => handleToggleSelection(phase.id, Boolean(checked))}
+                            onClick={(event) => event.stopPropagation()}
+                            aria-label={`Select phase ${phase.phase}`}
+                          />
+                        </div>
+                      </TableCell>
                       <TableCell className="font-medium text-grey-900 text-xs py-1 px-2">{phase.signalId}</TableCell>
                       <TableCell className="text-grey-600 text-xs py-1 px-2">{phase.phase}</TableCell>
                       <TableCell className="text-grey-600 text-xs py-1 px-2">
