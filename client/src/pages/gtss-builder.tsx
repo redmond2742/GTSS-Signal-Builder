@@ -155,6 +155,11 @@ export default function GTSSBuilder() {
                 <button
                   key={tab.id}
                   onClick={() => {
+                    setTriggerAdd(0);
+                    setTriggerBulk(0);
+                    setTriggerAddPhase(0);
+                    setTriggerVisualEditor(0);
+                    setTriggerAddDetector(0);
                     setActiveTab(tab.id as TabType);
                     setIsMobileMenuOpen(false);
                   }}
