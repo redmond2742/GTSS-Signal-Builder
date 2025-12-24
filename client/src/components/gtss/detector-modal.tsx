@@ -231,11 +231,16 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {signalPhases.map((phase) => (
-                              <SelectItem key={phase.id} value={phase.phase.toString()}>
-                                Phase {phase.phase} - {phase.movementType}
-                              </SelectItem>
-                            ))}
+                            {signalPhases.map((phase) => {
+                              const bearingLabel = phase.compassBearing !== null && phase.compassBearing !== undefined
+                                ? ` (${phase.compassBearing}°)`
+                                : "";
+                              return (
+                                <SelectItem key={phase.id} value={phase.phase.toString()}>
+                                  Phase {phase.phase} - {phase.movementType}{bearingLabel}
+                                </SelectItem>
+                              );
+                            })}
                           </SelectContent>
                         </Select>
                         <FormMessage />
