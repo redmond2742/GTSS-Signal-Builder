@@ -74,7 +74,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
       description: "",
       purpose: "Stop Bar",
       vehicleType: "Vehicle",
-      lane: "",
+      lane: "1",
       technologyType: "Inductance Loop",
       length: undefined,
       stopbarSetbackDist: 0,
