@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Map, ChevronUp, ChevronDown, MapPin } from "lucide-react";
+import { Plus, Map, ChevronUp, ChevronDown, MapPin, AlertTriangle, Trash2 } from "lucide-react";
 import PhaseModal from "./phase-modal";
 import VisualPhaseEditor from "./visual-phase-editor";
 import SignalsMap from "@/components/ui/signals-map";
@@ -54,6 +54,7 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
   }, [signals, filterSignal]);
 
   const filteredPhases = phases.filter(phase => phase.signalId === filterSignal);
+  const orphanPhases = phases.filter(phase => !signals.some(signal => signal.signalId === phase.signalId));
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -128,6 +129,24 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
     setShowModal(true);
   };
 
+  const handleDeleteOrphanPhases = () => {
+    if (orphanPhases.length === 0) {
+      return;
+    }
+
+    if (!confirm(`Delete ${orphanPhases.length} orphaned phase${orphanPhases.length > 1 ? "s" : ""}? This action cannot be undone.`)) {
+      return;
+    }
+
+    orphanPhases.forEach((phase) => phaseHooks.delete(phase.id));
+    if (filterSignal && !signals.some(signal => signal.signalId === filterSignal)) {
+      setFilterSignal(signals[0]?.signalId || "");
+    }
+    toast({
+      title: "Orphaned phases removed",
+      description: `${orphanPhases.length} phase${orphanPhases.length > 1 ? "s" : ""} deleted.`,
+    });
+  };
 
 
 
@@ -214,6 +233,29 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
           })()}
         </CardHeader>
         <CardContent className="p-0">
+          {orphanPhases.length > 0 && (
+            <div className="flex items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-3">
+              <div className="flex items-start gap-2 text-amber-800">
+                <AlertTriangle className="mt-0.5 h-4 w-4" />
+                <div>
+                  <p className="text-xs font-medium">Orphaned phases detected</p>
+                  <p className="text-xs text-amber-700">
+                    {orphanPhases.length} phase{orphanPhases.length > 1 ? "s" : ""} reference deleted signals.
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleDeleteOrphanPhases}
+                className="h-7 px-2 text-xs text-amber-700 border-amber-200 hover:bg-amber-100"
+              >
+                <Trash2 className="w-3 h-3 mr-1" />
+                Delete Orphans
+              </Button>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>

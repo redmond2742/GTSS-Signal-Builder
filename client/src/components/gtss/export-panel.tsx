@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useExport } from "@/lib/localStorageHooks";
+import { generateAgencyCSV, generateSignalsCSV, generatePhasesCSV, generateDetectionCSV } from "@/lib/localStorage";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,8 +12,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Download, CheckCircle, AlertTriangle, XCircle, Info, TrendingUp, Users, Settings2, Target, ChevronDown, ChevronRight } from "lucide-react";
+import { Download, CheckCircle, AlertTriangle, XCircle, Info, TrendingUp, Settings2, Target, ChevronDown, ChevronRight, Eye } from "lucide-react";
 import { evaluateGTSSCompleteness } from "@/lib/gtssValidation";
+import GTSSFileViewer, { GTSSFilePreview } from "@/components/gtss/gtss-file-viewer";
 
 export default function ExportPanel() {
   const { agency, signals, phases, detectors } = useGTSSStore();
@@ -113,6 +115,22 @@ export default function ExportPanel() {
   // Get GTSS completeness analysis
   const completenessAnalysis = evaluateGTSSCompleteness(signals, phases, detectors);
   const [isAnalysisExpanded, setIsAnalysisExpanded] = useState(false);
+  const [showFilePreview, setShowFilePreview] = useState(false);
+
+  const previewFiles: GTSSFilePreview[] = [
+    includeFiles.agency
+      ? { id: "agency", label: "agency.txt", content: generateAgencyCSV(agency) }
+      : null,
+    includeFiles.signals
+      ? { id: "signals", label: "signals.txt", content: generateSignalsCSV(signals) }
+      : null,
+    includeFiles.phases
+      ? { id: "phases", label: "phases.txt", content: generatePhasesCSV(phases) }
+      : null,
+    includeFiles.detection
+      ? { id: "detectors", label: "detectors.txt", content: generateDetectionCSV(detectors) }
+      : null,
+  ].filter(Boolean) as GTSSFilePreview[];
 
   const handleExportValidated = async () => {
     if (hasErrors) {
@@ -393,6 +411,27 @@ export default function ExportPanel() {
                 {exportFormat === "txt" ? "Download TXT Files" : "Generate & Download Package"}
               </Button>
             </div>
+
+            <Collapsible open={showFilePreview} onOpenChange={setShowFilePreview} className="pt-4 border-t border-grey-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-grey-800">Copy GTSS Files</h4>
+                  <p className="text-xs text-grey-500">Preview and copy file contents without downloading.</p>
+                </div>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" className="h-8 px-3 text-xs">
+                    <Eye className="w-3 h-3 mr-1" />
+                    {showFilePreview ? "Hide Preview" : "View Preview"}
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
+              <CollapsibleContent className="mt-4">
+                <GTSSFileViewer
+                  files={previewFiles}
+                  emptyMessage="Select at least one file to preview."
+                />
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         </CardContent>
       </Card>

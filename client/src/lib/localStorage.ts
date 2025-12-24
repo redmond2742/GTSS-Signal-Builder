@@ -252,7 +252,7 @@ export const exportData = () => {
 
 
 // CSV export functions
-function generateAgencyCSV(agency: Agency | null): string {
+export function generateAgencyCSV(agency: Agency | null): string {
   if (!agency) return 'agency_id,agency_name,agency_url,agency_timezone,agency_email\n';
   
   return [
@@ -261,7 +261,7 @@ function generateAgencyCSV(agency: Agency | null): string {
   ].join('\n');
 }
 
-function generateSignalsCSV(signals: Signal[]): string {
+export function generateSignalsCSV(signals: Signal[]): string {
   const headers = 'signal_id,agency_id,street_name_1,street_name_2,latitude,longitude';
   
   if (signals.length === 0) return headers + '\n';
@@ -273,7 +273,7 @@ function generateSignalsCSV(signals: Signal[]): string {
   return [headers, ...rows].join('\n');
 }
 
-function generatePhasesCSV(phases: Phase[]): string {
+export function generatePhasesCSV(phases: Phase[]): string {
   const headers = 'phase,signal_id,movement_type,num_of_lanes,compass_bearing,posted_speed,is_overlap';
   
   if (phases.length === 0) return headers + '\n';
@@ -307,7 +307,7 @@ function generatePhasesCSV(phases: Phase[]): string {
   return [headers, ...rows].join('\n');
 }
 
-function generateDetectionCSV(detectors: Detector[]): string {
+export function generateDetectionCSV(detectors: Detector[]): string {
   const headers = 'channel,signal_id,phase,description,purpose,vehicle_type,lane,technology_type,length,stopbar_setback_dist';
   
   if (detectors.length === 0) return headers + '\n';

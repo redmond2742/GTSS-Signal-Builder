@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertSignalSchema, insertPhaseSchema, insertDetectorSchema, type Signal, type Phase, type Detector, type InsertSignal, type InsertPhase, type InsertDetector } from "@shared/schema";
@@ -14,12 +14,15 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
-import { MapPin, Edit3, Plus, Trash2, Navigation, ArrowLeft, Settings, HelpCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { MapPin, Edit3, Plus, Trash2, Navigation, ArrowLeft, Settings, HelpCircle, ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import PhaseModal from "@/components/gtss/phase-modal";
 import DetectorModal from "@/components/gtss/detector-modal";
 import VisualPhaseEditor from "@/components/gtss/visual-phase-editor";
+import GTSSFileViewer, { GTSSFilePreview } from "@/components/gtss/gtss-file-viewer";
+import { generateAgencyCSV, generateSignalsCSV, generatePhasesCSV, generateDetectionCSV } from "@/lib/localStorage";
 
 // Location picker component for interactive map editing
 function LocationPicker({ onLocationSelect }: { onLocationSelect: (lat: number, lon: number) => void }) {
@@ -49,6 +52,7 @@ export default function SignalDetails() {
   const [showVisualEditor, setShowVisualEditor] = useState(false);
   const [editingPhase, setEditingPhase] = useState<Phase | null>(null);
   const [editingDetector, setEditingDetector] = useState<Detector | null>(null);
+  const [showGTSSOutput, setShowGTSSOutput] = useState(false);
 
   const signalForm = useForm<InsertSignal>({
     resolver: zodResolver(insertSignalSchema),
@@ -74,6 +78,19 @@ export default function SignalDetails() {
       isOverlap: false,
     },
   });
+
+  const gtssOutputFiles = useMemo(() => {
+    if (!signal) {
+      return [];
+    }
+
+    return [
+      { id: "agency", label: "agency.txt", content: generateAgencyCSV(agency) },
+      { id: "signals", label: "signals.txt", content: generateSignalsCSV([signal]) },
+      { id: "phases", label: "phases.txt", content: generatePhasesCSV(signalPhases) },
+      { id: "detectors", label: "detectors.txt", content: generateDetectionCSV(signalDetectors) },
+    ] as GTSSFilePreview[];
+  }, [agency, signal, signalPhases, signalDetectors]);
 
 
   useEffect(() => {
@@ -847,6 +864,33 @@ export default function SignalDetails() {
             </div>
           )}
         </CardContent>
+      </Card>
+
+      {/* GTSS Specification Output */}
+      <Card>
+        <Collapsible open={showGTSSOutput} onOpenChange={setShowGTSSOutput}>
+          <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-grey-800 flex items-center space-x-2">
+                <FileText className="w-4 h-4 text-primary-600" />
+                <span>GTSS Specification Output</span>
+              </CardTitle>
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" className="h-7 px-2 text-xs">
+                  {showGTSSOutput ? "Hide Output" : "View Output"}
+                </Button>
+              </CollapsibleTrigger>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4">
+            <CollapsibleContent>
+              <GTSSFileViewer
+                files={gtssOutputFiles}
+                emptyMessage="Save this signal to generate GTSS output."
+              />
+            </CollapsibleContent>
+          </CardContent>
+        </Collapsible>
       </Card>
 
       {/* Phase Modal */}
