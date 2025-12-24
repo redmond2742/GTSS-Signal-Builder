@@ -101,15 +101,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
       return;
     }
 
-    // Determine the new phase number based on mapping rules
-    const phaseMapping: { [key: number]: number } = {
-      2: 5,
-      4: 7,
-      6: 1,
-      8: 3
-    };
-
-    const newPhaseNumber = phaseMapping[currentData.phase];
+    const newPhaseNumber = getLeftTurnPhaseNumber(currentData.phase);
     if (!newPhaseNumber) {
       toast({
         title: "Not Applicable",
@@ -155,6 +147,68 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleDuplicateToOppositeApproach = async () => {
+    const currentData = form.getValues();
+    const newPhaseNumber = getOppositePhaseNumber(currentData.phase);
+
+    if (!newPhaseNumber) {
+      toast({
+        title: "Not Applicable",
+        description: "Duplicate to opposite approach only works for phases 1 through 8",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      if (!phase) {
+        phaseHooks.save(currentData);
+      } else {
+        phaseHooks.update(phase.id, currentData);
+      }
+
+      const oppositePhase: InsertPhase = {
+        ...currentData,
+        phase: newPhaseNumber,
+      };
+
+      phaseHooks.save(oppositePhase);
+
+      toast({
+        title: "Success",
+        description: `Created opposite approach phase ${newPhaseNumber} from phase ${currentData.phase}`,
+      });
+
+      onClose();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to duplicate phase",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getLeftTurnPhaseNumber = (phaseNumber: number) => {
+    const phaseMapping: { [key: number]: number } = {
+      2: 5,
+      4: 7,
+      6: 1,
+      8: 3
+    };
+    return phaseMapping[phaseNumber];
+  };
+
+  const getOppositePhaseNumber = (phaseNumber: number) => {
+    if (phaseNumber < 1 || phaseNumber > 8) {
+      return null;
+    }
+    return ((phaseNumber + 3) % 8) + 1;
   };
 
   return (
@@ -398,44 +452,76 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
               </div>
             )}
 
-            <div className="flex justify-between space-x-3 pt-4 border-t border-grey-200">
-              <div>
-                {phase && (
-                  <Button 
-                    type="button" 
-                    variant="destructive" 
-                    onClick={handleDelete}
-                    className="flex items-center space-x-2"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    <span>Delete Phase</span>
-                  </Button>
-                )}
-              </div>
-              <div className="flex space-x-3">
-                {/* Show duplicate button for Through phases with specific phase numbers (both new and editing) */}
-                {form.watch("movementType") === "Through" && [2, 4, 6, 8].includes(form.watch("phase")) && (
-                  <Button 
-                    type="button" 
+            <div className="space-y-3 border-t border-grey-200 pt-4">
+              <div className="rounded-lg border border-grey-200 bg-grey-50 p-4 text-sm text-grey-700">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium text-grey-800">Duplicate to opposite approach</p>
+                    <p className="text-xs text-grey-600">
+                      {getOppositePhaseNumber(form.watch("phase"))
+                        ? `Proposed phase ${getOppositePhaseNumber(form.watch("phase"))} will use the same movement type.`
+                        : "Opposite approach duplication requires a phase between 1 and 8."}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
                     variant="outline"
-                    onClick={handleDuplicateToLeftTurn}
-                    disabled={isLoading}
-                    className="flex items-center space-x-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+                    onClick={handleDuplicateToOppositeApproach}
+                    disabled={isLoading || !getOppositePhaseNumber(form.watch("phase"))}
+                    className="flex items-center space-x-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                   >
                     <Copy className="w-4 h-4" />
-                    <span>Duplicate to Left Turn</span>
+                    <span>
+                      Duplicate to Opposite
+                      {getOppositePhaseNumber(form.watch("phase"))
+                        ? ` (Phase ${getOppositePhaseNumber(form.watch("phase"))})`
+                        : ""}
+                    </span>
                   </Button>
-                )}
-                <Button type="button" variant="outline" onClick={onClose}>
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit" 
-                  className="bg-primary-600 hover:bg-primary-700"
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Saving..." : (phase ? "Save Changes" : "Create Phase")}
-                </Button>
+                </div>
+              </div>
+
+              <div className="flex justify-between space-x-3">
+                <div>
+                  {phase && (
+                    <Button 
+                      type="button" 
+                      variant="destructive" 
+                      onClick={handleDelete}
+                      className="flex items-center space-x-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Delete Phase</span>
+                    </Button>
+                  )}
+                </div>
+                <div className="flex space-x-3">
+                  {/* Show duplicate button for Through phases with specific phase numbers (both new and editing) */}
+                  {form.watch("movementType") === "Through" && [2, 4, 6, 8].includes(form.watch("phase")) && (
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={handleDuplicateToLeftTurn}
+                      disabled={isLoading}
+                      className="flex items-center space-x-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+                    >
+                      <Copy className="w-4 h-4" />
+                      <span>
+                        Duplicate to Left Turn (Phase {getLeftTurnPhaseNumber(form.watch("phase"))})
+                      </span>
+                    </Button>
+                  )}
+                  <Button type="button" variant="outline" onClick={onClose}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    className="bg-primary-600 hover:bg-primary-700"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Saving..." : (phase ? "Save Changes" : "Create Phase")}
+                  </Button>
+                </div>
               </div>
             </div>
           </form>

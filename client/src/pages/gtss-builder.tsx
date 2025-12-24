@@ -156,6 +156,7 @@ export default function GTSSBuilder() {
                   key={tab.id}
                   onClick={() => {
                     setActiveTab(tab.id as TabType);
+                    setShowExportPanel(false);
                     setIsMobileMenuOpen(false);
                   }}
                   className={cn(

@@ -62,12 +62,22 @@ export default function AgencyForm() {
     }
   };
 
+  const normalizeAgencyUrl = (url: string) => {
+    if (!url) {
+      return "http://";
+    }
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url;
+    }
+    return `http://${url}`;
+  };
+
   const form = useForm<InsertAgency>({
     resolver: zodResolver(insertAgencySchema),
     defaultValues: {
       agencyId: "",
       agencyName: "",
-      agencyUrl: "",
+      agencyUrl: "http://",
       agencyTimezone: "America/Los_Angeles",
       agencyEmail: "",
       latitude: undefined,
@@ -80,7 +90,7 @@ export default function AgencyForm() {
       form.reset({
         agencyId: agency.agencyId,
         agencyName: agency.agencyName,
-        agencyUrl: agency.agencyUrl || "",
+        agencyUrl: normalizeAgencyUrl(agency.agencyUrl || ""),
         agencyTimezone: agency.agencyTimezone,
         agencyEmail: agency.agencyEmail || "",
         latitude: agency.latitude || undefined,
@@ -103,6 +113,7 @@ export default function AgencyForm() {
     // Include selected location coordinates in save data
     const saveData = {
       ...data,
+      agencyUrl: normalizeAgencyUrl(data.agencyUrl || ""),
       latitude: selectedLocation?.lat || data.latitude,
       longitude: selectedLocation?.lon || data.longitude,
     };
