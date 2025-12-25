@@ -483,30 +483,46 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
 
             <div className="space-y-3 border-t border-grey-200 pt-4">
               <div className="rounded-lg border border-grey-200 bg-grey-50 p-4 text-sm text-grey-700">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-3">
                   <div>
-                    <p className="font-medium text-grey-800">Duplicate to opposite approach</p>
+                    <p className="font-medium text-grey-800">Duplicate phase</p>
                     <p className="text-xs text-grey-600">
                       {getOppositePhaseNumber(form.watch("phase"))
-                        ? `Proposed phase ${getOppositePhaseNumber(form.watch("phase"))} will use the same movement type.`
+                        ? `Opposite: proposed phase ${getOppositePhaseNumber(form.watch("phase"))} will use the same movement type.`
                         : "Opposite approach duplication requires a phase between 1 and 8."}
                     </p>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleDuplicateToOppositeApproach}
-                    disabled={isLoading || !getOppositePhaseNumber(form.watch("phase"))}
-                    className="flex items-center space-x-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                  >
-                    <Copy className="w-4 h-4" />
-                    <span>
-                      Duplicate to Opposite
-                      {getOppositePhaseNumber(form.watch("phase"))
-                        ? ` (Phase ${getOppositePhaseNumber(form.watch("phase"))})`
-                        : ""}
-                    </span>
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleDuplicateToOppositeApproach}
+                      disabled={isLoading || !getOppositePhaseNumber(form.watch("phase"))}
+                      className="flex items-center space-x-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                    >
+                      <Copy className="w-4 h-4" />
+                      <span>
+                        Duplicate to Opposite
+                        {getOppositePhaseNumber(form.watch("phase"))
+                          ? ` (Phase ${getOppositePhaseNumber(form.watch("phase"))})`
+                          : ""}
+                      </span>
+                    </Button>
+                    {form.watch("movementType") === "Through" && [2, 4, 6, 8].includes(form.watch("phase")) && (
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        onClick={handleDuplicateToLeftTurn}
+                        disabled={isLoading}
+                        className="flex items-center space-x-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+                      >
+                        <Copy className="w-4 h-4" />
+                        <span>
+                          Duplicate to Left Turn (Phase {getLeftTurnPhaseNumber(form.watch("phase"))})
+                        </span>
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -525,21 +541,6 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                   )}
                 </div>
                 <div className="flex space-x-3">
-                  {/* Show duplicate button for Through phases with specific phase numbers (both new and editing) */}
-                  {form.watch("movementType") === "Through" && [2, 4, 6, 8].includes(form.watch("phase")) && (
-                    <Button 
-                      type="button" 
-                      variant="outline"
-                      onClick={handleDuplicateToLeftTurn}
-                      disabled={isLoading}
-                      className="flex items-center space-x-2 border-blue-200 text-blue-700 hover:bg-blue-50"
-                    >
-                      <Copy className="w-4 h-4" />
-                      <span>
-                        Duplicate to Left Turn (Phase {getLeftTurnPhaseNumber(form.watch("phase"))})
-                      </span>
-                    </Button>
-                  )}
                   <Button type="button" variant="outline" onClick={onClose}>
                     Cancel
                   </Button>
