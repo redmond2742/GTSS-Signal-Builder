@@ -130,6 +130,7 @@ export const phaseStorage = {
       signalId: phase.signalId,
       phase: phase.phase,
       movementType: phase.movementType,
+      isPedestrian: phase.isPedestrian ?? phase.movementType === "Through",
       numOfLanes: phase.numOfLanes ?? 1,
       compassBearing: phase.compassBearing ?? null,
       postedSpeed: phase.postedSpeed ?? null,
@@ -274,7 +275,7 @@ export function generateSignalsCSV(signals: Signal[]): string {
 }
 
 export function generatePhasesCSV(phases: Phase[]): string {
-  const headers = 'phase,signal_id,movement_type,num_of_lanes,compass_bearing,posted_speed,is_overlap';
+  const headers = 'phase,signal_id,movement_type,num_of_lanes,compass_bearing,posted_speed,is_overlap,pedestrian_phase_enabled';
   
   if (phases.length === 0) return headers + '\n';
   
@@ -301,7 +302,8 @@ export function generatePhasesCSV(phases: Phase[]): string {
   
   const rows = sortedPhases.map(phase => {
     const encodedMovementType = movementTypeMap[phase.movementType] || phase.movementType;
-    return `${phase.phase},${phase.signalId},${encodedMovementType},${phase.numOfLanes || 1},${phase.compassBearing || ''},${phase.postedSpeed || ''},${phase.isOverlap || false}`;
+    const isPedestrian = phase.isPedestrian ?? phase.movementType === "Through";
+    return `${phase.phase},${phase.signalId},${encodedMovementType},${phase.numOfLanes || 1},${phase.compassBearing || ''},${phase.postedSpeed || ''},${phase.isOverlap || false},${isPedestrian}`;
   });
   
   return [headers, ...rows].join('\n');
@@ -556,7 +558,7 @@ export function parsePhasesTXT(content: string): Phase[] {
     const values = lines[i].split(',').map(v => v.trim());
     
     if (values.length < 7) {
-      errors.push(`Row ${i + 1}: Must have 7 fields (phase, signalId, movementType, numOfLanes, compassBearing, postedSpeed, isOverlap)`);
+      errors.push(`Row ${i + 1}: Must have at least 7 fields (phase, signalId, movementType, numOfLanes, compassBearing, postedSpeed, isOverlap)`);
       continue;
     }
 
@@ -626,12 +628,23 @@ export function parsePhasesTXT(content: string): Phase[] {
       errors.push(`Row ${i + 1}: Overlap must be "true" or "false", got "${values[6]}"`);
       continue;
     }
+
+    let pedestrianPhaseEnabled = movementType === "Through";
+    if (values.length > 7 && values[7].trim() !== '') {
+      const pedestrianValue = values[7].toLowerCase();
+      if (pedestrianValue !== 'true' && pedestrianValue !== 'false') {
+        errors.push(`Row ${i + 1}: Pedestrian phase enabled must be "true" or "false", got "${values[7]}"`);
+        continue;
+      }
+      pedestrianPhaseEnabled = pedestrianValue === 'true';
+    }
     
     phases.push({
       id: nanoid(),
       phase: phaseNum,
       signalId: values[1],
       movementType: movementType,
+      isPedestrian: pedestrianPhaseEnabled,
       numOfLanes: numOfLanes,
       compassBearing,
       postedSpeed,

@@ -30,6 +30,7 @@ export const phases = pgTable("phases", {
   phase: integer("phase").notNull(),
   signalId: text("signal_id").notNull(),
   movementType: text("movement_type").notNull(),
+  isPedestrian: boolean("is_pedestrian").default(false),
   numOfLanes: integer("num_of_lanes").default(1),
   compassBearing: integer("compass_bearing"),
   postedSpeed: integer("posted_speed"),

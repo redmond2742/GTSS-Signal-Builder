@@ -130,7 +130,10 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
   const existingPhases = phases.filter(phase => phase.signalId === selectedSignalId);
 
   const handleExistingPhaseEdit = (phase: Phase) => {
-    setEditingExistingPhase(phase);
+    setEditingExistingPhase({
+      ...phase,
+      isPedestrian: phase.isPedestrian ?? phase.movementType === "Through",
+    });
     setShowEditModal(true);
   };
 
@@ -185,7 +188,7 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
       phase: nextPhaseNumber,
       bearing,
       movementType: "Through",
-      isPedestrian: false,
+      isPedestrian: true,
       isOverlap: false,
       postedSpeed: undefined,
       numOfLanes: 1,
@@ -430,7 +433,10 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
                 <Label className="text-xs">Movement Type</Label>
                 <Select 
                   value={editingPhase.movementType} 
-                  onValueChange={(value) => handlePhaseUpdate(editingPhase.id, { movementType: value })}
+                  onValueChange={(value) => handlePhaseUpdate(editingPhase.id, { 
+                    movementType: value,
+                    isPedestrian: value === "Through",
+                  })}
                 >
                   <SelectTrigger className="h-8">
                     <SelectValue />
@@ -515,6 +521,14 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
                   onCheckedChange={(checked) => handlePhaseUpdate(editingPhase.id, { isOverlap: checked })}
                 />
                 <Label className="text-xs">Overlap Phase</Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={editingPhase.isPedestrian}
+                  onCheckedChange={(checked) => handlePhaseUpdate(editingPhase.id, { isPedestrian: checked })}
+                />
+                <Label className="text-xs">Pedestrian Phase Enabled</Label>
               </div>
             </CardContent>
           </Card>
@@ -609,7 +623,8 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
                   value={editingExistingPhase.movementType} 
                   onValueChange={(value) => setEditingExistingPhase({
                     ...editingExistingPhase,
-                    movementType: value
+                    movementType: value,
+                    isPedestrian: value === "Through"
                   })}
                 >
                   <SelectTrigger>
@@ -678,6 +693,16 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
                     })}
                   />
                   <Label className="text-sm">Overlap Phase</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={editingExistingPhase.isPedestrian || false}
+                    onCheckedChange={(checked) => setEditingExistingPhase({
+                      ...editingExistingPhase,
+                      isPedestrian: checked
+                    })}
+                  />
+                  <Label className="text-sm">Pedestrian Phase Enabled</Label>
                 </div>
               </div>
 
