@@ -32,6 +32,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
       phase: 2,
       signalId: preSelectedSignalId || "",
       movementType: "Through",
+      isPedestrian: true,
       isOverlap: false,
       numOfLanes: 1,
       compassBearing: undefined,
@@ -39,12 +40,16 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
     },
   });
 
+  const movementType = form.watch("movementType");
+  const pedestrianDirty = form.formState.dirtyFields.isPedestrian;
+
   useEffect(() => {
     if (phase) {
       form.reset({
         phase: phase.phase,
         signalId: phase.signalId,
         movementType: phase.movementType,
+        isPedestrian: phase.isPedestrian ?? phase.movementType === "Through",
         isOverlap: phase.isOverlap,
         numOfLanes: phase.numOfLanes || 1,
         compassBearing: phase.compassBearing || undefined,
@@ -52,6 +57,12 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
       });
     }
   }, [phase, form]);
+
+  useEffect(() => {
+    if (!phase && !pedestrianDirty) {
+      form.setValue("isPedestrian", movementType === "Through");
+    }
+  }, [movementType, pedestrianDirty, phase, form]);
 
   const onSubmit = async (data: InsertPhase) => {
     setIsLoading(true);
@@ -126,6 +137,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
         ...currentData,
         phase: newPhaseNumber,
         movementType: "Left Turn",
+        isPedestrian: false,
         numOfLanes: 1, // Default to 1 lane as specified
         // Keep same compass bearing and posted speed
       };
@@ -374,6 +386,23 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
               />
 
               <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="isPedestrian"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between">
+                      <FormLabel>Pedestrian Phase Enabled</FormLabel>
+                      <FormControl>
+                        <Switch
+                          checked={field.value || false}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <FormField
                   control={form.control}
                   name="isOverlap"

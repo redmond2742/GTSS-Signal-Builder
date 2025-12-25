@@ -72,12 +72,16 @@ export default function SignalDetails() {
       signalId: signalId && signalId !== 'new' ? signalId : "",
       phase: 1,
       movementType: "Through",
+      isPedestrian: true,
       compassBearing: null,
       numOfLanes: 1,
       postedSpeed: null,
       isOverlap: false,
     },
   });
+
+  const phaseMovementType = phaseForm.watch("movementType");
+  const pedestrianDirty = phaseForm.formState.dirtyFields.isPedestrian;
 
   const gtssOutputFiles = useMemo(() => {
     if (!signal) {
@@ -197,6 +201,7 @@ export default function SignalDetails() {
       signalId: signalId || "",
       phase: signalPhases.length + 1,
       movementType: "Through",
+      isPedestrian: true,
       compassBearing: null,
       numOfLanes: 1,
       postedSpeed: null,
@@ -211,6 +216,7 @@ export default function SignalDetails() {
       signalId: phase.signalId,
       phase: phase.phase,
       movementType: phase.movementType,
+      isPedestrian: phase.isPedestrian ?? phase.movementType === "Through",
       compassBearing: phase.compassBearing,
       numOfLanes: phase.numOfLanes,
       postedSpeed: phase.postedSpeed,
@@ -218,6 +224,12 @@ export default function SignalDetails() {
     });
     setShowPhaseModal(true);
   };
+
+  useEffect(() => {
+    if (!editingPhase && !pedestrianDirty) {
+      phaseForm.setValue("isPedestrian", phaseMovementType === "Through");
+    }
+  }, [editingPhase, pedestrianDirty, phaseMovementType, phaseForm]);
 
   const handlePhaseSave = (data: InsertPhase) => {
     try {
@@ -1058,6 +1070,37 @@ export default function SignalDetails() {
                           value={field.value || ""}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || null)}
                         />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={phaseForm.control}
+                  name="isPedestrian"
+                  render={({ field }) => (
+                    <FormItem className="space-y-0.5">
+                      <div className="flex items-center space-x-1">
+                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Pedestrian Phase Enabled</FormLabel>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">Enable to add a pedestrian crossing phase alongside this movement.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <FormControl>
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            checked={field.value || false}
+                            onCheckedChange={field.onChange}
+                          />
+                          <span style={{ fontSize: '12px' }} className="text-grey-600">
+                            {field.value ? 'Yes' : 'No'}
+                          </span>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>

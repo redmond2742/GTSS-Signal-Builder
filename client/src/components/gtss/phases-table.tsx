@@ -209,6 +209,7 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
           ...phase,
           phase: newPhaseNumber,
           movementType: "Left Turn",
+          isPedestrian: false,
           numOfLanes: 1,
         };
         phaseHooks.save(leftTurnPhase);
