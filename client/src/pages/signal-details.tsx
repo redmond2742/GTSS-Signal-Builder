@@ -1080,23 +1080,26 @@ export default function SignalDetails() {
                   name="isPedestrian"
                   render={({ field }) => (
                     <FormItem className="space-y-0.5">
+                      <div className="flex items-center space-x-1">
+                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Pedestrian Phase Enabled</FormLabel>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">Enable to add a pedestrian crossing phase alongside this movement.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                       <FormControl>
                         <div className="flex items-center space-x-2">
                           <Switch
                             checked={field.value || false}
                             onCheckedChange={field.onChange}
                           />
-                          <FormLabel className="font-medium" style={{ fontSize: '12px' }}>
-                            Pedestrian Phase Enabled
-                          </FormLabel>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="text-xs">Enable to add a pedestrian crossing phase alongside this movement.</p>
-                            </TooltipContent>
-                          </Tooltip>
+                          <span style={{ fontSize: '12px' }} className="text-grey-600">
+                            {field.value ? 'Yes' : 'No'}
+                          </span>
                         </div>
                       </FormControl>
                       <FormMessage />

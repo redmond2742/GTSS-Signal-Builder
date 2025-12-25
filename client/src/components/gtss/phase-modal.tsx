@@ -390,14 +390,14 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                   control={form.control}
                   name="isPedestrian"
                   render={({ field }) => (
-                    <FormItem className="flex items-center space-x-3">
+                    <FormItem className="flex items-center justify-between">
+                      <FormLabel>Pedestrian Phase Enabled</FormLabel>
                       <FormControl>
                         <Switch
                           checked={field.value || false}
                           onCheckedChange={field.onChange}
                         />
                       </FormControl>
-                      <FormLabel>Pedestrian Phase Enabled</FormLabel>
                       <FormMessage />
                     </FormItem>
                   )}
