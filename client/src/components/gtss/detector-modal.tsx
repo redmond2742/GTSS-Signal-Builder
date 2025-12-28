@@ -50,6 +50,22 @@ const buildDetectorDescription = (direction: string, purpose: string, lane: stri
   return parts.join(" ").trim();
 };
 
+const incrementLastNumber = (value: string) => {
+  const match = value.match(/(\d+)(?!.*\d)/);
+  if (!match) {
+    return value;
+  }
+  const nextValue = String(parseInt(match[1], 10) + 1).padStart(match[1].length, "0");
+  return value.replace(/(\d+)(?!.*\d)/, nextValue);
+};
+
+const incrementAllNumbers = (value: string) => {
+  if (!value) {
+    return value;
+  }
+  return value.replace(/\d+/g, (match) => String(parseInt(match, 10) + 1));
+};
+
 interface DetectorModalProps {
   detector: Detector | null;
   onClose: () => void;
@@ -170,6 +186,29 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
       onClose();
     }
   };
+
+  const handleQuickDuplicate = form.handleSubmit(async (data: InsertDetector) => {
+    setIsLoading(true);
+    try {
+      detectorHooks.save(data);
+      toast({
+        title: "Success",
+        description: "Detector duplicated successfully",
+      });
+      const nextChannel = incrementLastNumber(data.channel);
+      const nextLane = incrementAllNumbers(data.lane ?? "");
+      form.setValue("channel", nextChannel);
+      form.setValue("lane", nextLane);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to duplicate detector",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  });
 
   const [isLoading, setIsLoading] = useState(false);
   const watchedPurpose = form.watch("purpose");
@@ -536,6 +575,11 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                 )}
               </div>
               <div className="flex space-x-3">
+                {!detector && (
+                  <Button type="button" variant="secondary" onClick={handleQuickDuplicate} disabled={isLoading}>
+                    Quick Duplicate
+                  </Button>
+                )}
                 <Button type="button" variant="outline" onClick={onClose}>
                   Cancel
                 </Button>
