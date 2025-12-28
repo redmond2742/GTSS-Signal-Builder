@@ -94,6 +94,11 @@ export const signalStorage = {
     const updatedSignal = { ...signals[index], ...updates };
     signals[index] = updatedSignal;
     saveToStorage(STORAGE_KEYS.SIGNALS, signals);
+
+    if (updates.signalId && updates.signalId !== signalId) {
+      phaseStorage.updateSignalId(signalId, updates.signalId);
+      detectorStorage.updateSignalId(signalId, updates.signalId);
+    }
     return updatedSignal;
   },
 
@@ -166,6 +171,14 @@ export const phaseStorage = {
     saveToStorage(STORAGE_KEYS.PHASES, updatedPhases);
   },
 
+  updateSignalId: (oldSignalId: string, newSignalId: string): void => {
+    const phases = phaseStorage.getAll();
+    const updatedPhases = phases.map(phase =>
+      phase.signalId === oldSignalId ? { ...phase, signalId: newSignalId } : phase
+    );
+    saveToStorage(STORAGE_KEYS.PHASES, updatedPhases);
+  },
+
   clear: (): void => {
     localStorage.removeItem(STORAGE_KEYS.PHASES);
   },
@@ -224,6 +237,14 @@ export const detectorStorage = {
   deleteBySignal: (signalId: string): void => {
     const detectors = detectorStorage.getAll();
     const updatedDetectors = detectors.filter(d => d.signalId !== signalId);
+    saveToStorage(STORAGE_KEYS.DETECTORS, updatedDetectors);
+  },
+
+  updateSignalId: (oldSignalId: string, newSignalId: string): void => {
+    const detectors = detectorStorage.getAll();
+    const updatedDetectors = detectors.map(detector =>
+      detector.signalId === oldSignalId ? { ...detector, signalId: newSignalId } : detector
+    );
     saveToStorage(STORAGE_KEYS.DETECTORS, updatedDetectors);
   },
 

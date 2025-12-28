@@ -51,7 +51,13 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
   setSignals: (signals) => set({ signals }),
   addSignal: (signal) => set((state) => ({ signals: [...state.signals, signal] })),
   updateSignal: (signalId, signal) => set((state) => ({
-    signals: state.signals.map(s => s.signalId === signalId ? signal : s)
+    signals: state.signals.map(s => s.signalId === signalId ? signal : s),
+    phases: signal.signalId === signalId
+      ? state.phases
+      : state.phases.map(p => p.signalId === signalId ? { ...p, signalId: signal.signalId } : p),
+    detectors: signal.signalId === signalId
+      ? state.detectors
+      : state.detectors.map(d => d.signalId === signalId ? { ...d, signalId: signal.signalId } : d),
   })),
   deleteSignal: (signalId) => set((state) => ({
     signals: state.signals.filter(s => s.signalId !== signalId),

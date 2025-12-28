@@ -84,6 +84,19 @@ export class MemStorage implements IStorage {
     }
     const updated: Signal = { ...existing, ...signalData };
     this.signals.set(existing.id, updated);
+
+    if (signalData.signalId && signalData.signalId !== signalId) {
+      Array.from(this.phases.entries()).forEach(([id, phase]) => {
+        if (phase.signalId === signalId) {
+          this.phases.set(id, { ...phase, signalId: signalData.signalId! });
+        }
+      });
+      Array.from(this.detectors.entries()).forEach(([id, detector]) => {
+        if (detector.signalId === signalId) {
+          this.detectors.set(id, { ...detector, signalId: signalData.signalId! });
+        }
+      });
+    }
     return updated;
   }
 

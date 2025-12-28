@@ -167,6 +167,10 @@ export default function SignalDetails() {
             longitude: updatedSignal.longitude,
             agencyId: updatedSignal.agencyId,
           });
+
+          if (updatedSignal.signalId !== signal.signalId) {
+            navigateToSignalDetails(updatedSignal.signalId);
+          }
           
           setIsEditingSignal(false);
           toast({
