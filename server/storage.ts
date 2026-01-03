@@ -174,7 +174,7 @@ export class MemStorage implements IStorage {
       vehicleType: detectorData.vehicleType || null,
       lane: detectorData.lane || null,
       length: detectorData.length || null,
-      stopbarSetback: detectorData.stopbarSetback || null,
+      stopbarSetback: detectorData.stopbarSetback ?? null,
     };
     this.detectors.set(id, detector);
     return detector;

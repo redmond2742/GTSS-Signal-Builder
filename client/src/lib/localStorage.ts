@@ -336,7 +336,7 @@ export function generateDetectionCSV(detectors: Detector[]): string {
   if (detectors.length === 0) return headers + '\n';
   
   const rows = detectors.map(detector => 
-    `${detector.channel},${detector.signalId},${detector.phase},${detector.description || ''},${detector.purpose},${detector.vehicleType || ''},${detector.lane || ''},${detector.technologyType},${detector.length || ''},${detector.stopbarSetbackDist || ''}`
+    `${detector.channel},${detector.signalId},${detector.phase},${detector.description || ''},${detector.purpose},${detector.vehicleType || ''},${detector.lane || ''},${detector.technologyType},${detector.length || ''},${detector.stopbarSetbackDist ?? ''}`
   );
   
   return [headers, ...rows].join('\n');
