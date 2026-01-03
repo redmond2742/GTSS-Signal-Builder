@@ -234,7 +234,7 @@ function generatePhasesCSV(phases: any[]): string {
 function generateDetectionCSV(detectors: any[]): string {
   const headers = 'SignalID,Detector_Channel,Phase,Description,Purpose,Vehicle_Type,Lane,Det_Technology_Type,Length,Stopbar_Setback\n';
   const rows = detectors.map(d => 
-    `${d.signalId},"${d.detectorChannel}",${d.phase},"${d.description || ''}","${d.purpose}","${d.vehicleType || ''}","${d.lane || ''}","${d.detTechnologyType}",${d.length || ''},${d.stopbarSetback || ''}`
+    `${d.signalId},"${d.detectorChannel}",${d.phase},"${d.description || ''}","${d.purpose}","${d.vehicleType || ''}","${d.lane || ''}","${d.detTechnologyType}",${d.length || ''},${d.stopbarSetback ?? ''}`
   ).join('\n');
   return headers + (rows ? rows + '\n' : '');
 }
