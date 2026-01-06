@@ -73,8 +73,6 @@ export const signalStorage = {
       id: nanoid(),
       agencyId: signal.agencyId,
       signalId: signal.signalId || `SIG_${String(signals.length + 1).padStart(3, '0')}`,
-      streetName1: signal.streetName1,
-      streetName2: signal.streetName2,
       latitude: signal.latitude,
       longitude: signal.longitude,
 
@@ -284,12 +282,12 @@ export function generateAgencyCSV(agency: Agency | null): string {
 }
 
 export function generateSignalsCSV(signals: Signal[]): string {
-  const headers = 'signal_id,agency_id,street_name_1,street_name_2,latitude,longitude';
+  const headers = 'signal_id,agency_id,latitude,longitude';
   
   if (signals.length === 0) return headers + '\n';
   
   const rows = signals.map(signal => 
-    `${signal.signalId},${signal.agencyId},${signal.streetName1},${signal.streetName2},${signal.latitude},${signal.longitude}`
+    `${signal.signalId},${signal.agencyId},${signal.latitude},${signal.longitude}`
   );
   
   return [headers, ...rows].join('\n');
@@ -506,8 +504,8 @@ export function parseSignalsTXT(content: string): Signal[] {
   for (let i = 1; i < lines.length; i++) {
     const values = lines[i].split(',').map(v => v.trim());
     
-    if (values.length < 6) {
-      errors.push(`Row ${i + 1}: Must have 6 fields (signalId, agencyId, streetName1, streetName2, latitude, longitude)`);
+    if (values.length < 4) {
+      errors.push(`Row ${i + 1}: Must have 4 fields (signalId, agencyId, latitude, longitude)`);
       continue;
     }
 
@@ -520,35 +518,24 @@ export function parseSignalsTXT(content: string): Signal[] {
       errors.push(`Row ${i + 1}: Agency ID is required`);
       continue;
     }
-    if (!values[2]) {
-      errors.push(`Row ${i + 1}: Street Name 1 is required`);
-      continue;
-    }
-    if (!values[3]) {
-      errors.push(`Row ${i + 1}: Street Name 2 is required`);
-      continue;
-    }
-
     // Validate numeric fields - strict validation, no partial numbers
     // Check regex BEFORE converting to ensure no malformed input
-    if (!values[4] || values[4].trim() === '' || !/^-?\d*\.?\d+$/.test(values[4])) {
-      errors.push(`Row ${i + 1}: Latitude must be a valid number, got "${values[4]}"`);
+    if (!values[2] || values[2].trim() === '' || !/^-?\d*\.?\d+$/.test(values[2])) {
+      errors.push(`Row ${i + 1}: Latitude must be a valid number, got "${values[2]}"`);
       continue;
     }
-    if (!values[5] || values[5].trim() === '' || !/^-?\d*\.?\d+$/.test(values[5])) {
-      errors.push(`Row ${i + 1}: Longitude must be a valid number, got "${values[5]}"`);
+    if (!values[3] || values[3].trim() === '' || !/^-?\d*\.?\d+$/.test(values[3])) {
+      errors.push(`Row ${i + 1}: Longitude must be a valid number, got "${values[3]}"`);
       continue;
     }
 
-    const latitude = Number(values[4]);
-    const longitude = Number(values[5]);
+    const latitude = Number(values[2]);
+    const longitude = Number(values[3]);
 
     signals.push({
       id: nanoid(),
       signalId: values[0],
       agencyId: values[1],
-      streetName1: values[2],
-      streetName2: values[3],
       latitude,
       longitude,
     });

@@ -3,19 +3,14 @@ import { Signal } from "@shared/schema";
 import { useSignals } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, Map, List, Navigation, ChevronUp, ChevronDown, Eye, MapPin, Edit3 } from "lucide-react";
+import { ChevronUp, ChevronDown, MapPin } from "lucide-react";
 import SignalModal from "./signal-modal";
 import BulkSignalModal from "./bulk-signal-modal";
 import SignalsMap from "@/components/ui/signals-map";
 
-
-
-type SortField = 'signalId' | 'streetName1' | 'streetName2' | 'coordinates';
+type SortField = 'signalId' | 'coordinates';
 type SortDirection = 'asc' | 'desc';
 
 interface SignalsTableProps {
@@ -117,14 +112,6 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
           aValue = a.signalId;
           bValue = b.signalId;
           break;
-        case 'streetName1':
-          aValue = a.streetName1;
-          bValue = b.streetName1;
-          break;
-        case 'streetName2':
-          aValue = a.streetName2;
-          bValue = b.streetName2;
-          break;
         case 'coordinates':
           aValue = `${a.latitude},${a.longitude}`;
           bValue = `${b.latitude},${b.longitude}`;
@@ -200,15 +187,13 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
                 <TableHeader>
                   <TableRow className="bg-grey-50 border-b border-grey-200">
                     <SortableHeader field="signalId">Signal ID</SortableHeader>
-                    <SortableHeader field="streetName1">Street 1</SortableHeader>
-                    <SortableHeader field="streetName2">Street 2</SortableHeader>
                     <SortableHeader field="coordinates">Coordinates</SortableHeader>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {signals.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-xs text-grey-500">
+                      <TableCell colSpan={2} className="text-center py-8 text-xs text-grey-500">
                         <div className="flex flex-col items-center space-y-2">
                           <MapPin className="w-8 h-8 text-grey-300" />
                           <p>No traffic signals configured</p>
@@ -225,8 +210,6 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
                         data-testid={`row-signal-${signal.signalId}`}
                       >
                         <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">{signal.signalId}</TableCell>
-                        <TableCell className="text-grey-600 text-xs py-1.5 px-2">{signal.streetName1}</TableCell>
-                        <TableCell className="text-grey-600 text-xs py-1.5 px-2">{signal.streetName2}</TableCell>
                         <TableCell className="text-grey-600 text-xs py-1.5 px-2">
                           {signal.latitude && signal.longitude 
                             ? `${signal.latitude.toFixed(4)}, ${signal.longitude.toFixed(4)}`

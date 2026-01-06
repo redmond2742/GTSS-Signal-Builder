@@ -19,8 +19,6 @@ export const signals = pgTable("signals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   signalId: text("signal_id").notNull().unique(),
   agencyId: text("agency_id").notNull(),
-  streetName1: text("street_name_1").notNull(),
-  streetName2: text("street_name_2").notNull(),
   latitude: real("latitude").notNull(),
   longitude: real("longitude").notNull(),
 });

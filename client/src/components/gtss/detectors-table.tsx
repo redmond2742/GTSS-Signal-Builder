@@ -52,7 +52,7 @@ export default function DetectorsTable({ triggerAdd }: DetectorsTableProps) {
   const getSignalDisplayName = (signalId: string) => {
     const signal = signals.find(s => s.signalId === signalId);
     return signal 
-      ? `${signal.signalId} - ${signal.streetName1} & ${signal.streetName2}`
+      ? signal.signalId
       : signalId;
   };
 

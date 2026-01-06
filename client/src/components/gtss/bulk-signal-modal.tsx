@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
-import { insertSignalSchema, type InsertSignal, type Signal } from "@shared/schema";
+import { type InsertSignal, type Signal } from "@shared/schema";
 import { useSignals } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
@@ -23,8 +23,6 @@ interface PendingSignal {
   id: string;
   lat: number;
   lon: number;
-  streetName1?: string;
-  streetName2?: string;
 }
 
 interface BulkSignalModalProps {
@@ -43,7 +41,7 @@ function MapClickHandler({ onLocationAdd }: { onLocationAdd: (lat: number, lon: 
 }
 
 export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
-  const { agency, addSignal, signals } = useGTSSStore();
+  const { agency, signals } = useGTSSStore();
   const { toast } = useToast();
   const signalHooks = useSignals();
   const [pendingSignals, setPendingSignals] = useState<PendingSignal[]>([]);
@@ -103,26 +101,6 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
       lon,
     };
 
-    // Try to auto-populate street names using reverse geocoding
-    try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`);
-      const data = await response.json();
-      
-      if (data.address) {
-        const streetName = data.address.road || data.address.street || "";
-        const intersectingStreet = data.address.neighbourhood || data.address.suburb || "";
-        
-        if (streetName) {
-          newSignal.streetName1 = streetName;
-        }
-        if (intersectingStreet && intersectingStreet !== streetName) {
-          newSignal.streetName2 = intersectingStreet;
-        }
-      }
-    } catch (error) {
-      console.log("Geocoding failed for location, will use manual entry");
-    }
-
     setPendingSignals(prev => [...prev, newSignal]);
   };
 
@@ -146,8 +124,6 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
       const signalsToCreate: InsertSignal[] = pendingSignals.map((signal, index) => ({
         signalId: "", // Will be auto-generated
         agencyId: agency?.agencyId || "",
-        streetName1: signal.streetName1 || `Street ${index + 1}`,
-        streetName2: signal.streetName2 || `Cross Street ${index + 1}`,
         latitude: signal.lat,
         longitude: signal.lon,
 
@@ -196,8 +172,7 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
               <span className="text-sm font-medium text-blue-800">Instructions</span>
             </div>
             <p className="text-sm text-blue-700">
-              Click anywhere on the map to add signal locations. Street names will be auto-populated when possible. 
-              You can edit details later from the main signals table.
+              Click anywhere on the map to add signal locations. You can edit details later from the main signals table.
             </p>
           </div>
 
@@ -251,11 +226,6 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
                   <div key={signal.id} className="flex items-center justify-between text-xs bg-white p-2 rounded border">
                     <div>
                       <span className="font-medium">Signal {index + 1}</span>
-                      {signal.streetName1 && (
-                        <span className="text-grey-600 ml-2">
-                          {signal.streetName1}{signal.streetName2 ? ` & ${signal.streetName2}` : ""}
-                        </span>
-                      )}
                       <span className="text-grey-500 ml-2">
                         ({signal.lat.toFixed(4)}, {signal.lon.toFixed(4)})
                       </span>

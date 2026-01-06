@@ -249,7 +249,7 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
               <SelectContent>
                 {signals.map((sig) => (
                   <SelectItem key={sig.signalId} value={sig.signalId}>
-                    {sig.signalId} - {sig.streetName1} & {sig.streetName2}
+                    {sig.signalId}
                   </SelectItem>
                 ))}
               </SelectContent>

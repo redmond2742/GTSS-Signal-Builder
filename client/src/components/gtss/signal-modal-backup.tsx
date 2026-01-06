@@ -76,8 +76,6 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
     defaultValues: {
       signalId: "",
       agencyId: agency?.agencyId || "",
-      streetName1: "",
-      streetName2: "",
       cntLat: 0,
       cntLon: 0,
       controlType: "Actuated",
@@ -94,8 +92,6 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
       form.reset({
         signalId: signal.signalId,
         agencyId: signal.agencyId,
-        streetName1: signal.streetName1,
-        streetName2: signal.streetName2,
         cntLat: signal.cntLat,
         cntLon: signal.cntLon,
         controlType: signal.controlType,
@@ -109,8 +105,6 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
       form.reset({
         signalId: "",
         agencyId: agency?.agencyId || "",
-        streetName1: "",
-        streetName2: "",
         cntLat: 0,
         cntLon: 0,
         controlType: "Actuated",
@@ -167,34 +161,6 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                     <FormLabel>Agency ID *</FormLabel>
                     <FormControl>
                       <Input {...field} disabled />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="streetName1"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Street Name 1 *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Main Street" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="streetName2"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Street Name 2 *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="First Avenue" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -286,25 +252,6 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                       form.setValue("cntLat", lat);
                       form.setValue("cntLon", lng);
                       
-                      // Auto-populate street names using reverse geocoding
-                      try {
-                        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
-                        const data = await response.json();
-                        
-                        if (data.address) {
-                          const streetName = data.address.road || data.address.street || "";
-                          const intersectingStreet = data.address.neighbourhood || data.address.suburb || "";
-                          
-                          if (streetName) {
-                            form.setValue("streetName1", streetName);
-                          }
-                          if (intersectingStreet && intersectingStreet !== streetName) {
-                            form.setValue("streetName2", intersectingStreet);
-                          }
-                        }
-                      } catch (error) {
-                        console.log("Geocoding failed, manual entry required");
-                      }
                     }}
                     className="w-full"
                   />

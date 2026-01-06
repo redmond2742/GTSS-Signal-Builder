@@ -202,9 +202,9 @@ function generateAgencyCSV(agency: any): string {
 }
 
 function generateSignalsCSV(signals: any[]): string {
-  const headers = 'SignalID,AgencyID,Street_Name1,Street_Name2,Cnt_lat,Cnt_lon,Control_Type,Cabinet_Type,Cabinet_Lat,Cabinet_Lon,has_BatteryBackup,has_CCTV\n';
+  const headers = 'signal_id,agency_id,latitude,longitude\n';
   const rows = signals.map(s => 
-    `${s.signalId},${s.agencyId},"${s.streetName1}","${s.streetName2}",${s.cntLat},${s.cntLon},"${s.controlType}","${s.cabinetType || ''}",${s.cabinetLat || ''},${s.cabinetLon || ''},${s.hasBatteryBackup},${s.hasCctv}`
+    `${s.signalId},${s.agencyId},${s.latitude},${s.longitude}`
   ).join('\n');
   return headers + (rows ? rows + '\n' : '');
 }
