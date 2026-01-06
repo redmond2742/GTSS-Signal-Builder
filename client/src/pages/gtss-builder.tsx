@@ -55,6 +55,7 @@ export default function GTSSBuilder() {
 
   const [triggerAdd, setTriggerAdd] = useState(0);
   const [triggerBulk, setTriggerBulk] = useState(0);
+  const [triggerAddApproach, setTriggerAddApproach] = useState(0);
   const [triggerAddPhase, setTriggerAddPhase] = useState(0);
   const [triggerVisualEditor, setTriggerVisualEditor] = useState(0);
   const [triggerAddDetector, setTriggerAddDetector] = useState(0);
@@ -71,7 +72,7 @@ export default function GTSSBuilder() {
       case "signals":
         return <SignalsTable triggerAdd={triggerAdd} triggerBulk={triggerBulk} />;
       case "approaches":
-        return <ApproachesTable />;
+        return <ApproachesTable triggerAdd={triggerAddApproach} />;
       case "phases":
         return <PhasesTable triggerAdd={triggerAddPhase} triggerVisualEditor={triggerVisualEditor} />;
       case "detectors":
@@ -92,6 +93,10 @@ export default function GTSSBuilder() {
 
   const handleAddPhase = () => {
     setTriggerAddPhase(prev => prev + 1);
+  };
+
+  const handleAddApproach = () => {
+    setTriggerAddApproach(prev => prev + 1);
   };
 
   const handleVisualEditor = () => {
@@ -165,6 +170,7 @@ export default function GTSSBuilder() {
                   onClick={() => {
                     setTriggerAdd(0);
                     setTriggerBulk(0);
+                    setTriggerAddApproach(0);
                     setTriggerAddPhase(0);
                     setTriggerVisualEditor(0);
                     setTriggerAddDetector(0);
@@ -322,6 +328,14 @@ export default function GTSSBuilder() {
                 <Button onClick={handleAddPhase} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700 text-white">
                   <Plus className="w-3 h-3 sm:mr-1" />
                   <span className="hidden sm:inline">Add Phase</span>
+                </Button>
+              </div>
+            )}
+            {!showExportPanel && activeTab === "approaches" && (
+              <div className="flex space-x-1">
+                <Button onClick={handleAddApproach} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700 text-white">
+                  <Plus className="w-3 h-3 sm:mr-1" />
+                  <span className="hidden sm:inline">Add Approach</span>
                 </Button>
               </div>
             )}
