@@ -134,8 +134,6 @@ export class MemStorage implements IStorage {
       isPedestrian: phaseData.isPedestrian ?? false,
       isOverlap: phaseData.isOverlap ?? false,
       channelOutput: phaseData.channelOutput || null,
-      compassBearing: phaseData.compassBearing || null,
-      postedSpeedLimit: phaseData.postedSpeedLimit || null,
       vehicleDetectionIds: phaseData.vehicleDetectionIds || null,
       pedAudibleEnabled: phaseData.pedAudibleEnabled ?? false,
     };

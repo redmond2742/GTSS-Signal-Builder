@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import { X, Trash2, MapPin, Copy } from "lucide-react";
 
 interface PhaseModalProps {
@@ -35,8 +35,6 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
       isPedestrian: true,
       isOverlap: false,
       numOfLanes: 1,
-      compassBearing: undefined,
-      postedSpeed: undefined,
     },
   });
 
@@ -52,8 +50,6 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
         isPedestrian: phase.isPedestrian ?? phase.movementType === "Through",
         isOverlap: phase.isOverlap,
         numOfLanes: phase.numOfLanes || 1,
-        compassBearing: phase.compassBearing || undefined,
-        postedSpeed: phase.postedSpeed || undefined,
       });
     }
   }, [phase, form]);
@@ -139,7 +135,6 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
         movementType: "Left Turn",
         isPedestrian: false,
         numOfLanes: 1, // Default to 1 lane as specified
-        // Keep same compass bearing and posted speed
       };
 
       phaseHooks.save(leftTurnPhase);
@@ -313,55 +308,6 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
 
               <FormField
                 control={form.control}
-                name="compassBearing"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Compass Bearing (degrees)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="360"
-                        placeholder="90"
-                        {...field}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          field.onChange(value ? parseInt(value) : undefined);
-                        }}
-                        value={field.value || ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="postedSpeed"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Posted Speed</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="0"
-                        placeholder="35"
-                        {...field}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          field.onChange(value ? parseInt(value) : undefined);
-                        }}
-                        value={field.value || ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
                 name="numOfLanes"
                 render={({ field }) => (
                   <FormItem>
@@ -427,21 +373,13 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
               <div className="bg-gray-50 p-4 rounded-lg border">
                 <h3 className="text-lg font-medium mb-3 flex items-center">
                   <MapPin className="w-5 h-5 mr-2 text-blue-600" />
-                  Signal Location {form.watch("compassBearing") ? "& Phase Direction" : ""}
+                  Signal Location
                 </h3>
                 <div className="h-64 rounded-lg overflow-hidden border">
                   {(() => {
                     const selectedSignal = signals.find(s => s.signalId === form.watch("signalId"));
-                    const bearing = form.watch("compassBearing");
                     
                     if (!selectedSignal || !selectedSignal.latitude || !selectedSignal.longitude) return null;
-                    
-                    // Calculate end point for bearing line (reversed for traffic flow direction)
-                    const reversedBearing = bearing ? (bearing + 180) % 360 : 0;
-                    const distance = 0.002; // degrees
-                    const bearingRad = (reversedBearing * Math.PI) / 180;
-                    const endLat = (selectedSignal.latitude || 0) + distance * Math.cos(bearingRad);
-                    const endLon = (selectedSignal.longitude || 0) + distance * Math.sin(bearingRad);
                     
                     return (
                       <MapContainer
@@ -460,17 +398,6 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                             </div>
                           </Popup>
                         </Marker>
-                        {bearing && (
-                          <Polyline
-                            positions={[
-                              [selectedSignal.latitude!, selectedSignal.longitude!],
-                              [endLat, endLon]
-                            ]}
-                            color="#10b981"
-                            weight={3}
-                            opacity={0.8}
-                          />
-                        )}
                       </MapContainer>
                     );
                   })()}
