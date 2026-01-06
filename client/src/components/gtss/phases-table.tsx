@@ -262,7 +262,7 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
 
   const getSignalInfo = (signalId: string) => {
     const signal = signals.find(s => s.signalId === signalId);
-    return signal ? `${signal.signalId} - ${signal.streetName1} & ${signal.streetName2}` : signalId;
+    return signal ? signal.signalId : signalId;
   };
 
 

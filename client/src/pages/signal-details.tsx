@@ -58,8 +58,6 @@ export default function SignalDetails() {
     resolver: zodResolver(insertSignalSchema),
     defaultValues: {
       signalId: "",
-      streetName1: "",
-      streetName2: "",
       latitude: 0,
       longitude: 0,
       agencyId: agency?.agencyId || "",
@@ -106,8 +104,6 @@ export default function SignalDetails() {
       setIsEditingSignal(true); // Start in editing mode for new signal
       signalForm.reset({
         signalId: "",
-        streetName1: "",
-        streetName2: "",
         latitude: agency?.latitude || 39.8283,
         longitude: agency?.longitude || -98.5795,
         agencyId: agency?.agencyId || "",
@@ -118,8 +114,6 @@ export default function SignalDetails() {
         setSignal(foundSignal);
         signalForm.reset({
           signalId: foundSignal.signalId,
-          streetName1: foundSignal.streetName1,
-          streetName2: foundSignal.streetName2,
           latitude: foundSignal.latitude,
           longitude: foundSignal.longitude,
           agencyId: foundSignal.agencyId,
@@ -161,8 +155,6 @@ export default function SignalDetails() {
           // Force a refresh of the form with updated data
           signalForm.reset({
             signalId: updatedSignal.signalId,
-            streetName1: updatedSignal.streetName1,
-            streetName2: updatedSignal.streetName2,
             latitude: updatedSignal.latitude,
             longitude: updatedSignal.longitude,
             agencyId: updatedSignal.agencyId,
@@ -441,7 +433,7 @@ export default function SignalDetails() {
             <p className="text-xs text-grey-500 hidden sm:block">
               {isNewSignal 
                 ? "Configure new traffic signal information" 
-                : `${signal?.streetName1} & ${signal?.streetName2}`
+                : `Signal ${signal?.signalId}`
               }
             </p>
           </div>
@@ -466,9 +458,9 @@ export default function SignalDetails() {
               <ChevronLeft className="w-4 h-4" />
             </Button>
             
-            {/* Signal pill with ID and street names */}
+            {/* Signal pill with ID */}
             <Badge variant="outline" className="text-xs px-3 py-1">
-              {signal.signalId} • {signal.streetName1} & {signal.streetName2}
+              {signal.signalId}
             </Badge>
             
             <Button
@@ -545,32 +537,6 @@ export default function SignalDetails() {
                     render={({ field }) => (
                       <FormItem className="space-y-1">
                         <FormLabel className="text-xs font-medium">Agency ID</FormLabel>
-                        <FormControl>
-                          <Input {...field} className="h-7 px-2 text-xs" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={signalForm.control}
-                    name="streetName1"
-                    render={({ field }) => (
-                      <FormItem className="space-y-1">
-                        <FormLabel className="text-xs font-medium">Street Name 1</FormLabel>
-                        <FormControl>
-                          <Input {...field} className="h-7 px-2 text-xs" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={signalForm.control}
-                    name="streetName2"
-                    render={({ field }) => (
-                      <FormItem className="space-y-1">
-                        <FormLabel className="text-xs font-medium">Street Name 2</FormLabel>
                         <FormControl>
                           <Input {...field} className="h-7 px-2 text-xs" />
                         </FormControl>
@@ -667,10 +633,6 @@ export default function SignalDetails() {
                 <div>
                   <p className="text-xs font-medium text-grey-500">Signal ID</p>
                   <p className="text-sm font-mono">{signal.signalId}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-grey-500">Streets</p>
-                  <p className="text-sm">{signal.streetName1} & {signal.streetName2}</p>
                 </div>
               </div>
               <div className="space-y-2">

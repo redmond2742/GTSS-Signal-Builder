@@ -4,7 +4,6 @@ import L from "leaflet";
 import { Signal } from "@shared/schema";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Check, X, Edit } from "lucide-react";
 import { useGTSSStore } from "@/store/gtss-store";
 import "leaflet/dist/leaflet.css";
 
@@ -60,8 +59,6 @@ function QuickEditPopup({ signal, onUpdate, onSignalSelect }: {
 }) {
   const [formData, setFormData] = useState({
     signalId: signal.signalId,
-    streetName1: signal.streetName1,
-    streetName2: signal.streetName2,
   });
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -101,22 +98,6 @@ function QuickEditPopup({ signal, onUpdate, onSignalSelect }: {
               Save
             </Button>
           </div>
-        </div>
-        <div>
-          <Input
-            value={formData.streetName1}
-            onChange={(e) => handleInputChange('streetName1', e.target.value)}
-            className="text-xs h-6"
-            placeholder="Street 1"
-          />
-        </div>
-        <div>
-          <Input
-            value={formData.streetName2}
-            onChange={(e) => handleInputChange('streetName2', e.target.value)}
-            className="text-xs h-6"
-            placeholder="Street 2"
-          />
         </div>
         <div className="text-xs text-grey-500">
           {signal.latitude?.toFixed(4)}, {signal.longitude?.toFixed(4)}

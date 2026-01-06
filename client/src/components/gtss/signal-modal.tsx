@@ -8,12 +8,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MapPicker } from "@/components/ui/map";
-import { X, MapPin, Edit3, Trash2 } from "lucide-react";
+import { MapPin, Trash2 } from "lucide-react";
 
 interface SignalModalProps {
   signal: Signal | null;
@@ -21,7 +18,7 @@ interface SignalModalProps {
 }
 
 export default function SignalModal({ signal, onClose }: SignalModalProps) {
-  const { agency, addSignal, updateSignal } = useGTSSStore();
+  const { agency } = useGTSSStore();
   const { toast } = useToast();
   const signalHooks = useSignals();
 
@@ -30,8 +27,6 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
     defaultValues: {
       signalId: "",
       agencyId: agency?.agencyId || "",
-      streetName1: "",
-      streetName2: "",
       latitude: 39.8283,
       longitude: -98.5795,
     },
@@ -42,8 +37,6 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
       form.reset({
         signalId: signal.signalId,
         agencyId: signal.agencyId,
-        streetName1: signal.streetName1,
-        streetName2: signal.streetName2,
         latitude: signal.latitude,
         longitude: signal.longitude,
       });
@@ -51,8 +44,6 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
       form.reset({
         signalId: "",
         agencyId: agency?.agencyId || "",
-        streetName1: "",
-        streetName2: "",
         latitude: 39.8283,
         longitude: -98.5795,
       });
@@ -142,33 +133,6 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="streetName1"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Street Name 1 *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Main Street" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="streetName2"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Street Name 2 *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="First Avenue" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
 
             {/* Location Selection Section */}
@@ -191,26 +155,6 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                     onLocationSelect={async (lat, lng) => {
                       form.setValue("latitude", lat);
                       form.setValue("longitude", lng);
-                      
-                      // Try to auto-populate street names using reverse geocoding
-                      try {
-                        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
-                        const data = await response.json();
-                        
-                        if (data.address) {
-                          const streetName = data.address.road || data.address.street || "";
-                          const intersectingStreet = data.address.neighbourhood || data.address.suburb || "";
-                          
-                          if (streetName) {
-                            form.setValue("streetName1", streetName);
-                          }
-                          if (intersectingStreet && intersectingStreet !== streetName) {
-                            form.setValue("streetName2", intersectingStreet);
-                          }
-                        }
-                      } catch (error) {
-                        console.log("Geocoding failed, manual entry required");
-                      }
                     }}
                     className="w-full"
                   />

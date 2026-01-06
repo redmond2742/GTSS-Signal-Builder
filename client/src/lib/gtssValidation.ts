@@ -2,7 +2,7 @@ import { Signal, Phase, Detector } from "@shared/schema";
 
 export interface ValidationResult {
   signalId: string;
-  street: string;
+  location: string;
   phaseCount: number;
   detectorCount: number;
   phaseCompleteness: string;
@@ -49,7 +49,7 @@ export function evaluateGTSSCompleteness(
 
     return {
       signalId: sid,
-      street: `${signal.streetName1} & ${signal.streetName2}`,
+      location: `${signal.latitude.toFixed(6)}, ${signal.longitude.toFixed(6)}`,
       phaseCount,
       detectorCount,
       phaseCompleteness: `${Math.round(phaseCompleteness * 100)}%`,

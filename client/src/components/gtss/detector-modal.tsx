@@ -271,7 +271,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                       <SelectContent>
                         {signals.map((signal) => (
                           <SelectItem key={signal.id} value={signal.signalId}>
-                            {signal.signalId} - {signal.streetName1} & {signal.streetName2}
+                            {signal.signalId}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -555,9 +555,6 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                           <Popup>
                             <div className="text-center">
                               <div className="font-medium">{selectedSignal.signalId}</div>
-                              <div className="text-xs text-gray-600">
-                                {selectedSignal.streetName1} & {selectedSignal.streetName2}
-                              </div>
                             </div>
                           </Popup>
                         </Marker>

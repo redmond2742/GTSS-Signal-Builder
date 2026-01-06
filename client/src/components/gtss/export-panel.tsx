@@ -90,9 +90,6 @@ export default function ExportPanel() {
       if (!signal.signalId) {
         issues.push({ type: "error", section: "Signal Locations", message: `Missing signal ID for signal` });
       }
-      if (!signal.streetName1 || !signal.streetName2) {
-        issues.push({ type: "warning", section: "Signal Locations", message: `Missing street names for ${signal.signalId}` });
-      }
     });
     
     const signalIds = signals.map(s => s.signalId);
@@ -233,7 +230,7 @@ export default function ExportPanel() {
                               </Badge>
                               <div>
                                 <p className="text-sm font-medium text-grey-800">{result.signalId}</p>
-                                <p className="text-xs text-grey-600">{result.street}</p>
+                                <p className="text-xs text-grey-600">{result.location}</p>
                               </div>
                             </div>
                             <div className="grid grid-cols-3 gap-4 mt-3">
