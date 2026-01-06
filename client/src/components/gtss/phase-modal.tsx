@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertPhaseSchema, type InsertPhase, type Phase } from "@shared/schema";
+import { insertPhaseSchema, type InsertPhase, type Approach, type Phase } from "@shared/schema";
 import { usePhases } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
@@ -21,7 +21,7 @@ interface PhaseModalProps {
 }
 
 export default function PhaseModal({ phase, onClose, preSelectedSignalId }: PhaseModalProps) {
-  const { signals } = useGTSSStore();
+  const { signals, approaches } = useGTSSStore();
   const { toast } = useToast();
   const phaseHooks = usePhases();
   const [isLoading, setIsLoading] = useState(false);
@@ -31,6 +31,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
     defaultValues: {
       phase: 2,
       signalId: preSelectedSignalId || "",
+      approachId: null,
       movementType: "Through",
       isPedestrian: true,
       isOverlap: false,
@@ -40,12 +41,16 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
 
   const movementType = form.watch("movementType");
   const pedestrianDirty = form.formState.dirtyFields.isPedestrian;
+  const selectedSignalId = form.watch("signalId");
+  const availableApproaches = approaches.filter((approach) => approach.signalId === selectedSignalId);
+  const formatApproachLabel = (approach: Approach) => `${approach.compassBearing} ${approach.streetName}`;
 
   useEffect(() => {
     if (phase) {
       form.reset({
         phase: phase.phase,
         signalId: phase.signalId,
+        approachId: phase.approachId ?? null,
         movementType: phase.movementType,
         isPedestrian: phase.isPedestrian ?? phase.movementType === "Through",
         isOverlap: phase.isOverlap,
@@ -59,6 +64,13 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
       form.setValue("isPedestrian", movementType === "Through");
     }
   }, [movementType, pedestrianDirty, phase, form]);
+
+  useEffect(() => {
+    const currentApproachId = form.getValues("approachId");
+    if (currentApproachId && !availableApproaches.some((approach) => approach.approachId === currentApproachId)) {
+      form.setValue("approachId", null);
+    }
+  }, [availableApproaches, form]);
 
   const onSubmit = async (data: InsertPhase) => {
     setIsLoading(true);
@@ -266,6 +278,32 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                         {signals.map((signal) => (
                           <SelectItem key={signal.signalId} value={signal.signalId}>
                             {signal.signalId}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="approachId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Approach</FormLabel>
+                    <Select onValueChange={(value) => field.onChange(value || null)} value={field.value ?? ""}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={availableApproaches.length ? "Select approach" : "No approaches"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="">Unassigned</SelectItem>
+                        {availableApproaches.map((approach) => (
+                          <SelectItem key={approach.id} value={approach.approachId}>
+                            {formatApproachLabel(approach)}
                           </SelectItem>
                         ))}
                       </SelectContent>

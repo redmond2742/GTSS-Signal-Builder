@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertDetectorSchema, type InsertDetector, type Detector } from "@shared/schema";
+import { insertDetectorSchema, type Approach, type InsertDetector, type Detector } from "@shared/schema";
 import { useDetectors } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
@@ -15,9 +15,16 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import { X, MapPin, Target, Trash2 } from "lucide-react";
 // Removed image import for simplified interface
 
-const getApproachLabel = (phase?: { movementType: string } | null) => {
+const getApproachLabel = (
+  phase: { approachId?: string | null; movementType: string } | null,
+  approaches: Approach[]
+) => {
   if (!phase) {
     return "";
+  }
+  const approach = approaches.find((item) => item.approachId === phase.approachId);
+  if (approach) {
+    return `${approach.compassBearing} ${approach.streetName}`;
   }
   return phase.movementType;
 };
@@ -69,7 +76,7 @@ interface DetectorModalProps {
 }
 
 export default function DetectorModal({ detector, onClose, preSelectedSignalId }: DetectorModalProps) {
-  const { signals, phases } = useGTSSStore();
+  const { signals, approaches, phases } = useGTSSStore();
   const { toast } = useToast();
   const detectorHooks = useDetectors();
   const [selectedZone, setSelectedZone] = useState<'stopbar' | 'advance' | 'count' | null>(null);
@@ -226,7 +233,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
     const selectedPhase = phases.find(
       (phase) => phase.signalId === selectedSignalId && phase.phase === watchedPhase,
     );
-    const approachLabel = getApproachLabel(selectedPhase);
+    const approachLabel = getApproachLabel(selectedPhase ?? null, approaches);
     const formattedPurpose = formatPurposeForDescription(watchedPurpose ?? "");
     const laneValue = watchedLane?.toString().trim() ?? "";
     const description = buildDetectorDescription(approachLabel, formattedPurpose, laneValue);

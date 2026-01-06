@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertSignalSchema, insertPhaseSchema, insertDetectorSchema, type Signal, type Phase, type Detector, type InsertSignal, type InsertPhase, type InsertDetector } from "@shared/schema";
+import { insertSignalSchema, insertPhaseSchema, insertDetectorSchema, type Signal, type Approach, type Phase, type Detector, type InsertSignal, type InsertPhase, type InsertDetector } from "@shared/schema";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useSignals, usePhases, useDetectors } from "@/lib/localStorageHooks";
 import { useToast } from "@/hooks/use-toast";
@@ -22,7 +22,7 @@ import PhaseModal from "@/components/gtss/phase-modal";
 import DetectorModal from "@/components/gtss/detector-modal";
 import VisualPhaseEditor from "@/components/gtss/visual-phase-editor";
 import GTSSFileViewer, { GTSSFilePreview } from "@/components/gtss/gtss-file-viewer";
-import { generateAgencyCSV, generateSignalsCSV, generatePhasesCSV, generateDetectionCSV } from "@/lib/localStorage";
+import { generateAgencyCSV, generateSignalsCSV, generateApproachesCSV, generatePhasesCSV, generateDetectionCSV } from "@/lib/localStorage";
 
 // Location picker component for interactive map editing
 function LocationPicker({ onLocationSelect }: { onLocationSelect: (lat: number, lon: number) => void }) {
@@ -36,7 +36,7 @@ function LocationPicker({ onLocationSelect }: { onLocationSelect: (lat: number, 
 
 export default function SignalDetails() {
   const { toast } = useToast();
-  const { agency, signals, phases, detectors, currentSignalId, navigateToMain, navigateToSignalDetails } = useGTSSStore();
+  const { agency, signals, approaches, phases, detectors, currentSignalId, navigateToMain, navigateToSignalDetails } = useGTSSStore();
   const signalId = currentSignalId;
   const isNewSignal = signalId === null;
   const signalHooks = useSignals();
@@ -44,6 +44,7 @@ export default function SignalDetails() {
   const detectorHooks = useDetectors();
   
   const [signal, setSignal] = useState<Signal | null>(null);
+  const [signalApproaches, setSignalApproaches] = useState<Approach[]>([]);
   const [signalPhases, setSignalPhases] = useState<Phase[]>([]);
   const [signalDetectors, setSignalDetectors] = useState<Detector[]>([]);
   const [isEditingSignal, setIsEditingSignal] = useState(false);
@@ -69,6 +70,7 @@ export default function SignalDetails() {
     defaultValues: {
       signalId: signalId && signalId !== 'new' ? signalId : "",
       phase: 1,
+      approachId: null,
       movementType: "Through",
       isPedestrian: true,
       numOfLanes: 1,
@@ -87,16 +89,31 @@ export default function SignalDetails() {
     return [
       { id: "agency", label: "agency.txt", content: generateAgencyCSV(agency) },
       { id: "signals", label: "signals.txt", content: generateSignalsCSV([signal]) },
+      { id: "approaches", label: "approaches.txt", content: generateApproachesCSV(signalApproaches) },
       { id: "phases", label: "phases.txt", content: generatePhasesCSV(signalPhases) },
       { id: "detectors", label: "detectors.txt", content: generateDetectionCSV(signalDetectors) },
     ] as GTSSFilePreview[];
-  }, [agency, signal, signalPhases, signalDetectors]);
+  }, [agency, signal, signalApproaches, signalPhases, signalDetectors]);
+
+  const formatApproachLabel = (approach: Approach) => `${approach.compassBearing} ${approach.streetName}`;
+  const getApproachLabel = (approachId?: string | null) => {
+    if (!approachId) {
+      return "Unassigned";
+    }
+    const approach = signalApproaches.find(item => item.approachId === approachId);
+    return approach ? formatApproachLabel(approach) : "Unassigned";
+  };
+  const getDetectorApproachLabel = (phaseNumber: number) => {
+    const phase = signalPhases.find(item => item.phase === phaseNumber);
+    return getApproachLabel(phase?.approachId ?? null);
+  };
 
 
   useEffect(() => {
     if (isNewSignal) {
       // Initialize for new signal creation
       setSignal(null);
+      setSignalApproaches([]);
       setSignalPhases([]);
       setSignalDetectors([]);
       setIsEditingSignal(true); // Start in editing mode for new signal
@@ -118,13 +135,16 @@ export default function SignalDetails() {
         });
       }
       
+      const filteredApproaches = approaches.filter(a => a.signalId === signalId);
+      setSignalApproaches(filteredApproaches);
+
       const filteredPhases = phases.filter(p => p.signalId === signalId);
       setSignalPhases(filteredPhases);
       
       const filteredDetectors = detectors.filter(d => d.signalId === signalId);
       setSignalDetectors(filteredDetectors);
     }
-  }, [signalId, isNewSignal, signals, phases, detectors, agency]);
+  }, [signalId, isNewSignal, signals, approaches, phases, detectors, agency]);
 
   const handleSignalSave = (data: InsertSignal) => {
     try {
@@ -194,6 +214,7 @@ export default function SignalDetails() {
     phaseForm.reset({
       signalId: signalId || "",
       phase: signalPhases.length + 1,
+      approachId: signalApproaches[0]?.approachId ?? null,
       movementType: "Through",
       isPedestrian: true,
       numOfLanes: 1,
@@ -207,6 +228,7 @@ export default function SignalDetails() {
     phaseForm.reset({
       signalId: phase.signalId,
       phase: phase.phase,
+      approachId: phase.approachId ?? null,
       movementType: phase.movementType,
       isPedestrian: phase.isPedestrian ?? phase.movementType === "Through",
       numOfLanes: phase.numOfLanes,
@@ -425,9 +447,11 @@ export default function SignalDetails() {
               {isNewSignal ? "New Signal" : "Signal Details"}
             </h1>
             <p className="text-xs text-grey-500 hidden sm:block">
-              {isNewSignal 
-                ? "Configure new traffic signal information" 
-                : `Signal ${signal?.signalId}`
+              {isNewSignal
+                ? "Configure new traffic signal information"
+                : signalApproaches.length > 0
+                  ? `Signal ${signal?.signalId} • ${signalApproaches.map(formatApproachLabel).join(" · ")}`
+                  : `Signal ${signal?.signalId}`
               }
             </p>
           </div>
@@ -710,6 +734,7 @@ export default function SignalDetails() {
                 <TableHeader>
                   <TableRow className="bg-grey-50 border-b border-grey-200">
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Phase</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Approach</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Movement</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Lanes</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Actions</TableHead>
@@ -729,6 +754,9 @@ export default function SignalDetails() {
                             <Badge variant="secondary" style={{ fontSize: '10px' }} className="px-1 py-0">Overlap</Badge>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>
+                        {getApproachLabel(phase.approachId)}
                       </TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{phase.movementType}</TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{phase.numOfLanes}</TableCell>
@@ -790,6 +818,7 @@ export default function SignalDetails() {
                   <TableRow className="bg-grey-50 border-b border-grey-200">
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Channel</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Phase</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Approach</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Technology</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Setback</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Actions</TableHead>
@@ -804,6 +833,7 @@ export default function SignalDetails() {
                     >
                       <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>{detector.channel}</TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{detector.phase}</TableCell>
+                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{getDetectorApproachLabel(detector.phase)}</TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{detector.technologyType}</TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>
                         {detector.stopbarSetbackDist ? `${detector.stopbarSetbackDist}ft` : 'N/A'}
@@ -926,6 +956,36 @@ export default function SignalDetails() {
                           <SelectItem value="Left">Left</SelectItem>
                           <SelectItem value="Right">Right</SelectItem>
                           <SelectItem value="U-Turn">U-Turn</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={phaseForm.control}
+                  name="approachId"
+                  render={({ field }) => (
+                    <FormItem className="space-y-0.5">
+                      <div className="flex items-center space-x-1">
+                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Approach</FormLabel>
+                      </div>
+                      <Select
+                        onValueChange={(value) => field.onChange(value || null)}
+                        value={field.value ?? ""}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="h-6" style={{ fontSize: '12px' }}>
+                            <SelectValue placeholder={signalApproaches.length ? "Select approach" : "No approaches"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="">Unassigned</SelectItem>
+                          {signalApproaches.map((approach) => (
+                            <SelectItem key={approach.id} value={approach.approachId}>
+                              {formatApproachLabel(approach)}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
