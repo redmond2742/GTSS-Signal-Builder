@@ -1,4 +1,4 @@
-import { type Agency, type InsertAgency, type Signal, type InsertSignal, type Approach, type InsertApproach, type Phase, type InsertPhase, type Detector, type InsertDetector, type GTSSData } from "@shared/schema";
+import { type Agency, type InsertAgency, type Signal, type InsertSignal, type Approach, type InsertApproach, type Phase, type InsertPhase, type Detector, type InsertDetector, type BasicTiming, type InsertBasicTiming, type GTSSData } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -44,6 +44,7 @@ export class MemStorage implements IStorage {
   private approaches: Map<string, Approach> = new Map();
   private phases: Map<string, Phase> = new Map();
   private detectors: Map<string, Detector> = new Map();
+  private basicTiming: Map<string, BasicTiming> = new Map();
 
   async getAgency(): Promise<Agency | undefined> {
     return this.agency || undefined;
@@ -243,6 +244,28 @@ export class MemStorage implements IStorage {
     this.detectors.delete(id);
   }
 
+  async getBasicTiming(): Promise<BasicTiming[]> {
+    return Array.from(this.basicTiming.values());
+  }
+
+  async createOrUpdateBasicTiming(data: InsertBasicTiming): Promise<BasicTiming> {
+    const key = `${data.signalId}-${data.phase}`;
+    const timing: BasicTiming = {
+      signalId: data.signalId,
+      phase: data.phase,
+      pedWalk: data.pedWalk,
+      pedClearance: data.pedClearance,
+      leadingPedInterval: data.leadingPedInterval,
+      minGreen: data.minGreen,
+      maxGreen: data.maxGreen,
+      yellow: data.yellow,
+      allRed: data.allRed,
+      vehRecallType: data.vehRecallType,
+    };
+    this.basicTiming.set(key, timing);
+    return timing;
+  }
+
   async getAllData(): Promise<GTSSData> {
     return {
       agency: this.agency,
@@ -250,6 +273,7 @@ export class MemStorage implements IStorage {
       approaches: Array.from(this.approaches.values()),
       phases: Array.from(this.phases.values()),
       detectors: Array.from(this.detectors.values()),
+      basicTiming: Array.from(this.basicTiming.values()),
     };
   }
 }
