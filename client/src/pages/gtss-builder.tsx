@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useLoadFromStorage } from "@/lib/localStorageHooks";
-import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Navigation, Plus, Map, Coffee, Trash2, Menu, X, ExternalLink } from "lucide-react";
+import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Navigation, Plus, Map, Coffee, Trash2, Menu, X, ExternalLink, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import AgencyForm from "@/components/gtss/agency-form";
 import SignalsTable from "@/components/gtss/signals-table";
+import ApproachesTable from "@/components/gtss/approaches-table";
 import PhasesTable from "@/components/gtss/phases-table";
 import DetectorsTable from "@/components/gtss/detectors-table";
 import ExportPanel from "@/components/gtss/export-panel";
@@ -15,10 +16,11 @@ import { useToast } from "@/hooks/use-toast";
 import { clearAllData } from "@/lib/localStorage";
 import { cn } from "@/lib/utils";
 
-type TabType = "agency" | "signals" | "phases" | "detectors";
+type TabType = "agency" | "signals" | "approaches" | "phases" | "detectors";
 
 const tabs = [
   { id: "signals", label: "Traffic Signals", icon: MapPin },
+  { id: "approaches", label: "Approaches", icon: Compass },
   { id: "phases", label: "Phases", icon: ArrowUpDown },
   { id: "detectors", label: "Detectors", icon: Target },
   { id: "agency", label: "Agency Info", icon: Building },
@@ -27,6 +29,7 @@ const tabs = [
 const tabTitles = {
   agency: { title: "Agency Information", desc: "Configure your traffic management agency details" },
   signals: { title: "Traffic Signals", desc: "Manage traffic signal installation locations" },
+  approaches: { title: "Signal Approaches", desc: "Review all configured approaches across signals" },
   phases: { title: "Signal Phases", desc: "Configure movement phases for each signal" },
   detectors: { title: "Detection Systems", desc: "Configure vehicle and pedestrian detection equipment" },
 };
@@ -35,7 +38,7 @@ export default function GTSSBuilder() {
   const [activeTab, setActiveTab] = useState<TabType>("signals");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showExportPanel, setShowExportPanel] = useState(false);
-  const { signals, phases, detectors, currentView, setAgency, setSignals, setPhases, setDetectors, navigateToSignalDetails } = useGTSSStore();
+  const { signals, approaches, phases, detectors, currentView, setAgency, setSignals, setApproaches, setPhases, setDetectors, setBasicTiming, navigateToSignalDetails } = useGTSSStore();
   const { toast } = useToast();
   
   // Load data from localStorage on mount
@@ -43,6 +46,7 @@ export default function GTSSBuilder() {
 
   const getCounts = () => ({
     signals: signals.length,
+    approaches: approaches.length,
     phases: phases.length,
     detectors: detectors.length,
   });
@@ -66,6 +70,8 @@ export default function GTSSBuilder() {
         return <AgencyForm />;
       case "signals":
         return <SignalsTable triggerAdd={triggerAdd} triggerBulk={triggerBulk} />;
+      case "approaches":
+        return <ApproachesTable />;
       case "phases":
         return <PhasesTable triggerAdd={triggerAddPhase} triggerVisualEditor={triggerVisualEditor} />;
       case "detectors":
@@ -101,8 +107,10 @@ export default function GTSSBuilder() {
     // Reset store to empty state
     setAgency(null);
     setSignals([]);
+    setApproaches([]);
     setPhases([]);
     setDetectors([]);
+    setBasicTiming([]);
     
     toast({
       title: "Data Cleared",
