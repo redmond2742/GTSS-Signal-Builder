@@ -28,25 +28,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
 
-const COMPASS_DIRECTIONS = [
-  "N",
-  "NNE",
-  "NE",
-  "ENE",
-  "E",
-  "ESE",
-  "SE",
-  "SSE",
-  "S",
-  "SSW",
-  "SW",
-  "WSW",
-  "W",
-  "WNW",
-  "NW",
-  "NNW",
-];
-
 function calculateBearing(start: L.LatLng, end: L.LatLng): number {
   const startLat = start.lat * (Math.PI / 180);
   const startLng = start.lng * (Math.PI / 180);
@@ -61,9 +42,7 @@ function calculateBearing(start: L.LatLng, end: L.LatLng): number {
 }
 
 function formatCompassBearing(bearing: number): string {
-  const index = Math.round(bearing / 22.5) % COMPASS_DIRECTIONS.length;
-  const direction = COMPASS_DIRECTIONS[index];
-  return `${bearing}° ${direction}`;
+  return `${bearing}`;
 }
 
 export default function ApproachModal({ approach, onClose }: ApproachModalProps) {
@@ -267,7 +246,7 @@ export default function ApproachModal({ approach, onClose }: ApproachModalProps)
                   <FormItem>
                     <FormLabel>Compass Bearing *</FormLabel>
                     <FormControl>
-                      <Input placeholder="135° SE" {...field} />
+                      <Input placeholder="135" {...field} />
                     </FormControl>
                     <FormDescription>
                       Click on the map to draw a direction line from the signal and auto-fill the bearing.
