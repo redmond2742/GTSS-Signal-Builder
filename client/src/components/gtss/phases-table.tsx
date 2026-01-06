@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Phase, InsertPhase } from "@shared/schema";
+import { Approach, Phase, InsertPhase } from "@shared/schema";
 import { usePhases } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +31,7 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
   const [sortField, setSortField] = useState<SortField>('phase');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [selectedPhaseIds, setSelectedPhaseIds] = useState<Set<string>>(new Set());
-  const { signals, phases } = useGTSSStore();
+  const { signals, approaches, phases } = useGTSSStore();
   const { toast } = useToast();
   const phaseHooks = usePhases();
 
@@ -261,6 +261,15 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
     return signal ? signal.signalId : signalId;
   };
 
+  const formatApproachLabel = (approach: Approach) => `${approach.compassBearing} ${approach.streetName}`;
+  const getApproachLabel = (approachId?: string | null) => {
+    if (!approachId) {
+      return "Unassigned";
+    }
+    const approach = approaches.find(item => item.approachId === approachId);
+    return approach ? formatApproachLabel(approach) : "Unassigned";
+  };
+
 
 
   return (
@@ -365,6 +374,9 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
                   </TableHead>
                   <SortableHeader field="signalId">Signal ID</SortableHeader>
                   <SortableHeader field="phase">Phase</SortableHeader>
+                  <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">
+                    Approach
+                  </TableHead>
                   <SortableHeader field="movementType">Movement</SortableHeader>
                   <SortableHeader field="numOfLanes">Lanes</SortableHeader>
                 </TableRow>
@@ -398,6 +410,9 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
                       </TableCell>
                       <TableCell className="font-medium text-grey-900 text-xs py-1 px-2">{phase.signalId}</TableCell>
                       <TableCell className="text-grey-600 text-xs py-1 px-2">{phase.phase}</TableCell>
+                      <TableCell className="text-grey-600 text-xs py-1 px-2">
+                        {getApproachLabel(phase.approachId)}
+                      </TableCell>
                       <TableCell className="text-grey-600 text-xs py-1 px-2">
                         <div className="flex items-center space-x-1">
                           <span>{phase.movementType}</span>

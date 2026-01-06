@@ -3,6 +3,7 @@ import { useGTSSStore } from '@/store/gtss-store';
 import { 
   agencyStorage, 
   signalStorage, 
+  approachStorage,
   phaseStorage, 
   detectorStorage,
   exportAsZip,
@@ -11,6 +12,7 @@ import {
 import { 
   InsertAgency, 
   InsertSignal, 
+  InsertApproach,
   InsertPhase, 
   InsertDetector 
 } from '@shared/schema';
@@ -59,6 +61,36 @@ export const useSignals = () => {
     save: saveSignal,
     update: updateSignalById,
     delete: deleteSignalById,
+  };
+};
+
+export const useApproaches = () => {
+  const { approaches, addApproach, updateApproach, deleteApproach } = useGTSSStore();
+
+  const saveApproach = (data: InsertApproach) => {
+    const savedApproach = approachStorage.save(data);
+    addApproach(savedApproach);
+    return savedApproach;
+  };
+
+  const updateApproachById = (id: string, data: Partial<InsertApproach>) => {
+    const updatedApproach = approachStorage.update(id, data);
+    if (updatedApproach) {
+      updateApproach(id, updatedApproach);
+    }
+    return updatedApproach;
+  };
+
+  const deleteApproachById = (id: string) => {
+    approachStorage.delete(id);
+    deleteApproach(id);
+  };
+
+  return {
+    data: approaches,
+    save: saveApproach,
+    update: updateApproachById,
+    delete: deleteApproachById,
   };
 };
 

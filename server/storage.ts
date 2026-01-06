@@ -1,4 +1,4 @@
-import { type Agency, type InsertAgency, type Signal, type InsertSignal, type Phase, type InsertPhase, type Detector, type InsertDetector, type GTSSData } from "@shared/schema";
+import { type Agency, type InsertAgency, type Signal, type InsertSignal, type Approach, type InsertApproach, type Phase, type InsertPhase, type Detector, type InsertDetector, type GTSSData } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -20,6 +20,13 @@ export interface IStorage {
   updatePhase(id: string, phase: Partial<InsertPhase>): Promise<Phase>;
   deletePhase(id: string): Promise<void>;
 
+  // Approach methods
+  getApproaches(): Promise<Approach[]>;
+  getApproachesBySignal(signalId: string): Promise<Approach[]>;
+  createApproach(approach: InsertApproach): Promise<Approach>;
+  updateApproach(id: string, approach: Partial<InsertApproach>): Promise<Approach>;
+  deleteApproach(id: string): Promise<void>;
+
   // Detector methods
   getDetectors(): Promise<Detector[]>;
   getDetectorsBySignal(signalId: string): Promise<Detector[]>;
@@ -34,6 +41,7 @@ export interface IStorage {
 export class MemStorage implements IStorage {
   private agency: Agency | null = null;
   private signals: Map<string, Signal> = new Map();
+  private approaches: Map<string, Approach> = new Map();
   private phases: Map<string, Phase> = new Map();
   private detectors: Map<string, Detector> = new Map();
 
@@ -91,6 +99,11 @@ export class MemStorage implements IStorage {
           this.phases.set(id, { ...phase, signalId: signalData.signalId! });
         }
       });
+      Array.from(this.approaches.entries()).forEach(([id, approach]) => {
+        if (approach.signalId === signalId) {
+          this.approaches.set(id, { ...approach, signalId: signalData.signalId! });
+        }
+      });
       Array.from(this.detectors.entries()).forEach(([id, detector]) => {
         if (detector.signalId === signalId) {
           this.detectors.set(id, { ...detector, signalId: signalData.signalId! });
@@ -108,6 +121,11 @@ export class MemStorage implements IStorage {
       Array.from(this.phases.entries()).forEach(([id, phase]) => {
         if (phase.signalId === signalId) {
           this.phases.delete(id);
+        }
+      });
+      Array.from(this.approaches.entries()).forEach(([id, approach]) => {
+        if (approach.signalId === signalId) {
+          this.approaches.delete(id);
         }
       });
       Array.from(this.detectors.entries()).forEach(([id, detector]) => {
@@ -155,6 +173,39 @@ export class MemStorage implements IStorage {
     this.phases.delete(id);
   }
 
+  async getApproaches(): Promise<Approach[]> {
+    return Array.from(this.approaches.values());
+  }
+
+  async getApproachesBySignal(signalId: string): Promise<Approach[]> {
+    return Array.from(this.approaches.values()).filter(a => a.signalId === signalId);
+  }
+
+  async createApproach(approachData: InsertApproach): Promise<Approach> {
+    const id = randomUUID();
+    const approach: Approach = {
+      id,
+      ...approachData,
+      postedSpeed: approachData.postedSpeed ?? null,
+    };
+    this.approaches.set(id, approach);
+    return approach;
+  }
+
+  async updateApproach(id: string, approachData: Partial<InsertApproach>): Promise<Approach> {
+    const existing = this.approaches.get(id);
+    if (!existing) {
+      throw new Error("Approach not found");
+    }
+    const updated: Approach = { ...existing, ...approachData };
+    this.approaches.set(id, updated);
+    return updated;
+  }
+
+  async deleteApproach(id: string): Promise<void> {
+    this.approaches.delete(id);
+  }
+
   async getDetectors(): Promise<Detector[]> {
     return Array.from(this.detectors.values());
   }
@@ -196,6 +247,7 @@ export class MemStorage implements IStorage {
     return {
       agency: this.agency,
       signals: Array.from(this.signals.values()),
+      approaches: Array.from(this.approaches.values()),
       phases: Array.from(this.phases.values()),
       detectors: Array.from(this.detectors.values()),
     };

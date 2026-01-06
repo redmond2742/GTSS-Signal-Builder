@@ -1,10 +1,11 @@
-import { Agency, Signal, Phase, Detector, InsertAgency, InsertSignal, InsertPhase, InsertDetector } from '@shared/schema';
+import { Agency, Signal, Approach, Phase, Detector, InsertAgency, InsertSignal, InsertApproach, InsertPhase, InsertDetector } from '@shared/schema';
 import { nanoid } from 'nanoid';
 
 // Storage keys
 const STORAGE_KEYS = {
   AGENCY: 'gtss_agency',
   SIGNALS: 'gtss_signals', 
+  APPROACHES: 'gtss_approaches',
   PHASES: 'gtss_phases',
   DETECTORS: 'gtss_detectors',
 };
@@ -96,6 +97,7 @@ export const signalStorage = {
     if (updates.signalId && updates.signalId !== signalId) {
       phaseStorage.updateSignalId(signalId, updates.signalId);
       detectorStorage.updateSignalId(signalId, updates.signalId);
+      approachStorage.updateSignalId(signalId, updates.signalId);
     }
     return updatedSignal;
   },
@@ -108,10 +110,75 @@ export const signalStorage = {
     // Also delete related phases and detectors
     phaseStorage.deleteBySignal(signalId);
     detectorStorage.deleteBySignal(signalId);
+    approachStorage.deleteBySignal(signalId);
   },
 
   clear: (): void => {
     localStorage.removeItem(STORAGE_KEYS.SIGNALS);
+  },
+};
+
+// Approach operations
+export const approachStorage = {
+  getAll: (): Approach[] => {
+    return getFromStorage<Approach[]>(STORAGE_KEYS.APPROACHES, []);
+  },
+
+  getBySignal: (signalId: string): Approach[] => {
+    const approaches = approachStorage.getAll();
+    return approaches.filter(a => a.signalId === signalId);
+  },
+
+  save: (approach: InsertApproach): Approach => {
+    const approaches = approachStorage.getAll();
+    const newApproach: Approach = {
+      id: nanoid(),
+      approachId: approach.approachId || `APP_${String(approaches.length + 1).padStart(3, '0')}`,
+      signalId: approach.signalId,
+      streetName: approach.streetName,
+      compassBearing: approach.compassBearing,
+      postedSpeed: approach.postedSpeed ?? null,
+    };
+
+    const updatedApproaches = [...approaches, newApproach];
+    saveToStorage(STORAGE_KEYS.APPROACHES, updatedApproaches);
+    return newApproach;
+  },
+
+  update: (id: string, updates: Partial<InsertApproach>): Approach | null => {
+    const approaches = approachStorage.getAll();
+    const index = approaches.findIndex(a => a.id === id);
+
+    if (index === -1) return null;
+
+    const updatedApproach = { ...approaches[index], ...updates };
+    approaches[index] = updatedApproach;
+    saveToStorage(STORAGE_KEYS.APPROACHES, approaches);
+    return updatedApproach;
+  },
+
+  delete: (id: string): void => {
+    const approaches = approachStorage.getAll();
+    const updatedApproaches = approaches.filter(a => a.id !== id);
+    saveToStorage(STORAGE_KEYS.APPROACHES, updatedApproaches);
+  },
+
+  deleteBySignal: (signalId: string): void => {
+    const approaches = approachStorage.getAll();
+    const updatedApproaches = approaches.filter(a => a.signalId !== signalId);
+    saveToStorage(STORAGE_KEYS.APPROACHES, updatedApproaches);
+  },
+
+  updateSignalId: (oldSignalId: string, newSignalId: string): void => {
+    const approaches = approachStorage.getAll();
+    const updatedApproaches = approaches.map(approach =>
+      approach.signalId === oldSignalId ? { ...approach, signalId: newSignalId } : approach
+    );
+    saveToStorage(STORAGE_KEYS.APPROACHES, updatedApproaches);
+  },
+
+  clear: (): void => {
+    localStorage.removeItem(STORAGE_KEYS.APPROACHES);
   },
 };
 
@@ -132,6 +199,7 @@ export const phaseStorage = {
       id: nanoid(),
       signalId: phase.signalId,
       phase: phase.phase,
+      approachId: phase.approachId ?? null,
       movementType: phase.movementType,
       isPedestrian: phase.isPedestrian ?? phase.movementType === "Through",
       numOfLanes: phase.numOfLanes ?? 1,
@@ -253,6 +321,7 @@ export const detectorStorage = {
 export const clearAllData = (): void => {
   agencyStorage.clear();
   signalStorage.clear();
+  approachStorage.clear();
   phaseStorage.clear();
   detectorStorage.clear();
 };
@@ -262,6 +331,7 @@ export const exportData = () => {
   return {
     agency: agencyStorage.get(),
     signals: signalStorage.getAll(),
+    approaches: approachStorage.getAll(),
     phases: phaseStorage.getAll(),
     detectors: detectorStorage.getAll(),
   };
@@ -291,8 +361,20 @@ export function generateSignalsCSV(signals: Signal[]): string {
   return [headers, ...rows].join('\n');
 }
 
+export function generateApproachesCSV(approaches: Approach[]): string {
+  const headers = 'approach_id,signal_id,street_name,compass_bearing,posted_speed';
+
+  if (approaches.length === 0) return headers + '\n';
+
+  const rows = approaches.map(approach =>
+    `${approach.approachId},${approach.signalId},${approach.streetName},${approach.compassBearing},${approach.postedSpeed ?? ''}`
+  );
+
+  return [headers, ...rows].join('\n');
+}
+
 export function generatePhasesCSV(phases: Phase[]): string {
-  const headers = 'phase,signal_id,movement_type,num_of_lanes,is_overlap,pedestrian_phase_enabled';
+  const headers = 'phase,signal_id,approach_id,movement_type,num_of_lanes,is_overlap,pedestrian_phase_enabled';
   
   if (phases.length === 0) return headers + '\n';
   
@@ -320,7 +402,7 @@ export function generatePhasesCSV(phases: Phase[]): string {
   const rows = sortedPhases.map(phase => {
     const encodedMovementType = movementTypeMap[phase.movementType] || phase.movementType;
     const isPedestrian = phase.isPedestrian ?? phase.movementType === "Through";
-    return `${phase.phase},${phase.signalId},${encodedMovementType},${phase.numOfLanes || 1},${phase.isOverlap || false},${isPedestrian}`;
+    return `${phase.phase},${phase.signalId},${phase.approachId ?? ''},${encodedMovementType},${phase.numOfLanes || 1},${phase.isOverlap || false},${isPedestrian}`;
   });
   
   return [headers, ...rows].join('\n');
@@ -355,6 +437,7 @@ const downloadFile = (content: string, filename: string) => {
 export const exportAsIndividualFiles = async (includeFiles: {
   agency: boolean;
   signals: boolean;
+  approaches: boolean;
   phases: boolean;
   detection: boolean;
 }): Promise<void> => {
@@ -370,6 +453,11 @@ export const exportAsIndividualFiles = async (includeFiles: {
     if (includeFiles.signals) {
       const signalsCSV = generateSignalsCSV(data.signals);
       downloadFile(signalsCSV, 'signals.txt');
+    }
+
+    if (includeFiles.approaches) {
+      const approachesCSV = generateApproachesCSV(data.approaches);
+      downloadFile(approachesCSV, 'approaches.txt');
     }
     
     if (includeFiles.phases) {
@@ -391,9 +479,10 @@ export const exportAsIndividualFiles = async (includeFiles: {
 export const exportAsZip = async (includeFiles: {
   agency: boolean;
   signals: boolean;
+  approaches: boolean;
   phases: boolean;
   detection: boolean;
-} = { agency: true, signals: true, phases: true, detection: true }): Promise<void> => {
+} = { agency: true, signals: true, approaches: true, phases: true, detection: true }): Promise<void> => {
   try {
     // Dynamically import JSZip
     const JSZip = (await import('jszip')).default;
@@ -410,6 +499,11 @@ export const exportAsZip = async (includeFiles: {
     if (includeFiles.signals) {
       const signalsCSV = generateSignalsCSV(data.signals);
       zip.file('signals.txt', signalsCSV);
+    }
+
+    if (includeFiles.approaches) {
+      const approachesCSV = generateApproachesCSV(data.approaches);
+      zip.file('approaches.txt', approachesCSV);
     }
     
     if (includeFiles.phases) {
@@ -550,6 +644,74 @@ export function parseSignalsTXT(content: string): Signal[] {
   return signals;
 }
 
+// Parse approaches.txt file
+export function parseApproachesTXT(content: string): Approach[] {
+  const lines = content.trim().split('\n').filter(line => line.trim());
+  if (lines.length < 2) {
+    throw new Error('Approaches file must contain header and at least one data row');
+  }
+
+  const approaches: Approach[] = [];
+  const errors: string[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',').map(v => v.trim());
+
+    if (values.length < 5) {
+      errors.push(`Row ${i + 1}: Must have 5 fields (approachId, signalId, streetName, compassBearing, postedSpeed)`);
+      continue;
+    }
+
+    if (!values[0]) {
+      errors.push(`Row ${i + 1}: Approach ID is required`);
+      continue;
+    }
+
+    if (!values[1]) {
+      errors.push(`Row ${i + 1}: Signal ID is required`);
+      continue;
+    }
+
+    if (!values[2]) {
+      errors.push(`Row ${i + 1}: Street name is required`);
+      continue;
+    }
+
+    if (!values[3]) {
+      errors.push(`Row ${i + 1}: Compass bearing is required`);
+      continue;
+    }
+
+    let postedSpeed: number | null = null;
+    if (values[4] && values[4].trim() !== '') {
+      if (!/^-?\d*\.?\d+$/.test(values[4])) {
+        errors.push(`Row ${i + 1}: Posted speed must be a valid number or empty, got "${values[4]}"`);
+        continue;
+      }
+      postedSpeed = Number(values[4]);
+    }
+
+    approaches.push({
+      id: nanoid(),
+      approachId: values[0],
+      signalId: values[1],
+      streetName: values[2],
+      compassBearing: values[3],
+      postedSpeed,
+    });
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Approaches validation errors:\n${errors.join('\n')}`);
+  }
+
+  if (approaches.length === 0) {
+    throw new Error('No valid approaches found in file');
+  }
+
+  return approaches;
+}
+
 // Parse phases.txt file
 export function parsePhasesTXT(content: string): Phase[] {
   const lines = content.trim().split('\n').filter(line => line.trim());
@@ -568,39 +730,52 @@ export function parsePhasesTXT(content: string): Phase[] {
       continue;
     }
 
+    const validTypes = ["Through", "Left Turn", "Left Through Shared", "Permissive Phase", "Flashing Yellow Arrow", "U-Turn", "Right Turn", "Through-Right", "Pedestrian"];
+    const isMovementValue = (value: string) => Boolean(MOVEMENT_TYPE_REVERSE_MAP[value] || validTypes.includes(value));
+
+    const hasApproachColumn = values.length >= 7
+      || (values.length === 6 && !isMovementValue(values[2]) && isMovementValue(values[3]));
+
+    const phaseIndex = 0;
+    const signalIndex = 1;
+    const approachIndex = hasApproachColumn ? 2 : -1;
+    const movementIndex = hasApproachColumn ? 3 : 2;
+    const lanesIndex = hasApproachColumn ? 4 : 3;
+    const overlapIndex = hasApproachColumn ? 5 : 4;
+    const pedestrianIndex = hasApproachColumn ? 6 : 5;
+
     // Validate required fields - strict integer validation
     // Check regex BEFORE converting to ensure no malformed input
-    if (!values[0] || !/^-?\d+$/.test(values[0])) {
-      errors.push(`Row ${i + 1}: Phase number must be a valid integer, got "${values[0]}"`);
+    if (!values[phaseIndex] || !/^-?\d+$/.test(values[phaseIndex])) {
+      errors.push(`Row ${i + 1}: Phase number must be a valid integer, got "${values[phaseIndex]}"`);
       continue;
     }
 
-    if (!values[1]) {
+    if (!values[signalIndex]) {
       errors.push(`Row ${i + 1}: Signal ID is required`);
       continue;
     }
 
-    if (!values[2]) {
+    if (!values[movementIndex]) {
       errors.push(`Row ${i + 1}: Movement type is required`);
       continue;
     }
 
-    if (!values[3] || !/^-?\d+$/.test(values[3])) {
-      errors.push(`Row ${i + 1}: Number of lanes must be a valid integer, got "${values[3]}"`);
+    if (!values[lanesIndex] || !/^-?\d+$/.test(values[lanesIndex])) {
+      errors.push(`Row ${i + 1}: Number of lanes must be a valid integer, got "${values[lanesIndex]}"`);
       continue;
     }
 
-    const phaseNum = Number(values[0]);
-    const numOfLanes = Number(values[3]);
+    const phaseNum = Number(values[phaseIndex]);
+    const numOfLanes = Number(values[lanesIndex]);
 
     // Decode movement type
-    const encodedMovement = values[2];
+    const encodedMovement = values[movementIndex];
     const movementType = MOVEMENT_TYPE_REVERSE_MAP[encodedMovement] || encodedMovement;
 
     // Validate movement type is recognized (warn if not in reverse map)
     if (!MOVEMENT_TYPE_REVERSE_MAP[encodedMovement]) {
       // If it's not a known code, verify it's a valid full movement type name
-      const validTypes = ["Through", "Left Turn", "Left Through Shared", "Permissive Phase", "Flashing Yellow Arrow", "U-Turn", "Right Turn", "Through-Right", "Pedestrian"];
       if (!validTypes.includes(encodedMovement)) {
         errors.push(`Row ${i + 1}: Movement type "${encodedMovement}" is not recognized. Expected codes: T, L, LT, TL, FYA, U, R, TR, PED or full names.`);
         continue;
@@ -608,26 +783,29 @@ export function parsePhasesTXT(content: string): Phase[] {
     }
 
     // Validate overlap boolean
-    const overlapValue = values[4].toLowerCase();
+    const overlapValue = values[overlapIndex].toLowerCase();
     if (overlapValue !== 'true' && overlapValue !== 'false') {
-      errors.push(`Row ${i + 1}: Overlap must be "true" or "false", got "${values[4]}"`);
+      errors.push(`Row ${i + 1}: Overlap must be "true" or "false", got "${values[overlapIndex]}"`);
       continue;
     }
 
     let pedestrianPhaseEnabled = movementType === "Through";
-    if (values.length > 5 && values[5].trim() !== '') {
-      const pedestrianValue = values[5].toLowerCase();
+    if (values.length > pedestrianIndex && values[pedestrianIndex].trim() !== '') {
+      const pedestrianValue = values[pedestrianIndex].toLowerCase();
       if (pedestrianValue !== 'true' && pedestrianValue !== 'false') {
-        errors.push(`Row ${i + 1}: Pedestrian phase enabled must be "true" or "false", got "${values[5]}"`);
+        errors.push(`Row ${i + 1}: Pedestrian phase enabled must be "true" or "false", got "${values[pedestrianIndex]}"`);
         continue;
       }
       pedestrianPhaseEnabled = pedestrianValue === 'true';
     }
+
+    const approachId = approachIndex >= 0 ? values[approachIndex] || null : null;
     
     phases.push({
       id: nanoid(),
       phase: phaseNum,
-      signalId: values[1],
+      signalId: values[signalIndex],
+      approachId,
       movementType: movementType,
       isPedestrian: pedestrianPhaseEnabled,
       numOfLanes: numOfLanes,
@@ -744,6 +922,7 @@ export function importData(
   parsedData: {
     agency?: Agency | null;
     signals?: Signal[];
+    approaches?: Approach[];
     phases?: Phase[];
     detectors?: Detector[];
   },
@@ -761,6 +940,10 @@ export function importData(
     
     if (parsedData.signals !== undefined) {
       saveToStorage(STORAGE_KEYS.SIGNALS, parsedData.signals);
+    }
+
+    if (parsedData.approaches !== undefined) {
+      saveToStorage(STORAGE_KEYS.APPROACHES, parsedData.approaches);
     }
     
     if (parsedData.phases !== undefined) {
@@ -781,6 +964,13 @@ export function importData(
       const existingSignalIds = new Set(existingSignals.map(s => s.signalId));
       const newSignals = parsedData.signals.filter(s => !existingSignalIds.has(s.signalId));
       saveToStorage(STORAGE_KEYS.SIGNALS, [...existingSignals, ...newSignals]);
+    }
+
+    if (parsedData.approaches && parsedData.approaches.length > 0) {
+      const existingApproaches = getFromStorage<Approach[]>(STORAGE_KEYS.APPROACHES, []);
+      const existingKeys = new Set(existingApproaches.map(a => `${a.signalId}-${a.approachId}`));
+      const newApproaches = parsedData.approaches.filter(a => !existingKeys.has(`${a.signalId}-${a.approachId}`));
+      saveToStorage(STORAGE_KEYS.APPROACHES, [...existingApproaches, ...newApproaches]);
     }
     
     if (parsedData.phases && parsedData.phases.length > 0) {

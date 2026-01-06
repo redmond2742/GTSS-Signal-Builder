@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useExport } from "@/lib/localStorageHooks";
-import { generateAgencyCSV, generateSignalsCSV, generatePhasesCSV, generateDetectionCSV } from "@/lib/localStorage";
+import { generateAgencyCSV, generateSignalsCSV, generateApproachesCSV, generatePhasesCSV, generateDetectionCSV } from "@/lib/localStorage";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import { evaluateGTSSCompleteness } from "@/lib/gtssValidation";
 import GTSSFileViewer, { GTSSFilePreview } from "@/components/gtss/gtss-file-viewer";
 
 export default function ExportPanel() {
-  const { agency, signals, phases, detectors, navigateToSignalDetails } = useGTSSStore();
+  const { agency, signals, approaches, phases, detectors, navigateToSignalDetails } = useGTSSStore();
   
   // Generate default package name with agency name and date
   const getDefaultPackageName = () => {
@@ -32,6 +32,7 @@ export default function ExportPanel() {
   const [includeFiles, setIncludeFiles] = useState({
     agency: true,
     signals: true,
+    approaches: true,
     phases: true,
     detection: true,
   });
@@ -97,6 +98,11 @@ export default function ExportPanel() {
     if (orphanPhases.length > 0) {
       issues.push({ type: "error", section: "Phases", message: `${orphanPhases.length} phases reference non-existent signals` });
     }
+
+    const orphanApproaches = approaches.filter(a => !signalIds.includes(a.signalId));
+    if (orphanApproaches.length > 0) {
+      issues.push({ type: "error", section: "Approaches", message: `${orphanApproaches.length} approaches reference non-existent signals` });
+    }
     
     const orphanDetectors = detectors.filter(d => !signalIds.includes(d.signalId));
     if (orphanDetectors.length > 0) {
@@ -120,6 +126,9 @@ export default function ExportPanel() {
       : null,
     includeFiles.signals
       ? { id: "signals", label: "signals.txt", content: generateSignalsCSV(signals) }
+      : null,
+    includeFiles.approaches
+      ? { id: "approaches", label: "approaches.txt", content: generateApproachesCSV(approaches) }
       : null,
     includeFiles.phases
       ? { id: "phases", label: "phases.txt", content: generatePhasesCSV(phases) }
@@ -369,6 +378,18 @@ export default function ExportPanel() {
                   />
                   <Label htmlFor="signals" className="text-sm text-grey-700">
                     signals.txt ({signals.length} records)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Checkbox
+                    id="approaches"
+                    checked={includeFiles.approaches}
+                    onCheckedChange={(checked) => 
+                      setIncludeFiles(prev => ({ ...prev, approaches: checked as boolean }))
+                    }
+                  />
+                  <Label htmlFor="approaches" className="text-sm text-grey-700">
+                    approaches.txt ({approaches.length} records)
                   </Label>
                 </div>
                 <div className="flex items-center space-x-3">

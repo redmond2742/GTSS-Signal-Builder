@@ -165,6 +165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const csvData = {
         agency: generateAgencyCSV(data.agency),
         signals: generateSignalsCSV(data.signals),
+        approaches: generateApproachesCSV(data.approaches),
         phases: generatePhasesCSV(data.phases),
         detection: generateDetectionCSV(data.detectors),
       };
@@ -180,6 +181,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add CSV files to archive
       archive.append(csvData.agency, { name: 'agency.txt' });
       archive.append(csvData.signals, { name: 'signals.txt' });
+      archive.append(csvData.approaches, { name: 'approaches.txt' });
       archive.append(csvData.phases, { name: 'phases.txt' });
       archive.append(csvData.detection, { name: 'detection.txt' });
       
@@ -209,6 +211,14 @@ function generateSignalsCSV(signals: any[]): string {
   return headers + (rows ? rows + '\n' : '');
 }
 
+function generateApproachesCSV(approaches: any[]): string {
+  const headers = 'approach_id,signal_id,street_name,compass_bearing,posted_speed\n';
+  const rows = approaches.map(a =>
+    `${a.approachId},${a.signalId},"${a.streetName}","${a.compassBearing}",${a.postedSpeed ?? ''}`
+  ).join('\n');
+  return headers + (rows ? rows + '\n' : '');
+}
+
 function generatePhasesCSV(phases: any[]): string {
   // Movement type mapping to shorthand codes
   const movementTypeMap: { [key: string]: string } = {
@@ -223,10 +233,10 @@ function generatePhasesCSV(phases: any[]): string {
     "Pedestrian": "PED"
   };
 
-  const headers = 'Phase,SignalID,Movement_Type,is_pedestrian,is_overlap,channel_output,vehicle_detection_ids,ped_audible_enabled\n';
+  const headers = 'Phase,SignalID,ApproachID,Movement_Type,is_pedestrian,is_overlap,channel_output,vehicle_detection_ids,ped_audible_enabled\n';
   const rows = phases.map(p => {
     const shorthandMovementType = movementTypeMap[p.movementType] || p.movementType;
-    return `${p.phase},${p.signalId},"${shorthandMovementType}",${p.isPedestrian},${p.isOverlap},"${p.channelOutput || ''}","${p.vehicleDetectionIds || ''}",${p.pedAudibleEnabled}`;
+    return `${p.phase},${p.signalId},${p.approachId || ''},"${shorthandMovementType}",${p.isPedestrian},${p.isOverlap},"${p.channelOutput || ''}","${p.vehicleDetectionIds || ''}",${p.pedAudibleEnabled}`;
   }).join('\n');
   return headers + (rows ? rows + '\n' : '');
 }

@@ -23,10 +23,20 @@ export const signals = pgTable("signals", {
   longitude: real("longitude").notNull(),
 });
 
+export const approaches = pgTable("approaches", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  approachId: text("approach_id").notNull(),
+  signalId: text("signal_id").notNull(),
+  streetName: text("street_name").notNull(),
+  compassBearing: text("compass_bearing").notNull(),
+  postedSpeed: real("posted_speed"),
+});
+
 export const phases = pgTable("phases", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   phase: integer("phase").notNull(),
   signalId: text("signal_id").notNull(),
+  approachId: text("approach_id"),
   movementType: text("movement_type").notNull(),
   isPedestrian: boolean("is_pedestrian").default(false),
   numOfLanes: integer("num_of_lanes").default(1),
@@ -59,8 +69,16 @@ export const insertSignalSchema = createInsertSchema(signals).omit({
   signalId: z.string().optional(), // Make signal ID optional when creating
 });
 
+export const insertApproachSchema = createInsertSchema(approaches).omit({
+  id: true,
+}).extend({
+  postedSpeed: z.number().optional().nullable(),
+});
+
 export const insertPhaseSchema = createInsertSchema(phases).omit({
   id: true,
+}).extend({
+  approachId: z.string().optional().nullable(),
 });
 
 export const insertDetectorSchema = createInsertSchema(detectors).omit({
@@ -71,6 +89,8 @@ export type Agency = typeof agencies.$inferSelect;
 export type InsertAgency = z.infer<typeof insertAgencySchema>;
 export type Signal = typeof signals.$inferSelect;
 export type InsertSignal = z.infer<typeof insertSignalSchema>;
+export type Approach = typeof approaches.$inferSelect;
+export type InsertApproach = z.infer<typeof insertApproachSchema>;
 export type Phase = typeof phases.$inferSelect;
 export type InsertPhase = z.infer<typeof insertPhaseSchema>;
 export type Detector = typeof detectors.$inferSelect;
@@ -79,6 +99,7 @@ export type InsertDetector = z.infer<typeof insertDetectorSchema>;
 export type GTSSData = {
   agency: Agency | null;
   signals: Signal[];
+  approaches: Approach[];
   phases: Phase[];
   detectors: Detector[];
 };

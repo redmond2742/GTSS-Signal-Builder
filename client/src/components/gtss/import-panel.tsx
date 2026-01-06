@@ -5,8 +5,8 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, FileText, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
-import { parseAgencyTXT, parseSignalsTXT, parsePhasesTXT, parseDetectorsTXT, importData } from '@/lib/localStorage';
-import { Agency, Signal, Phase, Detector } from '@shared/schema';
+import { parseAgencyTXT, parseSignalsTXT, parseApproachesTXT, parsePhasesTXT, parseDetectorsTXT, importData } from '@/lib/localStorage';
+import { Agency, Signal, Approach, Phase, Detector } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -22,12 +22,13 @@ import {
 type FileData = {
   name: string;
   content: string;
-  type: 'agency' | 'signals' | 'phases' | 'detectors' | 'unknown';
+  type: 'agency' | 'signals' | 'approaches' | 'phases' | 'detectors' | 'unknown';
 };
 
 type ParsedData = {
   agency?: Agency | null;
   signals?: Signal[];
+  approaches?: Approach[];
   phases?: Phase[];
   detectors?: Detector[];
 };
@@ -46,10 +47,11 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
   const [dragActive, setDragActive] = useState(false);
   const { toast } = useToast();
 
-  const detectFileType = (filename: string): 'agency' | 'signals' | 'phases' | 'detectors' | 'unknown' => {
+  const detectFileType = (filename: string): 'agency' | 'signals' | 'approaches' | 'phases' | 'detectors' | 'unknown' => {
     const lower = filename.toLowerCase();
     if (lower.includes('agency')) return 'agency';
     if (lower.includes('signal')) return 'signals';
+    if (lower.includes('approach')) return 'approaches';
     if (lower.includes('phase')) return 'phases';
     if (lower.includes('detector')) return 'detectors';
     return 'unknown';
@@ -93,6 +95,10 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
             const signals = parseSignalsTXT(file.content);
             parsed.signals = signals;
             break;
+          case 'approaches':
+            const approaches = parseApproachesTXT(file.content);
+            parsed.approaches = approaches;
+            break;
           case 'phases':
             const phases = parsePhasesTXT(file.content);
             parsed.phases = phases;
@@ -102,7 +108,7 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
             parsed.detectors = detectors;
             break;
           case 'unknown':
-            errors.push({ file: file.name, message: 'Could not determine file type from filename. File should contain "agency", "signal", "phase", or "detector" in the name.' });
+            errors.push({ file: file.name, message: 'Could not determine file type from filename. File should contain "agency", "signal", "approach", "phase", or "detector" in the name.' });
             break;
         }
       } catch (error) {
@@ -124,13 +130,14 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
       const stats = {
         agency: parsedData.agency ? 1 : 0,
         signals: parsedData.signals?.length || 0,
+        approaches: parsedData.approaches?.length || 0,
         phases: parsedData.phases?.length || 0,
         detectors: parsedData.detectors?.length || 0,
       };
 
       toast({
         title: "Import Successful",
-        description: `Imported: ${stats.agency} agency, ${stats.signals} signals, ${stats.phases} phases, ${stats.detectors} detectors`,
+        description: `Imported: ${stats.agency} agency, ${stats.signals} signals, ${stats.approaches} approaches, ${stats.phases} phases, ${stats.detectors} detectors`,
       });
 
       // Reset state
@@ -185,7 +192,7 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
       <CardHeader>
         <CardTitle>Import GTSS Data</CardTitle>
         <CardDescription>
-          Upload TXT files to import traffic signal data. Supports agency.txt, signals.txt, phases.txt, and detectors.txt files.
+          Upload TXT files to import traffic signal data. Supports agency.txt, signals.txt, approaches.txt, phases.txt, and detectors.txt files.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -296,6 +303,11 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
                 {parsedData.signals && parsedData.signals.length > 0 && (
                   <li data-testid="preview-signals">
                     ✓ {parsedData.signals.length} Signal{parsedData.signals.length !== 1 ? 's' : ''}
+                  </li>
+                )}
+                {parsedData.approaches && parsedData.approaches.length > 0 && (
+                  <li data-testid="preview-approaches">
+                    ✓ {parsedData.approaches.length} Approach{parsedData.approaches.length !== 1 ? 's' : ''}
                   </li>
                 )}
                 {parsedData.phases && parsedData.phases.length > 0 && (

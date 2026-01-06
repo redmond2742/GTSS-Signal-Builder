@@ -1,10 +1,11 @@
 import { create } from 'zustand';
-import { Agency, Signal, Phase, Detector } from '@shared/schema';
-import { agencyStorage, signalStorage, phaseStorage, detectorStorage } from '@/lib/localStorage';
+import { Agency, Signal, Approach, Phase, Detector } from '@shared/schema';
+import { agencyStorage, signalStorage, approachStorage, phaseStorage, detectorStorage } from '@/lib/localStorage';
 
 interface GTSSStore {
   agency: Agency | null;
   signals: Signal[];
+  approaches: Approach[];
   phases: Phase[];
   detectors: Detector[];
   
@@ -18,6 +19,11 @@ interface GTSSStore {
   updateSignal: (signalId: string, signal: Signal) => void;
   deleteSignal: (signalId: string) => void;
   
+  setApproaches: (approaches: Approach[]) => void;
+  addApproach: (approach: Approach) => void;
+  updateApproach: (id: string, approach: Approach) => void;
+  deleteApproach: (id: string) => void;
+
   setPhases: (phases: Phase[]) => void;
   addPhase: (phase: Phase) => void;
   updatePhase: (id: string, phase: Phase) => void;
@@ -39,6 +45,7 @@ interface GTSSStore {
 export const useGTSSStore = create<GTSSStore>((set) => ({
   agency: agencyStorage.get(),
   signals: signalStorage.getAll(),
+  approaches: approachStorage.getAll(),
   phases: phaseStorage.getAll(),
   detectors: detectorStorage.getAll(),
   
@@ -52,6 +59,9 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
   addSignal: (signal) => set((state) => ({ signals: [...state.signals, signal] })),
   updateSignal: (signalId, signal) => set((state) => ({
     signals: state.signals.map(s => s.signalId === signalId ? signal : s),
+    approaches: signal.signalId === signalId
+      ? state.approaches
+      : state.approaches.map(a => a.signalId === signalId ? { ...a, signalId: signal.signalId } : a),
     phases: signal.signalId === signalId
       ? state.phases
       : state.phases.map(p => p.signalId === signalId ? { ...p, signalId: signal.signalId } : p),
@@ -61,10 +71,20 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
   })),
   deleteSignal: (signalId) => set((state) => ({
     signals: state.signals.filter(s => s.signalId !== signalId),
+    approaches: state.approaches.filter(a => a.signalId !== signalId),
     phases: state.phases.filter(p => p.signalId !== signalId),
     detectors: state.detectors.filter(d => d.signalId !== signalId),
   })),
   
+  setApproaches: (approaches) => set({ approaches }),
+  addApproach: (approach) => set((state) => ({ approaches: [...state.approaches, approach] })),
+  updateApproach: (id, approach) => set((state) => ({
+    approaches: state.approaches.map(a => a.id === id ? approach : a)
+  })),
+  deleteApproach: (id) => set((state) => ({
+    approaches: state.approaches.filter(a => a.id !== id)
+  })),
+
   setPhases: (phases) => set({ phases }),
   addPhase: (phase) => set((state) => ({ phases: [...state.phases, phase] })),
   updatePhase: (id, phase) => set((state) => ({
@@ -90,6 +110,7 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
   loadFromStorage: () => set({
     agency: agencyStorage.get(),
     signals: signalStorage.getAll(),
+    approaches: approachStorage.getAll(),
     phases: phaseStorage.getAll(),
     detectors: detectorStorage.getAll(),
   }),
