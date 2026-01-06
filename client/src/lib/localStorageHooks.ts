@@ -6,6 +6,7 @@ import {
   approachStorage,
   phaseStorage, 
   detectorStorage,
+  basicTimingStorage,
   exportAsZip,
   exportAsIndividualFiles
 } from './localStorage';
@@ -14,7 +15,8 @@ import {
   InsertSignal, 
   InsertApproach,
   InsertPhase, 
-  InsertDetector 
+  InsertDetector,
+  InsertBasicTiming,
 } from '@shared/schema';
 
 // Custom hooks to replace TanStack Query for localStorage operations
@@ -95,7 +97,7 @@ export const useApproaches = () => {
 };
 
 export const usePhases = () => {
-  const { phases, setPhases, addPhase, updatePhase, deletePhase } = useGTSSStore();
+  const { phases, setPhases, addPhase, updatePhase, deletePhase, deleteBasicTiming } = useGTSSStore();
 
   const savePhase = (data: InsertPhase) => {
     const savedPhase = phaseStorage.save(data);
@@ -112,8 +114,12 @@ export const usePhases = () => {
   };
 
   const deletePhaseById = (id: string) => {
+    const phaseToDelete = phases.find(p => p.id === id);
     phaseStorage.delete(id);
     deletePhase(id);
+    if (phaseToDelete) {
+      deleteBasicTiming(phaseToDelete.signalId, phaseToDelete.phase);
+    }
   };
 
   return {
@@ -151,6 +157,41 @@ export const useDetectors = () => {
     save: saveDetector,
     update: updateDetectorById,
     delete: deleteDetectorById,
+  };
+};
+
+export const useBasicTimings = () => {
+  const { basicTiming, addBasicTiming, updateBasicTiming, deleteBasicTiming } = useGTSSStore();
+
+  const saveTiming = (data: InsertBasicTiming) => {
+    const savedTiming = basicTimingStorage.save(data);
+    const existing = basicTiming.find(t => t.signalId === savedTiming.signalId && t.phase === savedTiming.phase);
+    if (existing) {
+      updateBasicTiming(savedTiming.signalId, savedTiming.phase, savedTiming);
+    } else {
+      addBasicTiming(savedTiming);
+    }
+    return savedTiming;
+  };
+
+  const updateTiming = (signalId: string, phase: number, data: Partial<InsertBasicTiming>) => {
+    const updatedTiming = basicTimingStorage.update(signalId, phase, data);
+    if (updatedTiming) {
+      updateBasicTiming(signalId, phase, updatedTiming);
+    }
+    return updatedTiming;
+  };
+
+  const deleteTiming = (signalId: string, phase: number) => {
+    basicTimingStorage.deleteBySignalPhase(signalId, phase);
+    deleteBasicTiming(signalId, phase);
+  };
+
+  return {
+    data: basicTiming,
+    save: saveTiming,
+    update: updateTiming,
+    delete: deleteTiming,
   };
 };
 

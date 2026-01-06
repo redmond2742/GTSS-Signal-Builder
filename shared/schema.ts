@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, real, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, real, boolean, integer, primaryKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -57,6 +57,25 @@ export const detectors = pgTable("detectors", {
   stopbarSetbackDist: real("stopbar_setback_dist"),
 });
 
+export const basicTiming = pgTable(
+  "basic_timing",
+  {
+    signalId: text("signal_id").notNull(),
+    phase: integer("phase").notNull(),
+    pedWalk: real("ped_walk").notNull(),
+    pedClearance: real("ped_clearance").notNull(),
+    leadingPedInterval: real("leading_ped_interval").notNull(),
+    minGreen: real("min_green").notNull(),
+    maxGreen: real("max_green").notNull(),
+    yellow: real("yellow").notNull(),
+    allRed: real("all_red").notNull(),
+    vehRecallType: text("veh_recall_type").notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.signalId, table.phase] }),
+  })
+);
+
 export const insertAgencySchema = createInsertSchema(agencies).omit({
   id: true,
 }).extend({
@@ -85,6 +104,12 @@ export const insertDetectorSchema = createInsertSchema(detectors).omit({
   id: true,
 });
 
+export const VEH_RECALL_TYPES = ["None", "Min", "Max", "Soft"] as const;
+
+export const insertBasicTimingSchema = createInsertSchema(basicTiming).extend({
+  vehRecallType: z.enum(VEH_RECALL_TYPES),
+});
+
 export type Agency = typeof agencies.$inferSelect;
 export type InsertAgency = z.infer<typeof insertAgencySchema>;
 export type Signal = typeof signals.$inferSelect;
@@ -95,6 +120,9 @@ export type Phase = typeof phases.$inferSelect;
 export type InsertPhase = z.infer<typeof insertPhaseSchema>;
 export type Detector = typeof detectors.$inferSelect;
 export type InsertDetector = z.infer<typeof insertDetectorSchema>;
+export type BasicTiming = typeof basicTiming.$inferSelect;
+export type InsertBasicTiming = z.infer<typeof insertBasicTimingSchema>;
+export type VehRecallType = (typeof VEH_RECALL_TYPES)[number];
 
 export type GTSSData = {
   agency: Agency | null;
@@ -102,4 +130,5 @@ export type GTSSData = {
   approaches: Approach[];
   phases: Phase[];
   detectors: Detector[];
+  basicTiming: BasicTiming[];
 };

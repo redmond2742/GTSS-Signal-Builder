@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { Agency, Signal, Approach, Phase, Detector } from '@shared/schema';
-import { agencyStorage, signalStorage, approachStorage, phaseStorage, detectorStorage } from '@/lib/localStorage';
+import { Agency, Signal, Approach, Phase, Detector, BasicTiming } from '@shared/schema';
+import { agencyStorage, signalStorage, approachStorage, phaseStorage, detectorStorage, basicTimingStorage } from '@/lib/localStorage';
 
 interface GTSSStore {
   agency: Agency | null;
@@ -8,6 +8,7 @@ interface GTSSStore {
   approaches: Approach[];
   phases: Phase[];
   detectors: Detector[];
+  basicTiming: BasicTiming[];
   
   // Navigation state (for single-page app without URL routing)
   currentView: 'main' | 'signal-details';
@@ -33,6 +34,11 @@ interface GTSSStore {
   addDetector: (detector: Detector) => void;
   updateDetector: (id: string, detector: Detector) => void;
   deleteDetector: (id: string) => void;
+
+  setBasicTiming: (basicTiming: BasicTiming[]) => void;
+  addBasicTiming: (timing: BasicTiming) => void;
+  updateBasicTiming: (signalId: string, phase: number, timing: BasicTiming) => void;
+  deleteBasicTiming: (signalId: string, phase: number) => void;
   
   // Navigation actions
   navigateToMain: () => void;
@@ -48,6 +54,7 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
   approaches: approachStorage.getAll(),
   phases: phaseStorage.getAll(),
   detectors: detectorStorage.getAll(),
+  basicTiming: basicTimingStorage.getAll(),
   
   // Initial navigation state
   currentView: 'main',
@@ -68,12 +75,16 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
     detectors: signal.signalId === signalId
       ? state.detectors
       : state.detectors.map(d => d.signalId === signalId ? { ...d, signalId: signal.signalId } : d),
+    basicTiming: signal.signalId === signalId
+      ? state.basicTiming
+      : state.basicTiming.map(t => t.signalId === signalId ? { ...t, signalId: signal.signalId } : t),
   })),
   deleteSignal: (signalId) => set((state) => ({
     signals: state.signals.filter(s => s.signalId !== signalId),
     approaches: state.approaches.filter(a => a.signalId !== signalId),
     phases: state.phases.filter(p => p.signalId !== signalId),
     detectors: state.detectors.filter(d => d.signalId !== signalId),
+    basicTiming: state.basicTiming.filter(t => t.signalId !== signalId),
   })),
   
   setApproaches: (approaches) => set({ approaches }),
@@ -102,6 +113,15 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
   deleteDetector: (id) => set((state) => ({
     detectors: state.detectors.filter(d => d.id !== id)
   })),
+
+  setBasicTiming: (basicTiming) => set({ basicTiming }),
+  addBasicTiming: (timing) => set((state) => ({ basicTiming: [...state.basicTiming, timing] })),
+  updateBasicTiming: (signalId, phase, timing) => set((state) => ({
+    basicTiming: state.basicTiming.map(t => (t.signalId === signalId && t.phase === phase) ? timing : t)
+  })),
+  deleteBasicTiming: (signalId, phase) => set((state) => ({
+    basicTiming: state.basicTiming.filter(t => !(t.signalId === signalId && t.phase === phase))
+  })),
   
   // Navigation actions
   navigateToMain: () => set({ currentView: 'main', currentSignalId: null }),
@@ -113,5 +133,6 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
     approaches: approachStorage.getAll(),
     phases: phaseStorage.getAll(),
     detectors: detectorStorage.getAll(),
+    basicTiming: basicTimingStorage.getAll(),
   }),
 }));

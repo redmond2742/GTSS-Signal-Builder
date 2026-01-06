@@ -1,4 +1,19 @@
-import { Agency, Signal, Approach, Phase, Detector, InsertAgency, InsertSignal, InsertApproach, InsertPhase, InsertDetector } from '@shared/schema';
+import {
+  Agency,
+  Signal,
+  Approach,
+  Phase,
+  Detector,
+  BasicTiming,
+  InsertAgency,
+  InsertSignal,
+  InsertApproach,
+  InsertPhase,
+  InsertDetector,
+  InsertBasicTiming,
+  VEH_RECALL_TYPES,
+  VehRecallType,
+} from '@shared/schema';
 import { nanoid } from 'nanoid';
 
 // Storage keys
@@ -8,6 +23,7 @@ const STORAGE_KEYS = {
   APPROACHES: 'gtss_approaches',
   PHASES: 'gtss_phases',
   DETECTORS: 'gtss_detectors',
+  BASIC_TIMING: 'gtss_basic_timing',
 };
 
 // Helper function to safely parse JSON from localStorage
@@ -98,6 +114,7 @@ export const signalStorage = {
       phaseStorage.updateSignalId(signalId, updates.signalId);
       detectorStorage.updateSignalId(signalId, updates.signalId);
       approachStorage.updateSignalId(signalId, updates.signalId);
+      basicTimingStorage.updateSignalId(signalId, updates.signalId);
     }
     return updatedSignal;
   },
@@ -111,6 +128,7 @@ export const signalStorage = {
     phaseStorage.deleteBySignal(signalId);
     detectorStorage.deleteBySignal(signalId);
     approachStorage.deleteBySignal(signalId);
+    basicTimingStorage.deleteBySignal(signalId);
   },
 
   clear: (): void => {
@@ -225,14 +243,19 @@ export const phaseStorage = {
 
   delete: (id: string): void => {
     const phases = phaseStorage.getAll();
+    const phaseToDelete = phases.find(p => p.id === id);
     const updatedPhases = phases.filter(p => p.id !== id);
     saveToStorage(STORAGE_KEYS.PHASES, updatedPhases);
+    if (phaseToDelete) {
+      basicTimingStorage.deleteBySignalPhase(phaseToDelete.signalId, phaseToDelete.phase);
+    }
   },
 
   deleteBySignal: (signalId: string): void => {
     const phases = phaseStorage.getAll();
     const updatedPhases = phases.filter(p => p.signalId !== signalId);
     saveToStorage(STORAGE_KEYS.PHASES, updatedPhases);
+    basicTimingStorage.deleteBySignal(signalId);
   },
 
   updateSignalId: (oldSignalId: string, newSignalId: string): void => {
@@ -317,6 +340,84 @@ export const detectorStorage = {
   },
 };
 
+// Basic Timing operations
+export const basicTimingStorage = {
+  getAll: (): BasicTiming[] => {
+    return getFromStorage<BasicTiming[]>(STORAGE_KEYS.BASIC_TIMING, []);
+  },
+
+  getBySignal: (signalId: string): BasicTiming[] => {
+    const timings = basicTimingStorage.getAll();
+    return timings.filter(t => t.signalId === signalId);
+  },
+
+  getBySignalPhase: (signalId: string, phase: number): BasicTiming | undefined => {
+    return basicTimingStorage.getAll().find(t => t.signalId === signalId && t.phase === phase);
+  },
+
+  save: (timing: InsertBasicTiming): BasicTiming => {
+    const timings = basicTimingStorage.getAll();
+    const newTiming: BasicTiming = {
+      signalId: timing.signalId,
+      phase: timing.phase,
+      pedWalk: timing.pedWalk,
+      pedClearance: timing.pedClearance,
+      leadingPedInterval: timing.leadingPedInterval,
+      minGreen: timing.minGreen,
+      maxGreen: timing.maxGreen,
+      yellow: timing.yellow,
+      allRed: timing.allRed,
+      vehRecallType: timing.vehRecallType,
+    };
+
+    const existingIndex = timings.findIndex(t => t.signalId === timing.signalId && t.phase === timing.phase);
+    const updatedTimings = [...timings];
+    if (existingIndex >= 0) {
+      updatedTimings[existingIndex] = newTiming;
+    } else {
+      updatedTimings.push(newTiming);
+    }
+    saveToStorage(STORAGE_KEYS.BASIC_TIMING, updatedTimings);
+    return newTiming;
+  },
+
+  update: (signalId: string, phase: number, updates: Partial<InsertBasicTiming>): BasicTiming | null => {
+    const timings = basicTimingStorage.getAll();
+    const index = timings.findIndex(t => t.signalId === signalId && t.phase === phase);
+
+    if (index === -1) return null;
+
+    const updatedTiming = { ...timings[index], ...updates };
+    timings[index] = updatedTiming;
+    saveToStorage(STORAGE_KEYS.BASIC_TIMING, timings);
+    return updatedTiming;
+  },
+
+  deleteBySignalPhase: (signalId: string, phase: number): void => {
+    const timings = basicTimingStorage.getAll();
+    const updatedTimings = timings.filter(t => !(t.signalId === signalId && t.phase === phase));
+    saveToStorage(STORAGE_KEYS.BASIC_TIMING, updatedTimings);
+  },
+
+  deleteBySignal: (signalId: string): void => {
+    const timings = basicTimingStorage.getAll();
+    const updatedTimings = timings.filter(t => t.signalId !== signalId);
+    saveToStorage(STORAGE_KEYS.BASIC_TIMING, updatedTimings);
+  },
+
+  updateSignalId: (oldSignalId: string, newSignalId: string): void => {
+    const timings = basicTimingStorage.getAll();
+    const updatedTimings = timings.map(timing =>
+      timing.signalId === oldSignalId ? { ...timing, signalId: newSignalId } : timing
+    );
+    saveToStorage(STORAGE_KEYS.BASIC_TIMING, updatedTimings);
+  },
+
+  clear: (): void => {
+    localStorage.removeItem(STORAGE_KEYS.BASIC_TIMING);
+  },
+};
+
 // Clear all GTSS data
 export const clearAllData = (): void => {
   agencyStorage.clear();
@@ -324,6 +425,7 @@ export const clearAllData = (): void => {
   approachStorage.clear();
   phaseStorage.clear();
   detectorStorage.clear();
+  basicTimingStorage.clear();
 };
 
 // Export all data
@@ -334,6 +436,7 @@ export const exportData = () => {
     approaches: approachStorage.getAll(),
     phases: phaseStorage.getAll(),
     detectors: detectorStorage.getAll(),
+    basicTiming: basicTimingStorage.getAll(),
   };
 };
 
@@ -420,6 +523,25 @@ export function generateDetectionCSV(detectors: Detector[]): string {
   return [headers, ...rows].join('\n');
 }
 
+export function generateBasicTimingCSV(timings: BasicTiming[]): string {
+  const headers = 'phase,signal_id,ped_walk,ped_clearance,leading_ped_interval,min_green,max_green,yellow,all_red,veh_recall_type';
+
+  if (timings.length === 0) return headers + '\n';
+
+  const sortedTimings = [...timings].sort((a, b) => {
+    if (a.signalId !== b.signalId) {
+      return a.signalId.localeCompare(b.signalId);
+    }
+    return a.phase - b.phase;
+  });
+
+  const rows = sortedTimings.map(timing =>
+    `${timing.phase},${timing.signalId},${timing.pedWalk},${timing.pedClearance},${timing.leadingPedInterval},${timing.minGreen},${timing.maxGreen},${timing.yellow},${timing.allRed},${timing.vehRecallType}`
+  );
+
+  return [headers, ...rows].join('\n');
+}
+
 // Download individual TXT files
 const downloadFile = (content: string, filename: string) => {
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
@@ -440,6 +562,7 @@ export const exportAsIndividualFiles = async (includeFiles: {
   approaches: boolean;
   phases: boolean;
   detection: boolean;
+  basicTiming: boolean;
 }): Promise<void> => {
   try {
     const data = exportData();
@@ -469,6 +592,11 @@ export const exportAsIndividualFiles = async (includeFiles: {
       const detectionCSV = generateDetectionCSV(data.detectors);
       downloadFile(detectionCSV, 'detectors.txt');
     }
+
+    if (includeFiles.basicTiming) {
+      const basicTimingCSV = generateBasicTimingCSV(data.basicTiming);
+      downloadFile(basicTimingCSV, 'basic_timing.txt');
+    }
   } catch (error) {
     console.error('Export failed:', error);
     throw error;
@@ -482,7 +610,8 @@ export const exportAsZip = async (includeFiles: {
   approaches: boolean;
   phases: boolean;
   detection: boolean;
-} = { agency: true, signals: true, approaches: true, phases: true, detection: true }): Promise<void> => {
+  basicTiming: boolean;
+} = { agency: true, signals: true, approaches: true, phases: true, detection: true, basicTiming: true }): Promise<void> => {
   try {
     // Dynamically import JSZip
     const JSZip = (await import('jszip')).default;
@@ -514,6 +643,11 @@ export const exportAsZip = async (includeFiles: {
     if (includeFiles.detection) {
       const detectionCSV = generateDetectionCSV(data.detectors);
       zip.file('detectors.txt', detectionCSV);
+    }
+
+    if (includeFiles.basicTiming) {
+      const basicTimingCSV = generateBasicTimingCSV(data.basicTiming);
+      zip.file('basic_timing.txt', basicTimingCSV);
     }
 
     // Generate ZIP file and download
@@ -917,6 +1051,91 @@ export function parseDetectorsTXT(content: string): Detector[] {
   return detectors;
 }
 
+// Parse basic_timing.txt file
+export function parseBasicTimingTXT(content: string): BasicTiming[] {
+  const lines = content.trim().split('\n').filter(line => line.trim());
+  if (lines.length < 2) {
+    throw new Error('Basic timing file must contain header and at least one data row');
+  }
+
+  const timings: BasicTiming[] = [];
+  const errors: string[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',').map(v => v.trim());
+
+    if (values.length < 10) {
+      errors.push(`Row ${i + 1}: Must have 10 fields (phase, signalId, pedWalk, pedClearance, leadingPedInterval, minGreen, maxGreen, yellow, allRed, vehRecallType)`);
+      continue;
+    }
+
+    if (!values[0] || !/^-?\d+$/.test(values[0])) {
+      errors.push(`Row ${i + 1}: Phase must be a valid integer, got "${values[0]}"`);
+      continue;
+    }
+
+    if (!values[1]) {
+      errors.push(`Row ${i + 1}: Signal ID is required`);
+      continue;
+    }
+
+    const numericFields = [
+      { index: 2, label: "Ped walk" },
+      { index: 3, label: "Ped clearance" },
+      { index: 4, label: "Leading ped interval" },
+      { index: 5, label: "Min green" },
+      { index: 6, label: "Max green" },
+      { index: 7, label: "Yellow" },
+      { index: 8, label: "All red" },
+    ];
+
+    let hasNumericError = false;
+    for (const field of numericFields) {
+      if (!values[field.index] || values[field.index].trim() === '') {
+        errors.push(`Row ${i + 1}: ${field.label} is required`);
+        hasNumericError = true;
+        break;
+      }
+      if (!/^-?\d*\.?\d+$/.test(values[field.index])) {
+        errors.push(`Row ${i + 1}: ${field.label} must be a valid number, got "${values[field.index]}"`);
+        hasNumericError = true;
+        break;
+      }
+    }
+
+    if (hasNumericError) continue;
+
+    const vehRecallType = values[9] as VehRecallType;
+    if (!vehRecallType || !VEH_RECALL_TYPES.includes(vehRecallType)) {
+      errors.push(`Row ${i + 1}: Veh recall type must be one of ${VEH_RECALL_TYPES.join(', ')}, got "${values[9]}"`);
+      continue;
+    }
+
+    timings.push({
+      signalId: values[1],
+      phase: Number(values[0]),
+      pedWalk: Number(values[2]),
+      pedClearance: Number(values[3]),
+      leadingPedInterval: Number(values[4]),
+      minGreen: Number(values[5]),
+      maxGreen: Number(values[6]),
+      yellow: Number(values[7]),
+      allRed: Number(values[8]),
+      vehRecallType,
+    });
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Basic timing validation errors:\n${errors.join('\n')}`);
+  }
+
+  if (timings.length === 0) {
+    throw new Error('No valid basic timing entries found in file');
+  }
+
+  return timings;
+}
+
 // Import data with replace or merge mode
 export function importData(
   parsedData: {
@@ -925,6 +1144,7 @@ export function importData(
     approaches?: Approach[];
     phases?: Phase[];
     detectors?: Detector[];
+    basicTiming?: BasicTiming[];
   },
   mode: 'replace' | 'merge' = 'replace'
 ): void {
@@ -952,6 +1172,10 @@ export function importData(
     
     if (parsedData.detectors !== undefined) {
       saveToStorage(STORAGE_KEYS.DETECTORS, parsedData.detectors);
+    }
+
+    if (parsedData.basicTiming !== undefined) {
+      saveToStorage(STORAGE_KEYS.BASIC_TIMING, parsedData.basicTiming);
     }
   } else {
     // Merge mode
@@ -985,6 +1209,13 @@ export function importData(
       const existingKeys = new Set(existingDetectors.map(d => `${d.signalId}-${d.channel}`));
       const newDetectors = parsedData.detectors.filter(d => !existingKeys.has(`${d.signalId}-${d.channel}`));
       saveToStorage(STORAGE_KEYS.DETECTORS, [...existingDetectors, ...newDetectors]);
+    }
+
+    if (parsedData.basicTiming && parsedData.basicTiming.length > 0) {
+      const existingTimings = getFromStorage<BasicTiming[]>(STORAGE_KEYS.BASIC_TIMING, []);
+      const existingKeys = new Set(existingTimings.map(t => `${t.signalId}-${t.phase}`));
+      const newTimings = parsedData.basicTiming.filter(t => !existingKeys.has(`${t.signalId}-${t.phase}`));
+      saveToStorage(STORAGE_KEYS.BASIC_TIMING, [...existingTimings, ...newTimings]);
     }
   }
 }

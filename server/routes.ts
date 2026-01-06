@@ -168,6 +168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         approaches: generateApproachesCSV(data.approaches),
         phases: generatePhasesCSV(data.phases),
         detection: generateDetectionCSV(data.detectors),
+        basicTiming: generateBasicTimingCSV(data.basicTiming),
       };
 
       // Create ZIP file
@@ -184,6 +185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       archive.append(csvData.approaches, { name: 'approaches.txt' });
       archive.append(csvData.phases, { name: 'phases.txt' });
       archive.append(csvData.detection, { name: 'detection.txt' });
+      archive.append(csvData.basicTiming, { name: 'basic_timing.txt' });
       
       await archive.finalize();
     } catch (error) {
@@ -245,6 +247,14 @@ function generateDetectionCSV(detectors: any[]): string {
   const headers = 'SignalID,Detector_Channel,Phase,Description,Purpose,Vehicle_Type,Lane,Det_Technology_Type,Length,Stopbar_Setback\n';
   const rows = detectors.map(d => 
     `${d.signalId},"${d.detectorChannel}",${d.phase},"${d.description || ''}","${d.purpose}","${d.vehicleType || ''}","${d.lane || ''}","${d.detTechnologyType}",${d.length || ''},${d.stopbarSetback ?? ''}`
+  ).join('\n');
+  return headers + (rows ? rows + '\n' : '');
+}
+
+function generateBasicTimingCSV(timings: any[]): string {
+  const headers = 'phase,signal_id,ped_walk,ped_clearance,leading_ped_interval,min_green,max_green,yellow,all_red,veh_recall_type\n';
+  const rows = timings.map(t =>
+    `${t.phase},${t.signalId},${t.pedWalk},${t.pedClearance},${t.leadingPedInterval},${t.minGreen},${t.maxGreen},${t.yellow},${t.allRed},${t.vehRecallType}`
   ).join('\n');
   return headers + (rows ? rows + '\n' : '');
 }
