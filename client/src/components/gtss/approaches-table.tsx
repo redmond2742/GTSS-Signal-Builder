@@ -1,18 +1,31 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Approach } from "@shared/schema";
 import { useGTSSStore } from "@/store/gtss-store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ChevronUp, ChevronDown, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import ApproachModal from "./approach-modal";
 
 type SortField = "signalId" | "approachId" | "streetName" | "compassBearing" | "postedSpeed";
 type SortDirection = "asc" | "desc";
 
-export default function ApproachesTable() {
+interface ApproachesTableProps {
+  triggerAdd?: number;
+}
+
+export default function ApproachesTable({ triggerAdd }: ApproachesTableProps) {
+  const [editingApproach, setEditingApproach] = useState<Approach | null>(null);
+  const [showModal, setShowModal] = useState(false);
   const [sortField, setSortField] = useState<SortField>("signalId");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const { approaches, signals } = useGTSSStore();
+
+  useEffect(() => {
+    if (triggerAdd && triggerAdd > 0) {
+      handleAdd();
+    }
+  }, [triggerAdd]);
 
   const orphanApproaches = approaches.filter(
     (approach) => !signals.some((signal) => signal.signalId === approach.signalId)
@@ -63,6 +76,21 @@ export default function ApproachesTable() {
       }
       return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
     });
+  };
+
+  const handleAdd = () => {
+    setEditingApproach(null);
+    setShowModal(true);
+  };
+
+  const handleModalClose = () => {
+    setShowModal(false);
+    setEditingApproach(null);
+  };
+
+  const handleRowClick = (approach: Approach) => {
+    setEditingApproach(approach);
+    setShowModal(true);
   };
 
   const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
@@ -132,7 +160,8 @@ export default function ApproachesTable() {
                     return (
                       <TableRow
                         key={approach.id}
-                        className={`transition-colors ${isOrphan ? "bg-amber-50/40" : "hover:bg-grey-50"}`}
+                        className={`transition-colors cursor-pointer ${isOrphan ? "bg-amber-50/40" : "hover:bg-grey-50"}`}
+                        onClick={() => handleRowClick(approach)}
                       >
                         <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">
                           {approach.signalId}
@@ -157,6 +186,9 @@ export default function ApproachesTable() {
           </div>
         </CardContent>
       </Card>
+      {showModal && (
+        <ApproachModal approach={editingApproach} onClose={handleModalClose} />
+      )}
     </div>
   );
 }
