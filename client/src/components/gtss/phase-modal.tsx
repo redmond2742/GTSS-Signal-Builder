@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { X, Trash2, MapPin, Copy } from "lucide-react";
 
 interface PhaseModalProps {
@@ -19,6 +21,14 @@ interface PhaseModalProps {
   onClose: () => void;
   preSelectedSignalId?: string;
 }
+
+// Fix for default markers in react-leaflet
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+});
 
 export default function PhaseModal({ phase, onClose, preSelectedSignalId }: PhaseModalProps) {
   const { signals, approaches } = useGTSSStore();
@@ -58,6 +68,12 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
       });
     }
   }, [phase, form]);
+
+  useEffect(() => {
+    if (!phase && !form.getValues("signalId") && signals.length > 0) {
+      form.setValue("signalId", preSelectedSignalId ?? signals[0].signalId);
+    }
+  }, [phase, form, preSelectedSignalId, signals]);
 
   useEffect(() => {
     if (!phase && !pedestrianDirty) {
@@ -229,6 +245,27 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
     }
     return ((phaseNumber + 3) % 8) + 1;
   };
+
+  if (signals.length === 0) {
+    return (
+      <Dialog open onOpenChange={onClose}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Phase</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-sm text-grey-600">
+            <p>No signals are configured yet.</p>
+            <p>Add a signal first so phases can be assigned correctly.</p>
+            <div className="flex justify-end">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open onOpenChange={onClose}>
