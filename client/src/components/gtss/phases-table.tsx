@@ -15,7 +15,7 @@ import VisualPhaseEditor from "./visual-phase-editor";
 import SignalsMap from "@/components/ui/signals-map";
 import { Checkbox } from "@/components/ui/checkbox";
 
-type SortField = 'phase' | 'signalId' | 'movementType' | 'bearing' | 'postedSpeed' | 'numOfLanes';
+type SortField = 'phase' | 'signalId' | 'movementType' | 'numOfLanes';
 type SortDirection = 'asc' | 'desc';
 
 interface PhasesTableProps {
@@ -87,10 +87,6 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
         case 'movementType':
           aValue = a.movementType;
           bValue = b.movementType;
-          break;
-        case 'bearing':
-          aValue = a.compassBearing || 0;
-          bValue = b.compassBearing || 0;
           break;
         default:
           aValue = a.phase;
@@ -370,8 +366,6 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
                   <SortableHeader field="signalId">Signal ID</SortableHeader>
                   <SortableHeader field="phase">Phase</SortableHeader>
                   <SortableHeader field="movementType">Movement</SortableHeader>
-                  <SortableHeader field="bearing">Bearing</SortableHeader>
-                  <SortableHeader field="postedSpeed">Speed</SortableHeader>
                   <SortableHeader field="numOfLanes">Lanes</SortableHeader>
                 </TableRow>
               </TableHeader>
@@ -413,12 +407,6 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
                             </Badge>
                           )}
                         </div>
-                      </TableCell>
-                      <TableCell className="text-grey-600 text-xs py-1 px-2">
-                        {phase.compassBearing ? `${phase.compassBearing}°` : 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-grey-600 text-xs py-1 px-2">
-                        {phase.postedSpeed ? `${phase.postedSpeed} mph` : 'N/A'}
                       </TableCell>
                       <TableCell className="text-grey-600 text-xs py-1 px-2">
                         {phase.numOfLanes}

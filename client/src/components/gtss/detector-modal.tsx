@@ -15,15 +15,11 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import { X, MapPin, Target, Trash2 } from "lucide-react";
 // Removed image import for simplified interface
 
-const compassDirections = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-
-const bearingToDirection = (bearing?: number | null) => {
-  if (bearing === null || bearing === undefined || Number.isNaN(bearing)) {
+const getApproachLabel = (phase?: { movementType: string } | null) => {
+  if (!phase) {
     return "";
   }
-  const normalized = ((bearing % 360) + 360) % 360;
-  const index = Math.round(normalized / 45) % compassDirections.length;
-  return compassDirections[index];
+  return phase.movementType;
 };
 
 const formatPurposeForDescription = (purpose?: string) => {
@@ -230,10 +226,10 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
     const selectedPhase = phases.find(
       (phase) => phase.signalId === selectedSignalId && phase.phase === watchedPhase,
     );
-    const direction = bearingToDirection(selectedPhase?.compassBearing ?? null);
+    const approachLabel = getApproachLabel(selectedPhase);
     const formattedPurpose = formatPurposeForDescription(watchedPurpose ?? "");
     const laneValue = watchedLane?.toString().trim() ?? "";
-    const description = buildDetectorDescription(direction, formattedPurpose, laneValue);
+    const description = buildDetectorDescription(approachLabel, formattedPurpose, laneValue);
     form.setValue("description", description);
   }, [form, isDescriptionDirty, phases, selectedSignalId, watchedLane, watchedPhase, watchedPurpose]);
 
@@ -335,11 +331,9 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                           </FormControl>
                           <SelectContent>
                             {signalPhases.map((phase) => {
-                              const direction = bearingToDirection(phase.compassBearing);
-                              const bearingLabel = direction ? ` (${direction})` : "";
                               return (
                                 <SelectItem key={phase.id} value={phase.phase.toString()}>
-                                  Phase {phase.phase} - {phase.movementType}{bearingLabel}
+                                  Phase {phase.phase} - {phase.movementType}
                                 </SelectItem>
                               );
                             })}
