@@ -83,7 +83,6 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
   const [selectedSignalId, setSelectedSignalId] = useState<string>(detector?.signalId || preSelectedSignalId || "");
   const [lockedValues, setLockedValues] = useState({ length: false, stopbarSetback: false });
   const [isDescriptionDirty, setIsDescriptionDirty] = useState(Boolean(detector?.description));
-  const [hasCreatedDetector, setHasCreatedDetector] = useState(false);
 
   const form = useForm<InsertDetector>({
     resolver: zodResolver(insertDetectorSchema),
@@ -117,10 +116,8 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
       });
       setSelectedSignalId(detector.signalId);
       setIsDescriptionDirty(Boolean(detector.description));
-      setHasCreatedDetector(false);
     } else {
       setIsDescriptionDirty(false);
-      setHasCreatedDetector(false);
     }
   }, [detector, form]);
 
@@ -163,19 +160,14 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
           title: "Success",
           description: "Detector updated successfully",
         });
-        onClose();
       } else {
         detectorHooks.save(data);
         toast({
           title: "Success", 
           description: "Detector created successfully",
         });
-        const nextChannel = incrementLastNumber(data.channel);
-        const nextLane = incrementAllNumbers(data.lane ?? "");
-        form.setValue("channel", nextChannel);
-        form.setValue("lane", nextLane);
-        setHasCreatedDetector(true);
       }
+      onClose();
     } catch (error) {
       toast({
         title: "Error",
@@ -204,7 +196,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
       detectorHooks.save(data);
       toast({
         title: "Success",
-        description: "Adjacent lane detector created successfully",
+        description: "Detector duplicated successfully",
       });
       const nextChannel = incrementLastNumber(data.channel);
       const nextLane = incrementAllNumbers(data.lane ?? "");
@@ -213,7 +205,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to create adjacent lane detector",
+        description: "Failed to duplicate detector",
         variant: "destructive",
       });
     } finally {
@@ -581,14 +573,9 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                 )}
               </div>
               <div className="flex space-x-3">
-                {!detector && hasCreatedDetector && (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={handleQuickDuplicate}
-                    disabled={isLoading}
-                  >
-                    Quick Duplicate Adjacent Lane
+                {!detector && (
+                  <Button type="button" variant="secondary" onClick={handleQuickDuplicate} disabled={isLoading}>
+                    Quick Duplicate
                   </Button>
                 )}
                 <Button type="button" variant="outline" onClick={onClose}>
