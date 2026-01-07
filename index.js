@@ -9,10 +9,8 @@ import { randomUUID } from "crypto";
 var MemStorage = class {
   agency = null;
   signals = /* @__PURE__ */ new Map();
-  approaches = /* @__PURE__ */ new Map();
   phases = /* @__PURE__ */ new Map();
   detectors = /* @__PURE__ */ new Map();
-  basicTiming = /* @__PURE__ */ new Map();
   async getAgency() {
     return this.agency || void 0;
   }
@@ -61,11 +59,6 @@ var MemStorage = class {
           this.phases.set(id, { ...phase, signalId: signalData.signalId });
         }
       });
-      Array.from(this.approaches.entries()).forEach(([id, approach]) => {
-        if (approach.signalId === signalId) {
-          this.approaches.set(id, { ...approach, signalId: signalData.signalId });
-        }
-      });
       Array.from(this.detectors.entries()).forEach(([id, detector]) => {
         if (detector.signalId === signalId) {
           this.detectors.set(id, { ...detector, signalId: signalData.signalId });
@@ -81,11 +74,6 @@ var MemStorage = class {
       Array.from(this.phases.entries()).forEach(([id, phase]) => {
         if (phase.signalId === signalId) {
           this.phases.delete(id);
-        }
-      });
-      Array.from(this.approaches.entries()).forEach(([id, approach]) => {
-        if (approach.signalId === signalId) {
-          this.approaches.delete(id);
         }
       });
       Array.from(this.detectors.entries()).forEach(([id, detector]) => {
@@ -127,34 +115,6 @@ var MemStorage = class {
   async deletePhase(id) {
     this.phases.delete(id);
   }
-  async getApproaches() {
-    return Array.from(this.approaches.values());
-  }
-  async getApproachesBySignal(signalId) {
-    return Array.from(this.approaches.values()).filter((a) => a.signalId === signalId);
-  }
-  async createApproach(approachData) {
-    const id = randomUUID();
-    const approach = {
-      id,
-      ...approachData,
-      postedSpeed: approachData.postedSpeed ?? null
-    };
-    this.approaches.set(id, approach);
-    return approach;
-  }
-  async updateApproach(id, approachData) {
-    const existing = this.approaches.get(id);
-    if (!existing) {
-      throw new Error("Approach not found");
-    }
-    const updated = { ...existing, ...approachData };
-    this.approaches.set(id, updated);
-    return updated;
-  }
-  async deleteApproach(id) {
-    this.approaches.delete(id);
-  }
   async getDetectors() {
     return Array.from(this.detectors.values());
   }
@@ -187,34 +147,12 @@ var MemStorage = class {
   async deleteDetector(id) {
     this.detectors.delete(id);
   }
-  async getBasicTiming() {
-    return Array.from(this.basicTiming.values());
-  }
-  async createOrUpdateBasicTiming(data) {
-    const key = `${data.signalId}-${data.phase}`;
-    const timing = {
-      signalId: data.signalId,
-      phase: data.phase,
-      pedWalk: data.pedWalk,
-      pedClearance: data.pedClearance,
-      leadingPedInterval: data.leadingPedInterval,
-      minGreen: data.minGreen,
-      maxGreen: data.maxGreen,
-      yellow: data.yellow,
-      allRed: data.allRed,
-      vehRecallType: data.vehRecallType
-    };
-    this.basicTiming.set(key, timing);
-    return timing;
-  }
   async getAllData() {
     return {
       agency: this.agency,
       signals: Array.from(this.signals.values()),
-      approaches: Array.from(this.approaches.values()),
       phases: Array.from(this.phases.values()),
-      detectors: Array.from(this.detectors.values()),
-      basicTiming: Array.from(this.basicTiming.values())
+      detectors: Array.from(this.detectors.values())
     };
   }
 };
@@ -222,7 +160,7 @@ var storage = new MemStorage();
 
 // shared/schema.ts
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, real, boolean, integer, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, real, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 var agencies = pgTable("agencies", {
@@ -243,19 +181,10 @@ var signals = pgTable("signals", {
   latitude: real("latitude").notNull(),
   longitude: real("longitude").notNull()
 });
-var approaches = pgTable("approaches", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  approachId: text("approach_id").notNull(),
-  signalId: text("signal_id").notNull(),
-  streetName: text("street_name").notNull(),
-  compassBearing: text("compass_bearing").notNull(),
-  postedSpeed: real("posted_speed")
-});
 var phases = pgTable("phases", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   phase: integer("phase").notNull(),
   signalId: text("signal_id").notNull(),
-  approachId: text("approach_id"),
   movementType: text("movement_type").notNull(),
   isPedestrian: boolean("is_pedestrian").default(false),
   numOfLanes: integer("num_of_lanes").default(1),
@@ -274,24 +203,6 @@ var detectors = pgTable("detectors", {
   length: real("length"),
   stopbarSetbackDist: real("stopbar_setback_dist")
 });
-var basicTiming = pgTable(
-  "basic_timing",
-  {
-    signalId: text("signal_id").notNull(),
-    phase: integer("phase").notNull(),
-    pedWalk: real("ped_walk").notNull(),
-    pedClearance: real("ped_clearance").notNull(),
-    leadingPedInterval: real("leading_ped_interval").notNull(),
-    minGreen: real("min_green").notNull(),
-    maxGreen: real("max_green").notNull(),
-    yellow: real("yellow").notNull(),
-    allRed: real("all_red").notNull(),
-    vehRecallType: text("veh_recall_type").notNull()
-  },
-  (table) => ({
-    pk: primaryKey({ columns: [table.signalId, table.phase] })
-  })
-);
 var insertAgencySchema = createInsertSchema(agencies).omit({
   id: true
 }).extend({
@@ -303,22 +214,11 @@ var insertSignalSchema = createInsertSchema(signals).omit({
   signalId: z.string().optional()
   // Make signal ID optional when creating
 });
-var insertApproachSchema = createInsertSchema(approaches).omit({
-  id: true
-}).extend({
-  postedSpeed: z.number().optional().nullable()
-});
 var insertPhaseSchema = createInsertSchema(phases).omit({
   id: true
-}).extend({
-  approachId: z.string().optional().nullable()
 });
 var insertDetectorSchema = createInsertSchema(detectors).omit({
   id: true
-});
-var VEH_RECALL_TYPES = ["None", "Min", "Max", "Soft"];
-var insertBasicTimingSchema = createInsertSchema(basicTiming).extend({
-  vehRecallType: z.enum(VEH_RECALL_TYPES)
 });
 
 // server/routes.ts
@@ -460,10 +360,8 @@ async function registerRoutes(app2) {
       const csvData = {
         agency: generateAgencyCSV(data.agency),
         signals: generateSignalsCSV(data.signals),
-        approaches: generateApproachesCSV(data.approaches),
         phases: generatePhasesCSV(data.phases),
-        detection: generateDetectionCSV(data.detectors),
-        basicTiming: generateBasicTimingCSV(data.basicTiming)
+        detection: generateDetectionCSV(data.detectors)
       };
       const archive = archiver("zip", { zlib: { level: 9 } });
       res.setHeader("Content-Type", "application/zip");
@@ -471,10 +369,8 @@ async function registerRoutes(app2) {
       archive.pipe(res);
       archive.append(csvData.agency, { name: "agency.txt" });
       archive.append(csvData.signals, { name: "signals.txt" });
-      archive.append(csvData.approaches, { name: "approaches.txt" });
       archive.append(csvData.phases, { name: "phases.txt" });
       archive.append(csvData.detection, { name: "detection.txt" });
-      archive.append(csvData.basicTiming, { name: "basic_timing.txt" });
       await archive.finalize();
     } catch (error) {
       res.status(500).json({ message: "Failed to generate export" });
@@ -497,13 +393,6 @@ function generateSignalsCSV(signals2) {
   ).join("\n");
   return headers + (rows ? rows + "\n" : "");
 }
-function generateApproachesCSV(approaches2) {
-  const headers = "approach_id,signal_id,street_name,compass_bearing,posted_speed\n";
-  const rows = approaches2.map(
-    (a) => `${a.approachId},${a.signalId},"${a.streetName}","${a.compassBearing}",${a.postedSpeed ?? ""}`
-  ).join("\n");
-  return headers + (rows ? rows + "\n" : "");
-}
 function generatePhasesCSV(phases2) {
   const movementTypeMap = {
     "Through": "T",
@@ -516,10 +405,10 @@ function generatePhasesCSV(phases2) {
     "Through-Right": "TR",
     "Pedestrian": "PED"
   };
-  const headers = "Phase,SignalID,ApproachID,Movement_Type,is_pedestrian,is_overlap,channel_output,vehicle_detection_ids,ped_audible_enabled\n";
+  const headers = "Phase,SignalID,Movement_Type,is_pedestrian,is_overlap,channel_output,vehicle_detection_ids,ped_audible_enabled\n";
   const rows = phases2.map((p) => {
     const shorthandMovementType = movementTypeMap[p.movementType] || p.movementType;
-    return `${p.phase},${p.signalId},${p.approachId || ""},"${shorthandMovementType}",${p.isPedestrian},${p.isOverlap},"${p.channelOutput || ""}","${p.vehicleDetectionIds || ""}",${p.pedAudibleEnabled}`;
+    return `${p.phase},${p.signalId},"${shorthandMovementType}",${p.isPedestrian},${p.isOverlap},"${p.channelOutput || ""}","${p.vehicleDetectionIds || ""}",${p.pedAudibleEnabled}`;
   }).join("\n");
   return headers + (rows ? rows + "\n" : "");
 }
@@ -527,13 +416,6 @@ function generateDetectionCSV(detectors2) {
   const headers = "SignalID,Detector_Channel,Phase,Description,Purpose,Vehicle_Type,Lane,Det_Technology_Type,Length,Stopbar_Setback\n";
   const rows = detectors2.map(
     (d) => `${d.signalId},"${d.detectorChannel}",${d.phase},"${d.description || ""}","${d.purpose}","${d.vehicleType || ""}","${d.lane || ""}","${d.detTechnologyType}",${d.length || ""},${d.stopbarSetback ?? ""}`
-  ).join("\n");
-  return headers + (rows ? rows + "\n" : "");
-}
-function generateBasicTimingCSV(timings) {
-  const headers = "phase,signal_id,ped_walk,ped_clearance,leading_ped_interval,min_green,max_green,yellow,all_red,veh_recall_type\n";
-  const rows = timings.map(
-    (t) => `${t.phase},${t.signalId},${t.pedWalk},${t.pedClearance},${t.leadingPedInterval},${t.minGreen},${t.maxGreen},${t.yellow},${t.allRed},${t.vehRecallType}`
   ).join("\n");
   return headers + (rows ? rows + "\n" : "");
 }
