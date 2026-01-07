@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertPhaseSchema, type InsertPhase, type Approach, type Phase } from "@shared/schema";
+import { insertPhaseSchema, type InsertPhase, type Phase } from "@shared/schema";
 import { usePhases } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +31,7 @@ L.Icon.Default.mergeOptions({
 });
 
 export default function PhaseModal({ phase, onClose, preSelectedSignalId }: PhaseModalProps) {
-  const { signals, approaches } = useGTSSStore();
+  const { signals } = useGTSSStore();
   const { toast } = useToast();
   const phaseHooks = usePhases();
   const [isLoading, setIsLoading] = useState(false);
@@ -41,7 +41,6 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
     defaultValues: {
       phase: 2,
       signalId: preSelectedSignalId || "",
-      approachId: null,
       movementType: "Through",
       isPedestrian: true,
       isOverlap: false,
@@ -51,16 +50,12 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
 
   const movementType = form.watch("movementType");
   const pedestrianDirty = form.formState.dirtyFields.isPedestrian;
-  const selectedSignalId = form.watch("signalId");
-  const availableApproaches = approaches.filter((approach) => approach.signalId === selectedSignalId);
-  const formatApproachLabel = (approach: Approach) => `${approach.compassBearing} ${approach.streetName}`;
 
   useEffect(() => {
     if (phase) {
       form.reset({
         phase: phase.phase,
         signalId: phase.signalId,
-        approachId: phase.approachId ?? null,
         movementType: phase.movementType,
         isPedestrian: phase.isPedestrian ?? phase.movementType === "Through",
         isOverlap: phase.isOverlap,
@@ -80,13 +75,6 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
       form.setValue("isPedestrian", movementType === "Through");
     }
   }, [movementType, pedestrianDirty, phase, form]);
-
-  useEffect(() => {
-    const currentApproachId = form.getValues("approachId");
-    if (currentApproachId && !availableApproaches.some((approach) => approach.approachId === currentApproachId)) {
-      form.setValue("approachId", null);
-    }
-  }, [availableApproaches, form]);
 
   const onSubmit = async (data: InsertPhase) => {
     setIsLoading(true);
@@ -184,14 +172,14 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
     }
   };
 
-  const handleDuplicateToOppositeApproach = async () => {
+  const handleDuplicateToOppositePhase = async () => {
     const currentData = form.getValues();
     const newPhaseNumber = getOppositePhaseNumber(currentData.phase);
 
     if (!newPhaseNumber) {
       toast({
         title: "Not Applicable",
-        description: "Duplicate to opposite approach only works for phases 1 through 8",
+        description: "Duplicate to opposite phase only works for phases 1 through 8",
         variant: "destructive",
       });
       return;
@@ -214,7 +202,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
 
       toast({
         title: "Success",
-        description: `Created opposite approach phase ${newPhaseNumber} from phase ${currentData.phase}`,
+        description: `Created opposite phase ${newPhaseNumber} from phase ${currentData.phase}`,
       });
 
       onClose();
@@ -315,32 +303,6 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                         {signals.map((signal) => (
                           <SelectItem key={signal.signalId} value={signal.signalId}>
                             {signal.signalId}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="approachId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Approach</FormLabel>
-                    <Select onValueChange={(value) => field.onChange(value || null)} value={field.value ?? ""}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={availableApproaches.length ? "Select approach" : "No approaches"} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="">Unassigned</SelectItem>
-                        {availableApproaches.map((approach) => (
-                          <SelectItem key={approach.id} value={approach.approachId}>
-                            {formatApproachLabel(approach)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -488,14 +450,14 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                     <p className="text-xs text-grey-600">
                       {getOppositePhaseNumber(form.watch("phase"))
                         ? `Opposite: proposed phase ${getOppositePhaseNumber(form.watch("phase"))} will use the same movement type.`
-                        : "Opposite approach duplication requires a phase between 1 and 8."}
+                        : "Opposite phase duplication requires a phase between 1 and 8."}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={handleDuplicateToOppositeApproach}
+                      onClick={handleDuplicateToOppositePhase}
                       disabled={isLoading || !getOppositePhaseNumber(form.watch("phase"))}
                       className="flex items-center space-x-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                     >

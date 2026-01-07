@@ -3,20 +3,16 @@ import { useGTSSStore } from '@/store/gtss-store';
 import { 
   agencyStorage, 
   signalStorage, 
-  approachStorage,
   phaseStorage, 
   detectorStorage,
-  basicTimingStorage,
   exportAsZip,
   exportAsIndividualFiles
 } from './localStorage';
 import { 
   InsertAgency, 
   InsertSignal, 
-  InsertApproach,
   InsertPhase, 
   InsertDetector,
-  InsertBasicTiming,
 } from '@shared/schema';
 
 // Custom hooks to replace TanStack Query for localStorage operations
@@ -37,7 +33,7 @@ export const useAgency = () => {
 };
 
 export const useSignals = () => {
-  const { signals, setSignals, addSignal, updateSignal, deleteSignal } = useGTSSStore();
+  const { signals, addSignal, updateSignal, deleteSignal } = useGTSSStore();
 
   const saveSignal = (data: InsertSignal) => {
     const savedSignal = signalStorage.save(data);
@@ -66,38 +62,8 @@ export const useSignals = () => {
   };
 };
 
-export const useApproaches = () => {
-  const { approaches, addApproach, updateApproach, deleteApproach } = useGTSSStore();
-
-  const saveApproach = (data: InsertApproach) => {
-    const savedApproach = approachStorage.save(data);
-    addApproach(savedApproach);
-    return savedApproach;
-  };
-
-  const updateApproachById = (id: string, data: Partial<InsertApproach>) => {
-    const updatedApproach = approachStorage.update(id, data);
-    if (updatedApproach) {
-      updateApproach(id, updatedApproach);
-    }
-    return updatedApproach;
-  };
-
-  const deleteApproachById = (id: string) => {
-    approachStorage.delete(id);
-    deleteApproach(id);
-  };
-
-  return {
-    data: approaches,
-    save: saveApproach,
-    update: updateApproachById,
-    delete: deleteApproachById,
-  };
-};
-
 export const usePhases = () => {
-  const { phases, setPhases, addPhase, updatePhase, deletePhase, deleteBasicTiming } = useGTSSStore();
+  const { phases, addPhase, updatePhase, deletePhase } = useGTSSStore();
 
   const savePhase = (data: InsertPhase) => {
     const savedPhase = phaseStorage.save(data);
@@ -114,12 +80,8 @@ export const usePhases = () => {
   };
 
   const deletePhaseById = (id: string) => {
-    const phaseToDelete = phases.find(p => p.id === id);
     phaseStorage.delete(id);
     deletePhase(id);
-    if (phaseToDelete) {
-      deleteBasicTiming(phaseToDelete.signalId, phaseToDelete.phase);
-    }
   };
 
   return {
@@ -131,7 +93,7 @@ export const usePhases = () => {
 };
 
 export const useDetectors = () => {
-  const { detectors, setDetectors, addDetector, updateDetector, deleteDetector } = useGTSSStore();
+  const { detectors, addDetector, updateDetector, deleteDetector } = useGTSSStore();
 
   const saveDetector = (data: InsertDetector) => {
     const savedDetector = detectorStorage.save(data);
@@ -157,41 +119,6 @@ export const useDetectors = () => {
     save: saveDetector,
     update: updateDetectorById,
     delete: deleteDetectorById,
-  };
-};
-
-export const useBasicTimings = () => {
-  const { basicTiming, addBasicTiming, updateBasicTiming, deleteBasicTiming } = useGTSSStore();
-
-  const saveTiming = (data: InsertBasicTiming) => {
-    const savedTiming = basicTimingStorage.save(data);
-    const existing = basicTiming.find(t => t.signalId === savedTiming.signalId && t.phase === savedTiming.phase);
-    if (existing) {
-      updateBasicTiming(savedTiming.signalId, savedTiming.phase, savedTiming);
-    } else {
-      addBasicTiming(savedTiming);
-    }
-    return savedTiming;
-  };
-
-  const updateTiming = (signalId: string, phase: number, data: Partial<InsertBasicTiming>) => {
-    const updatedTiming = basicTimingStorage.update(signalId, phase, data);
-    if (updatedTiming) {
-      updateBasicTiming(signalId, phase, updatedTiming);
-    }
-    return updatedTiming;
-  };
-
-  const deleteTiming = (signalId: string, phase: number) => {
-    basicTimingStorage.deleteBySignalPhase(signalId, phase);
-    deleteBasicTiming(signalId, phase);
-  };
-
-  return {
-    data: basicTiming,
-    save: saveTiming,
-    update: updateTiming,
-    delete: deleteTiming,
   };
 };
 

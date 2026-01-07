@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useExport } from "@/lib/localStorageHooks";
-import { generateAgencyCSV, generateSignalsCSV, generateApproachesCSV, generatePhasesCSV, generateDetectionCSV, generateBasicTimingCSV } from "@/lib/localStorage";
+import { generateAgencyCSV, generateSignalsCSV, generatePhasesCSV, generateDetectionCSV } from "@/lib/localStorage";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import { evaluateGTSSCompleteness } from "@/lib/gtssValidation";
 import GTSSFileViewer, { GTSSFilePreview } from "@/components/gtss/gtss-file-viewer";
 
 export default function ExportPanel() {
-  const { agency, signals, approaches, phases, detectors, basicTiming, navigateToSignalDetails } = useGTSSStore();
+  const { agency, signals, phases, detectors, navigateToSignalDetails } = useGTSSStore();
   
   // Generate default package name with agency name and date
   const getDefaultPackageName = () => {
@@ -32,10 +32,8 @@ export default function ExportPanel() {
   const [includeFiles, setIncludeFiles] = useState({
     agency: true,
     signals: true,
-    approaches: true,
     phases: true,
     detection: true,
-    basicTiming: true,
   });
   const { toast } = useToast();
 
@@ -100,19 +98,9 @@ export default function ExportPanel() {
       issues.push({ type: "error", section: "Phases", message: `${orphanPhases.length} phases reference non-existent signals` });
     }
 
-    const orphanApproaches = approaches.filter(a => !signalIds.includes(a.signalId));
-    if (orphanApproaches.length > 0) {
-      issues.push({ type: "error", section: "Approaches", message: `${orphanApproaches.length} approaches reference non-existent signals` });
-    }
-    
     const orphanDetectors = detectors.filter(d => !signalIds.includes(d.signalId));
     if (orphanDetectors.length > 0) {
       issues.push({ type: "error", section: "Detectors", message: `${orphanDetectors.length} detectors reference non-existent signals` });
-    }
-
-    const orphanTiming = basicTiming.filter(t => !signalIds.includes(t.signalId));
-    if (orphanTiming.length > 0) {
-      issues.push({ type: "error", section: "Basic Timing", message: `${orphanTiming.length} timing rows reference non-existent signals` });
     }
     
     return issues;
@@ -122,7 +110,7 @@ export default function ExportPanel() {
   const hasErrors = validationIssues.some(issue => issue.type === "error");
   
   // Get GTSS completeness analysis
-  const completenessAnalysis = evaluateGTSSCompleteness(signals, phases, detectors, basicTiming);
+  const completenessAnalysis = evaluateGTSSCompleteness(signals, phases, detectors);
   const [isAnalysisExpanded, setIsAnalysisExpanded] = useState(false);
   const [showFilePreview, setShowFilePreview] = useState(false);
 
@@ -133,17 +121,11 @@ export default function ExportPanel() {
     includeFiles.signals
       ? { id: "signals", label: "signals.txt", content: generateSignalsCSV(signals) }
       : null,
-    includeFiles.approaches
-      ? { id: "approaches", label: "approaches.txt", content: generateApproachesCSV(approaches) }
-      : null,
     includeFiles.phases
       ? { id: "phases", label: "phases.txt", content: generatePhasesCSV(phases) }
       : null,
     includeFiles.detection
       ? { id: "detectors", label: "detectors.txt", content: generateDetectionCSV(detectors) }
-      : null,
-    includeFiles.basicTiming
-      ? { id: "basic-timing", label: "basic_timing.txt", content: generateBasicTimingCSV(basicTiming) }
       : null,
   ].filter(Boolean) as GTSSFilePreview[];
 
@@ -169,7 +151,7 @@ export default function ExportPanel() {
         </CardHeader>
         <CardContent className="p-6">
           {/* Completeness Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Card className="bg-primary-50 border-primary-200">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-2">
@@ -218,17 +200,6 @@ export default function ExportPanel() {
               </CardContent>
             </Card>
 
-            <Card className="bg-indigo-50 border-indigo-200">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <Settings2 className="w-5 h-5 text-indigo-600" />
-                  <div>
-                    <p className="text-xs font-medium text-indigo-700">Timing Records</p>
-                    <p className="text-lg font-bold text-indigo-800">{basicTiming.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
           {/* Signal-by-Signal Analysis - Collapsible */}
@@ -263,7 +234,7 @@ export default function ExportPanel() {
                                 <p className="text-xs text-grey-600">{result.location}</p>
                               </div>
                             </div>
-                            <div className="grid grid-cols-4 gap-4 mt-3">
+                            <div className="grid grid-cols-3 gap-4 mt-3">
                               <div className="flex items-center space-x-2">
                                 <Settings2 className="w-4 h-4 text-grey-500" />
                                 <div>
@@ -276,13 +247,6 @@ export default function ExportPanel() {
                                 <div>
                                   <p className="text-xs text-grey-500">Detectors</p>
                                   <p className="text-sm font-medium">{result.detectorCount}/4 ({result.detectorCompleteness})</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <Settings2 className="w-4 h-4 text-grey-500" />
-                                <div>
-                                  <p className="text-xs text-grey-500">Timing</p>
-                                  <p className="text-sm font-medium">{result.timingCount}/{result.expectedTimingCount} ({result.timingCompleteness})</p>
                                 </div>
                               </div>
                               <div className="flex items-center space-x-2">
@@ -410,18 +374,6 @@ export default function ExportPanel() {
                 </div>
                 <div className="flex items-center space-x-3">
                   <Checkbox
-                    id="approaches"
-                    checked={includeFiles.approaches}
-                    onCheckedChange={(checked) => 
-                      setIncludeFiles(prev => ({ ...prev, approaches: checked as boolean }))
-                    }
-                  />
-                  <Label htmlFor="approaches" className="text-sm text-grey-700">
-                    approaches.txt ({approaches.length} records)
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Checkbox
                     id="phases"
                     checked={includeFiles.phases}
                     onCheckedChange={(checked) => 
@@ -442,18 +394,6 @@ export default function ExportPanel() {
                   />
                   <Label htmlFor="detection" className="text-sm text-grey-700">
                     detectors.txt ({detectors.length} records)
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Checkbox
-                    id="basicTiming"
-                    checked={includeFiles.basicTiming}
-                    onCheckedChange={(checked) =>
-                      setIncludeFiles(prev => ({ ...prev, basicTiming: checked as boolean }))
-                    }
-                  />
-                  <Label htmlFor="basicTiming" className="text-sm text-grey-700">
-                    basic_timing.txt ({basicTiming.length} records)
                   </Label>
                 </div>
               </div>

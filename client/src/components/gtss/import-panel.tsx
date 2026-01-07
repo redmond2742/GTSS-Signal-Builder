@@ -5,8 +5,8 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, FileText, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
-import { parseAgencyTXT, parseSignalsTXT, parseApproachesTXT, parsePhasesTXT, parseDetectorsTXT, parseBasicTimingTXT, importData } from '@/lib/localStorage';
-import { Agency, Signal, Approach, Phase, Detector, BasicTiming } from '@shared/schema';
+import { parseAgencyTXT, parseSignalsTXT, parsePhasesTXT, parseDetectorsTXT, importData } from '@/lib/localStorage';
+import { Agency, Signal, Phase, Detector } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -22,16 +22,14 @@ import {
 type FileData = {
   name: string;
   content: string;
-  type: 'agency' | 'signals' | 'approaches' | 'phases' | 'detectors' | 'basicTiming' | 'unknown';
+  type: 'agency' | 'signals' | 'phases' | 'detectors' | 'unknown';
 };
 
 type ParsedData = {
   agency?: Agency | null;
   signals?: Signal[];
-  approaches?: Approach[];
   phases?: Phase[];
   detectors?: Detector[];
-  basicTiming?: BasicTiming[];
 };
 
 type ValidationError = {
@@ -48,12 +46,10 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
   const [dragActive, setDragActive] = useState(false);
   const { toast } = useToast();
 
-  const detectFileType = (filename: string): 'agency' | 'signals' | 'approaches' | 'phases' | 'detectors' | 'basicTiming' | 'unknown' => {
+  const detectFileType = (filename: string): 'agency' | 'signals' | 'phases' | 'detectors' | 'unknown' => {
     const lower = filename.toLowerCase();
     if (lower.includes('agency')) return 'agency';
-    if (lower.includes('basic_timing') || lower.includes('basic-timing')) return 'basicTiming';
     if (lower.includes('signal')) return 'signals';
-    if (lower.includes('approach')) return 'approaches';
     if (lower.includes('phase')) return 'phases';
     if (lower.includes('detector')) return 'detectors';
     return 'unknown';
@@ -97,10 +93,6 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
             const signals = parseSignalsTXT(file.content);
             parsed.signals = signals;
             break;
-          case 'approaches':
-            const approaches = parseApproachesTXT(file.content);
-            parsed.approaches = approaches;
-            break;
           case 'phases':
             const phases = parsePhasesTXT(file.content);
             parsed.phases = phases;
@@ -109,12 +101,8 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
             const detectors = parseDetectorsTXT(file.content);
             parsed.detectors = detectors;
             break;
-          case 'basicTiming':
-            const basicTiming = parseBasicTimingTXT(file.content);
-            parsed.basicTiming = basicTiming;
-            break;
           case 'unknown':
-            errors.push({ file: file.name, message: 'Could not determine file type from filename. File should contain "agency", "signal", "approach", "phase", "detector", or "basic_timing" in the name.' });
+            errors.push({ file: file.name, message: 'Could not determine file type from filename. File should contain "agency", "signal", "phase", or "detector" in the name.' });
             break;
         }
       } catch (error) {
@@ -136,15 +124,13 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
       const stats = {
         agency: parsedData.agency ? 1 : 0,
         signals: parsedData.signals?.length || 0,
-        approaches: parsedData.approaches?.length || 0,
         phases: parsedData.phases?.length || 0,
         detectors: parsedData.detectors?.length || 0,
-        basicTiming: parsedData.basicTiming?.length || 0,
       };
 
       toast({
         title: "Import Successful",
-        description: `Imported: ${stats.agency} agency, ${stats.signals} signals, ${stats.approaches} approaches, ${stats.phases} phases, ${stats.detectors} detectors, ${stats.basicTiming} timing rows`,
+        description: `Imported: ${stats.agency} agency, ${stats.signals} signals, ${stats.phases} phases, ${stats.detectors} detectors`,
       });
 
       // Reset state
@@ -199,7 +185,7 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
       <CardHeader>
         <CardTitle>Import GTSS Data</CardTitle>
         <CardDescription>
-          Upload TXT files to import traffic signal data. Supports agency.txt, signals.txt, approaches.txt, phases.txt, detectors.txt, and basic_timing.txt files.
+          Upload TXT files to import traffic signal data. Supports agency.txt, signals.txt, phases.txt, and detectors.txt files.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -312,11 +298,6 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
                     ✓ {parsedData.signals.length} Signal{parsedData.signals.length !== 1 ? 's' : ''}
                   </li>
                 )}
-                {parsedData.approaches && parsedData.approaches.length > 0 && (
-                  <li data-testid="preview-approaches">
-                    ✓ {parsedData.approaches.length} Approach{parsedData.approaches.length !== 1 ? 's' : ''}
-                  </li>
-                )}
                 {parsedData.phases && parsedData.phases.length > 0 && (
                   <li data-testid="preview-phases">
                     ✓ {parsedData.phases.length} Phase{parsedData.phases.length !== 1 ? 's' : ''}
@@ -325,11 +306,6 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
                 {parsedData.detectors && parsedData.detectors.length > 0 && (
                   <li data-testid="preview-detectors">
                     ✓ {parsedData.detectors.length} Detector{parsedData.detectors.length !== 1 ? 's' : ''}
-                  </li>
-                )}
-                {parsedData.basicTiming && parsedData.basicTiming.length > 0 && (
-                  <li data-testid="preview-basic-timing">
-                    ✓ {parsedData.basicTiming.length} Timing Row{parsedData.basicTiming.length !== 1 ? 's' : ''}
                   </li>
                 )}
               </ul>

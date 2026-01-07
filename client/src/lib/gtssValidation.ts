@@ -1,15 +1,12 @@
-import { Signal, Phase, Detector, BasicTiming } from "@shared/schema";
+import { Signal, Phase, Detector } from "@shared/schema";
 
 export interface ValidationResult {
   signalId: string;
   location: string;
   phaseCount: number;
   detectorCount: number;
-  timingCount: number;
-  expectedTimingCount: number;
   phaseCompleteness: string;
   detectorCompleteness: string;
-  timingCompleteness: string;
   overallScore: string;
   status: 'complete' | 'partial' | 'incomplete';
 }
@@ -26,8 +23,7 @@ export interface ValidationSummary {
 export function evaluateGTSSCompleteness(
   signals: Signal[], 
   phases: Phase[], 
-  detectors: Detector[],
-  basicTiming: BasicTiming[]
+  detectors: Detector[]
 ): ValidationSummary {
   const requiredPhaseCount = 8;
   const minRequiredDetectors = 4;
@@ -38,20 +34,13 @@ export function evaluateGTSSCompleteness(
     // Filter relevant data
     const signalPhases = phases.filter(p => p.signalId === sid);
     const signalDetectors = detectors.filter(d => d.signalId === sid);
-    const signalTiming = basicTiming.filter(t => t.signalId === sid);
 
     const phaseCount = signalPhases.length;
     const detectorCount = signalDetectors.length;
-    const timingCount = signalTiming.length;
-    const expectedTimingCount = signalPhases.length;
 
     const phaseCompleteness = Math.min(phaseCount / requiredPhaseCount, 1);
     const detectorCompleteness = Math.min(detectorCount / minRequiredDetectors, 1);
-    const timingCompleteness = signalPhases.length > 0
-      ? Math.min(timingCount / signalPhases.length, 1)
-      : 0;
-
-    const score = Math.round(((phaseCompleteness + detectorCompleteness + timingCompleteness) / 3) * 100);
+    const score = Math.round(((phaseCompleteness + detectorCompleteness) / 2) * 100);
 
     let status: 'complete' | 'partial' | 'incomplete' = "incomplete";
     if (score === 100) status = "complete";
@@ -62,11 +51,8 @@ export function evaluateGTSSCompleteness(
       location: `${signal.latitude.toFixed(6)}, ${signal.longitude.toFixed(6)}`,
       phaseCount,
       detectorCount,
-      timingCount,
-      expectedTimingCount,
       phaseCompleteness: `${Math.round(phaseCompleteness * 100)}%`,
       detectorCompleteness: `${Math.round(detectorCompleteness * 100)}%`,
-      timingCompleteness: `${Math.round(timingCompleteness * 100)}%`,
       overallScore: `${score}%`,
       status,
     };

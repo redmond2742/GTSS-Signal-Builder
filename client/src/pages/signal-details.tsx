@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertSignalSchema, insertPhaseSchema, insertDetectorSchema, VEH_RECALL_TYPES, type Signal, type Approach, type Phase, type Detector, type BasicTiming, type InsertSignal, type InsertPhase, type InsertDetector, type VehRecallType } from "@shared/schema";
+import { insertSignalSchema, insertPhaseSchema, insertDetectorSchema, type Signal, type Phase, type Detector, type InsertSignal, type InsertPhase, type InsertDetector } from "@shared/schema";
 import { useGTSSStore } from "@/store/gtss-store";
-import { useSignals, usePhases, useDetectors, useBasicTimings } from "@/lib/localStorageHooks";
+import { useSignals, usePhases, useDetectors } from "@/lib/localStorageHooks";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -22,7 +22,7 @@ import PhaseModal from "@/components/gtss/phase-modal";
 import DetectorModal from "@/components/gtss/detector-modal";
 import VisualPhaseEditor from "@/components/gtss/visual-phase-editor";
 import GTSSFileViewer, { GTSSFilePreview } from "@/components/gtss/gtss-file-viewer";
-import { generateAgencyCSV, generateSignalsCSV, generateApproachesCSV, generatePhasesCSV, generateDetectionCSV, generateBasicTimingCSV } from "@/lib/localStorage";
+import { generateAgencyCSV, generateSignalsCSV, generatePhasesCSV, generateDetectionCSV } from "@/lib/localStorage";
 
 // Location picker component for interactive map editing
 function LocationPicker({ onLocationSelect }: { onLocationSelect: (lat: number, lon: number) => void }) {
@@ -34,33 +34,18 @@ function LocationPicker({ onLocationSelect }: { onLocationSelect: (lat: number, 
   return null;
 }
 
-type TimingDraft = {
-  pedWalk: string;
-  pedClearance: string;
-  leadingPedInterval: string;
-  minGreen: string;
-  maxGreen: string;
-  yellow: string;
-  allRed: string;
-  vehRecallType: VehRecallType | "";
-};
-
 export default function SignalDetails() {
   const { toast } = useToast();
-  const { agency, signals, approaches, phases, detectors, basicTiming, currentSignalId, navigateToMain, navigateToSignalDetails } = useGTSSStore();
+  const { agency, signals, phases, detectors, currentSignalId, navigateToMain, navigateToSignalDetails } = useGTSSStore();
   const signalId = currentSignalId;
   const isNewSignal = signalId === null;
   const signalHooks = useSignals();
   const phaseHooks = usePhases();
   const detectorHooks = useDetectors();
-  const basicTimingHooks = useBasicTimings();
   
   const [signal, setSignal] = useState<Signal | null>(null);
-  const [signalApproaches, setSignalApproaches] = useState<Approach[]>([]);
   const [signalPhases, setSignalPhases] = useState<Phase[]>([]);
   const [signalDetectors, setSignalDetectors] = useState<Detector[]>([]);
-  const [signalTiming, setSignalTiming] = useState<BasicTiming[]>([]);
-  const [timingDrafts, setTimingDrafts] = useState<Record<string, TimingDraft>>({});
   const [isEditingSignal, setIsEditingSignal] = useState(false);
   const [showPhaseModal, setShowPhaseModal] = useState(false);
   const [showDetectorModal, setShowDetectorModal] = useState(false);
@@ -84,7 +69,6 @@ export default function SignalDetails() {
     defaultValues: {
       signalId: signalId && signalId !== 'new' ? signalId : "",
       phase: 1,
-      approachId: null,
       movementType: "Through",
       isPedestrian: true,
       numOfLanes: 1,
@@ -103,40 +87,17 @@ export default function SignalDetails() {
     return [
       { id: "agency", label: "agency.txt", content: generateAgencyCSV(agency) },
       { id: "signals", label: "signals.txt", content: generateSignalsCSV([signal]) },
-      { id: "approaches", label: "approaches.txt", content: generateApproachesCSV(signalApproaches) },
       { id: "phases", label: "phases.txt", content: generatePhasesCSV(signalPhases) },
       { id: "detectors", label: "detectors.txt", content: generateDetectionCSV(signalDetectors) },
-      { id: "basic-timing", label: "basic_timing.txt", content: generateBasicTimingCSV(signalTiming) },
     ] as GTSSFilePreview[];
-  }, [agency, signal, signalApproaches, signalPhases, signalDetectors, signalTiming]);
-
-  const sortedSignalPhases = useMemo(() => {
-    return [...signalPhases].sort((a, b) => a.phase - b.phase);
-  }, [signalPhases]);
-
-  const formatApproachLabel = (approach: Approach) => `${approach.compassBearing} ${approach.streetName}`;
-  const getApproachLabel = (approachId?: string | null) => {
-    if (!approachId) {
-      return "Unassigned";
-    }
-    const approach = signalApproaches.find(item => item.approachId === approachId);
-    return approach ? formatApproachLabel(approach) : "Unassigned";
-  };
-  const getDetectorApproachLabel = (phaseNumber: number) => {
-    const phase = signalPhases.find(item => item.phase === phaseNumber);
-    return getApproachLabel(phase?.approachId ?? null);
-  };
-
+  }, [agency, signal, signalPhases, signalDetectors]);
 
   useEffect(() => {
     if (isNewSignal) {
       // Initialize for new signal creation
       setSignal(null);
-      setSignalApproaches([]);
       setSignalPhases([]);
       setSignalDetectors([]);
-      setSignalTiming([]);
-      setTimingDrafts({});
       setIsEditingSignal(true); // Start in editing mode for new signal
       signalForm.reset({
         signalId: "",
@@ -155,39 +116,14 @@ export default function SignalDetails() {
           agencyId: foundSignal.agencyId,
         });
       }
-      
-      const filteredApproaches = approaches.filter(a => a.signalId === signalId);
-      setSignalApproaches(filteredApproaches);
 
       const filteredPhases = phases.filter(p => p.signalId === signalId);
       setSignalPhases(filteredPhases);
       
       const filteredDetectors = detectors.filter(d => d.signalId === signalId);
       setSignalDetectors(filteredDetectors);
-
-      const filteredTiming = basicTiming.filter(t => t.signalId === signalId);
-      setSignalTiming(filteredTiming);
     }
-  }, [signalId, isNewSignal, signals, approaches, phases, detectors, basicTiming, agency]);
-
-  useEffect(() => {
-    if (!signalId) return;
-    const nextDrafts: Record<string, TimingDraft> = {};
-    signalPhases.forEach((phase) => {
-      const timing = signalTiming.find(t => t.signalId === signalId && t.phase === phase.phase);
-      nextDrafts[`${signalId}-${phase.phase}`] = {
-        pedWalk: timing ? String(timing.pedWalk) : "",
-        pedClearance: timing ? String(timing.pedClearance) : "",
-        leadingPedInterval: timing ? String(timing.leadingPedInterval) : "",
-        minGreen: timing ? String(timing.minGreen) : "",
-        maxGreen: timing ? String(timing.maxGreen) : "",
-        yellow: timing ? String(timing.yellow) : "",
-        allRed: timing ? String(timing.allRed) : "",
-        vehRecallType: timing?.vehRecallType ?? "",
-      };
-    });
-    setTimingDrafts(nextDrafts);
-  }, [signalId, signalPhases, signalTiming]);
+  }, [signalId, isNewSignal, signals, phases, detectors, agency]);
 
   const handleSignalSave = (data: InsertSignal) => {
     try {
@@ -257,7 +193,6 @@ export default function SignalDetails() {
     phaseForm.reset({
       signalId: signalId || "",
       phase: signalPhases.length + 1,
-      approachId: signalApproaches[0]?.approachId ?? null,
       movementType: "Through",
       isPedestrian: true,
       numOfLanes: 1,
@@ -271,7 +206,6 @@ export default function SignalDetails() {
     phaseForm.reset({
       signalId: phase.signalId,
       phase: phase.phase,
-      approachId: phase.approachId ?? null,
       movementType: phase.movementType,
       isPedestrian: phase.isPedestrian ?? phase.movementType === "Through",
       numOfLanes: phase.numOfLanes,
@@ -401,102 +335,6 @@ export default function SignalDetails() {
     }
   };
 
-  const updateTimingDraft = (phaseNumber: number, field: keyof TimingDraft, value: string) => {
-    if (!signalId) return;
-    const key = `${signalId}-${phaseNumber}`;
-    setTimingDrafts(prev => ({
-      ...prev,
-      [key]: {
-        ...(prev[key] ?? {}),
-        [field]: value,
-      },
-    }));
-  };
-
-  const parseRequiredNumber = (value: string, label: string): { value?: number; error?: string } => {
-    if (!value || value.trim() === '') {
-      return { error: `${label} is required` };
-    }
-    if (!/^-?\d*\.?\d+$/.test(value)) {
-      return { error: `${label} must be a valid number` };
-    }
-    return { value: Number(value) };
-  };
-
-  const handleTimingSave = (phaseNumber: number) => {
-    if (!signalId) return;
-    const key = `${signalId}-${phaseNumber}`;
-    const draft = timingDrafts[key];
-    if (!draft) return;
-
-    const fields = [
-      { key: "pedWalk", label: "Ped walk" },
-      { key: "pedClearance", label: "Ped clearance" },
-      { key: "leadingPedInterval", label: "Leading ped interval" },
-      { key: "minGreen", label: "Min green" },
-      { key: "maxGreen", label: "Max green" },
-      { key: "yellow", label: "Yellow" },
-      { key: "allRed", label: "All red" },
-    ] as const;
-
-    const numericValues: Record<string, number> = {};
-    for (const field of fields) {
-      const result = parseRequiredNumber(draft[field.key], field.label);
-      if (result.error) {
-        toast({
-          title: "Validation Error",
-          description: result.error,
-          variant: "destructive",
-        });
-        return;
-      }
-      numericValues[field.key] = result.value as number;
-    }
-
-    if (!draft.vehRecallType || !VEH_RECALL_TYPES.includes(draft.vehRecallType)) {
-      toast({
-        title: "Validation Error",
-        description: "Vehicle recall type is required.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const existingTiming = signalTiming.find(t => t.signalId === signalId && t.phase === phaseNumber);
-    const payload = {
-      signalId,
-      phase: phaseNumber,
-      pedWalk: numericValues.pedWalk,
-      pedClearance: numericValues.pedClearance,
-      leadingPedInterval: numericValues.leadingPedInterval,
-      minGreen: numericValues.minGreen,
-      maxGreen: numericValues.maxGreen,
-      yellow: numericValues.yellow,
-      allRed: numericValues.allRed,
-      vehRecallType: draft.vehRecallType,
-    };
-
-    try {
-      if (existingTiming) {
-        basicTimingHooks.update(signalId, phaseNumber, payload);
-      } else {
-        basicTimingHooks.save(payload);
-      }
-      const updatedTiming = useGTSSStore.getState().basicTiming.filter(t => t.signalId === signalId);
-      setSignalTiming(updatedTiming);
-      toast({
-        title: "Success",
-        description: `Timing saved for phase ${phaseNumber}.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save timing data",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleSignalDelete = () => {
     if (!signal) return;
     
@@ -588,9 +426,7 @@ export default function SignalDetails() {
             <p className="text-xs text-grey-500 hidden sm:block">
               {isNewSignal
                 ? "Configure new traffic signal information"
-                : signalApproaches.length > 0
-                  ? `Signal ${signal?.signalId} • ${signalApproaches.map(formatApproachLabel).join(" · ")}`
-                  : `Signal ${signal?.signalId}`
+                : `Signal ${signal?.signalId}`
               }
             </p>
           </div>
@@ -873,7 +709,6 @@ export default function SignalDetails() {
                 <TableHeader>
                   <TableRow className="bg-grey-50 border-b border-grey-200">
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Phase</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Approach</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Movement</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Lanes</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Actions</TableHead>
@@ -894,9 +729,6 @@ export default function SignalDetails() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>
-                        {getApproachLabel(phase.approachId)}
-                      </TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{phase.movementType}</TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{phase.numOfLanes}</TableCell>
                       <TableCell className="py-1 px-1.5">
@@ -914,151 +746,6 @@ export default function SignalDetails() {
                       </TableCell>
                     </TableRow>
                   ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Basic Timing Section */}
-      <Card>
-        <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold text-grey-800 flex items-center space-x-2">
-              <Settings className="w-4 h-4 text-primary-600" />
-              <span>Basic Timing ({signalTiming.length})</span>
-            </CardTitle>
-            <Badge variant="secondary" className="text-xs">Required</Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {sortedSignalPhases.length === 0 ? (
-            <div className="p-8 text-center text-grey-500 text-sm">
-              Add phases to configure timing data.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-grey-50 border-b border-grey-200">
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Phase</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Ped Walk</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Ped Clearance</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>LPI</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Min Green</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Max Green</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Yellow</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>All Red</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Recall</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedSignalPhases.map((phase) => {
-                    const draft = timingDrafts[`${signalId}-${phase.phase}`] ?? {
-                      pedWalk: "",
-                      pedClearance: "",
-                      leadingPedInterval: "",
-                      minGreen: "",
-                      maxGreen: "",
-                      yellow: "",
-                      allRed: "",
-                      vehRecallType: "",
-                    };
-                    return (
-                      <TableRow key={`timing-${phase.phase}`}>
-                        <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>{phase.phase}</TableCell>
-                        <TableCell className="py-1 px-1.5">
-                          <Input
-                            type="number"
-                            value={draft.pedWalk}
-                            onChange={(e) => updateTimingDraft(phase.phase, "pedWalk", e.target.value)}
-                            className="h-6 px-2"
-                            style={{ fontSize: '12px', minWidth: '90px' }}
-                          />
-                        </TableCell>
-                        <TableCell className="py-1 px-1.5">
-                          <Input
-                            type="number"
-                            value={draft.pedClearance}
-                            onChange={(e) => updateTimingDraft(phase.phase, "pedClearance", e.target.value)}
-                            className="h-6 px-2"
-                            style={{ fontSize: '12px', minWidth: '90px' }}
-                          />
-                        </TableCell>
-                        <TableCell className="py-1 px-1.5">
-                          <Input
-                            type="number"
-                            value={draft.leadingPedInterval}
-                            onChange={(e) => updateTimingDraft(phase.phase, "leadingPedInterval", e.target.value)}
-                            className="h-6 px-2"
-                            style={{ fontSize: '12px', minWidth: '70px' }}
-                          />
-                        </TableCell>
-                        <TableCell className="py-1 px-1.5">
-                          <Input
-                            type="number"
-                            value={draft.minGreen}
-                            onChange={(e) => updateTimingDraft(phase.phase, "minGreen", e.target.value)}
-                            className="h-6 px-2"
-                            style={{ fontSize: '12px', minWidth: '90px' }}
-                          />
-                        </TableCell>
-                        <TableCell className="py-1 px-1.5">
-                          <Input
-                            type="number"
-                            value={draft.maxGreen}
-                            onChange={(e) => updateTimingDraft(phase.phase, "maxGreen", e.target.value)}
-                            className="h-6 px-2"
-                            style={{ fontSize: '12px', minWidth: '90px' }}
-                          />
-                        </TableCell>
-                        <TableCell className="py-1 px-1.5">
-                          <Input
-                            type="number"
-                            value={draft.yellow}
-                            onChange={(e) => updateTimingDraft(phase.phase, "yellow", e.target.value)}
-                            className="h-6 px-2"
-                            style={{ fontSize: '12px', minWidth: '70px' }}
-                          />
-                        </TableCell>
-                        <TableCell className="py-1 px-1.5">
-                          <Input
-                            type="number"
-                            value={draft.allRed}
-                            onChange={(e) => updateTimingDraft(phase.phase, "allRed", e.target.value)}
-                            className="h-6 px-2"
-                            style={{ fontSize: '12px', minWidth: '70px' }}
-                          />
-                        </TableCell>
-                        <TableCell className="py-1 px-1.5">
-                          <Select
-                            value={draft.vehRecallType || undefined}
-                            onValueChange={(value) => updateTimingDraft(phase.phase, "vehRecallType", value)}
-                          >
-                            <SelectTrigger className="h-6" style={{ fontSize: '12px', minWidth: '120px' }}>
-                              <SelectValue placeholder="Select" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {VEH_RECALL_TYPES.map(type => (
-                                <SelectItem key={type} value={type}>{type}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell className="py-1 px-1.5">
-                          <Button
-                            size="sm"
-                            className="h-6 px-2 text-xs bg-primary-600 hover:bg-primary-700"
-                            onClick={() => handleTimingSave(phase.phase)}
-                          >
-                            Save
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
                 </TableBody>
               </Table>
             </div>
@@ -1102,7 +789,6 @@ export default function SignalDetails() {
                   <TableRow className="bg-grey-50 border-b border-grey-200">
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Channel</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Phase</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Approach</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Technology</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Setback</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Actions</TableHead>
@@ -1117,7 +803,6 @@ export default function SignalDetails() {
                     >
                       <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>{detector.channel}</TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{detector.phase}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{getDetectorApproachLabel(detector.phase)}</TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{detector.technologyType}</TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>
                         {detector.stopbarSetbackDist ? `${detector.stopbarSetbackDist}ft` : 'N/A'}
@@ -1240,36 +925,6 @@ export default function SignalDetails() {
                           <SelectItem value="Left">Left</SelectItem>
                           <SelectItem value="Right">Right</SelectItem>
                           <SelectItem value="U-Turn">U-Turn</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={phaseForm.control}
-                  name="approachId"
-                  render={({ field }) => (
-                    <FormItem className="space-y-0.5">
-                      <div className="flex items-center space-x-1">
-                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Approach</FormLabel>
-                      </div>
-                      <Select
-                        onValueChange={(value) => field.onChange(value || null)}
-                        value={field.value ?? ""}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="h-6" style={{ fontSize: '12px' }}>
-                            <SelectValue placeholder={signalApproaches.length ? "Select approach" : "No approaches"} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="">Unassigned</SelectItem>
-                          {signalApproaches.map((approach) => (
-                            <SelectItem key={approach.id} value={approach.approachId}>
-                              {formatApproachLabel(approach)}
-                            </SelectItem>
-                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />

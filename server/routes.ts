@@ -165,10 +165,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const csvData = {
         agency: generateAgencyCSV(data.agency),
         signals: generateSignalsCSV(data.signals),
-        approaches: generateApproachesCSV(data.approaches),
         phases: generatePhasesCSV(data.phases),
         detection: generateDetectionCSV(data.detectors),
-        basicTiming: generateBasicTimingCSV(data.basicTiming),
       };
 
       // Create ZIP file
@@ -182,10 +180,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add CSV files to archive
       archive.append(csvData.agency, { name: 'agency.txt' });
       archive.append(csvData.signals, { name: 'signals.txt' });
-      archive.append(csvData.approaches, { name: 'approaches.txt' });
       archive.append(csvData.phases, { name: 'phases.txt' });
       archive.append(csvData.detection, { name: 'detection.txt' });
-      archive.append(csvData.basicTiming, { name: 'basic_timing.txt' });
       
       await archive.finalize();
     } catch (error) {
@@ -213,14 +209,6 @@ function generateSignalsCSV(signals: any[]): string {
   return headers + (rows ? rows + '\n' : '');
 }
 
-function generateApproachesCSV(approaches: any[]): string {
-  const headers = 'approach_id,signal_id,street_name,compass_bearing,posted_speed\n';
-  const rows = approaches.map(a =>
-    `${a.approachId},${a.signalId},"${a.streetName}","${a.compassBearing}",${a.postedSpeed ?? ''}`
-  ).join('\n');
-  return headers + (rows ? rows + '\n' : '');
-}
-
 function generatePhasesCSV(phases: any[]): string {
   // Movement type mapping to shorthand codes
   const movementTypeMap: { [key: string]: string } = {
@@ -235,10 +223,10 @@ function generatePhasesCSV(phases: any[]): string {
     "Pedestrian": "PED"
   };
 
-  const headers = 'Phase,SignalID,ApproachID,Movement_Type,is_pedestrian,is_overlap,channel_output,vehicle_detection_ids,ped_audible_enabled\n';
+  const headers = 'Phase,SignalID,Movement_Type,is_pedestrian,is_overlap,channel_output,vehicle_detection_ids,ped_audible_enabled\n';
   const rows = phases.map(p => {
     const shorthandMovementType = movementTypeMap[p.movementType] || p.movementType;
-    return `${p.phase},${p.signalId},${p.approachId || ''},"${shorthandMovementType}",${p.isPedestrian},${p.isOverlap},"${p.channelOutput || ''}","${p.vehicleDetectionIds || ''}",${p.pedAudibleEnabled}`;
+    return `${p.phase},${p.signalId},"${shorthandMovementType}",${p.isPedestrian},${p.isOverlap},"${p.channelOutput || ''}","${p.vehicleDetectionIds || ''}",${p.pedAudibleEnabled}`;
   }).join('\n');
   return headers + (rows ? rows + '\n' : '');
 }
@@ -247,14 +235,6 @@ function generateDetectionCSV(detectors: any[]): string {
   const headers = 'SignalID,Detector_Channel,Phase,Description,Purpose,Vehicle_Type,Lane,Det_Technology_Type,Length,Stopbar_Setback\n';
   const rows = detectors.map(d => 
     `${d.signalId},"${d.detectorChannel}",${d.phase},"${d.description || ''}","${d.purpose}","${d.vehicleType || ''}","${d.lane || ''}","${d.detTechnologyType}",${d.length || ''},${d.stopbarSetback ?? ''}`
-  ).join('\n');
-  return headers + (rows ? rows + '\n' : '');
-}
-
-function generateBasicTimingCSV(timings: any[]): string {
-  const headers = 'phase,signal_id,ped_walk,ped_clearance,leading_ped_interval,min_green,max_green,yellow,all_red,veh_recall_type\n';
-  const rows = timings.map(t =>
-    `${t.phase},${t.signalId},${t.pedWalk},${t.pedClearance},${t.leadingPedInterval},${t.minGreen},${t.maxGreen},${t.yellow},${t.allRed},${t.vehRecallType}`
   ).join('\n');
   return headers + (rows ? rows + '\n' : '');
 }

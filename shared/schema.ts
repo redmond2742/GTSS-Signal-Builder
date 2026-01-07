@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, real, boolean, integer, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, real, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -23,20 +23,10 @@ export const signals = pgTable("signals", {
   longitude: real("longitude").notNull(),
 });
 
-export const approaches = pgTable("approaches", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  approachId: text("approach_id").notNull(),
-  signalId: text("signal_id").notNull(),
-  streetName: text("street_name").notNull(),
-  compassBearing: text("compass_bearing").notNull(),
-  postedSpeed: real("posted_speed"),
-});
-
 export const phases = pgTable("phases", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   phase: integer("phase").notNull(),
   signalId: text("signal_id").notNull(),
-  approachId: text("approach_id"),
   movementType: text("movement_type").notNull(),
   isPedestrian: boolean("is_pedestrian").default(false),
   numOfLanes: integer("num_of_lanes").default(1),
@@ -57,25 +47,6 @@ export const detectors = pgTable("detectors", {
   stopbarSetbackDist: real("stopbar_setback_dist"),
 });
 
-export const basicTiming = pgTable(
-  "basic_timing",
-  {
-    signalId: text("signal_id").notNull(),
-    phase: integer("phase").notNull(),
-    pedWalk: real("ped_walk").notNull(),
-    pedClearance: real("ped_clearance").notNull(),
-    leadingPedInterval: real("leading_ped_interval").notNull(),
-    minGreen: real("min_green").notNull(),
-    maxGreen: real("max_green").notNull(),
-    yellow: real("yellow").notNull(),
-    allRed: real("all_red").notNull(),
-    vehRecallType: text("veh_recall_type").notNull(),
-  },
-  (table) => ({
-    pk: primaryKey({ columns: [table.signalId, table.phase] }),
-  })
-);
-
 export const insertAgencySchema = createInsertSchema(agencies).omit({
   id: true,
 }).extend({
@@ -88,47 +59,26 @@ export const insertSignalSchema = createInsertSchema(signals).omit({
   signalId: z.string().optional(), // Make signal ID optional when creating
 });
 
-export const insertApproachSchema = createInsertSchema(approaches).omit({
-  id: true,
-}).extend({
-  postedSpeed: z.number().optional().nullable(),
-});
-
 export const insertPhaseSchema = createInsertSchema(phases).omit({
   id: true,
-}).extend({
-  approachId: z.string().optional().nullable(),
 });
 
 export const insertDetectorSchema = createInsertSchema(detectors).omit({
   id: true,
 });
 
-export const VEH_RECALL_TYPES = ["None", "Min", "Max", "Soft"] as const;
-
-export const insertBasicTimingSchema = createInsertSchema(basicTiming).extend({
-  vehRecallType: z.enum(VEH_RECALL_TYPES),
-});
-
 export type Agency = typeof agencies.$inferSelect;
 export type InsertAgency = z.infer<typeof insertAgencySchema>;
 export type Signal = typeof signals.$inferSelect;
 export type InsertSignal = z.infer<typeof insertSignalSchema>;
-export type Approach = typeof approaches.$inferSelect;
-export type InsertApproach = z.infer<typeof insertApproachSchema>;
 export type Phase = typeof phases.$inferSelect;
 export type InsertPhase = z.infer<typeof insertPhaseSchema>;
 export type Detector = typeof detectors.$inferSelect;
 export type InsertDetector = z.infer<typeof insertDetectorSchema>;
-export type BasicTiming = typeof basicTiming.$inferSelect;
-export type InsertBasicTiming = z.infer<typeof insertBasicTimingSchema>;
-export type VehRecallType = (typeof VEH_RECALL_TYPES)[number];
 
 export type GTSSData = {
   agency: Agency | null;
   signals: Signal[];
-  approaches: Approach[];
   phases: Phase[];
   detectors: Detector[];
-  basicTiming: BasicTiming[];
 };
