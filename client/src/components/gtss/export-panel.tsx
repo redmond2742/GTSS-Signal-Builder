@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useExport } from "@/lib/localStorageHooks";
-import { generateAgencyCSV, generateSignalsCSV, generatePhasesCSV, generateDetectionCSV } from "@/lib/localStorage";
+import { generateAgencyCSV, generateSignalsCSV, generateApproachesCSV, generatePhasesCSV, generateDetectionCSV, generateBasicTimingsCSV } from "@/lib/localStorage";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import { evaluateGTSSCompleteness } from "@/lib/gtssValidation";
 import GTSSFileViewer, { GTSSFilePreview } from "@/components/gtss/gtss-file-viewer";
 
 export default function ExportPanel() {
-  const { agency, signals, phases, detectors, navigateToSignalDetails } = useGTSSStore();
+  const { agency, signals, approaches, phases, detectors, basicTimings, navigateToSignalDetails } = useGTSSStore();
   
   // Generate default package name with agency name and date
   const getDefaultPackageName = () => {
@@ -32,8 +32,10 @@ export default function ExportPanel() {
   const [includeFiles, setIncludeFiles] = useState({
     agency: true,
     signals: true,
+    approaches: true,
     phases: true,
     detection: true,
+    basicTimings: true,
   });
   const { toast } = useToast();
 
@@ -96,16 +98,27 @@ export default function ExportPanel() {
     });
     
     const signalIds = signals.map(s => s.signalId);
+
+    const orphanApproaches = approaches.filter(a => !signalIds.includes(a.signalId));
+    if (orphanApproaches.length > 0) {
+      issues.push({ type: "error", section: "Approaches", message: `${orphanApproaches.length} approaches reference non-existent signals` });
+    }
+
     const orphanPhases = phases.filter(p => !signalIds.includes(p.signalId));
     if (orphanPhases.length > 0) {
       issues.push({ type: "error", section: "Phases", message: `${orphanPhases.length} phases reference non-existent signals` });
     }
-    
+
     const orphanDetectors = detectors.filter(d => !signalIds.includes(d.signalId));
     if (orphanDetectors.length > 0) {
       issues.push({ type: "error", section: "Detectors", message: `${orphanDetectors.length} detectors reference non-existent signals` });
     }
-    
+
+    const orphanTimings = basicTimings.filter(t => !signalIds.includes(t.signalId));
+    if (orphanTimings.length > 0) {
+      issues.push({ type: "error", section: "Basic Timings", message: `${orphanTimings.length} timing configurations reference non-existent signals` });
+    }
+
     return issues;
   };
 
@@ -124,11 +137,17 @@ export default function ExportPanel() {
     includeFiles.signals
       ? { id: "signals", label: "signals.txt", content: generateSignalsCSV(signals) }
       : null,
+    includeFiles.approaches
+      ? { id: "approaches", label: "approaches.txt", content: generateApproachesCSV(approaches) }
+      : null,
     includeFiles.phases
       ? { id: "phases", label: "phases.txt", content: generatePhasesCSV(phases) }
       : null,
     includeFiles.detection
       ? { id: "detectors", label: "detectors.txt", content: generateDetectionCSV(detectors) }
+      : null,
+    includeFiles.basicTimings
+      ? { id: "basicTimings", label: "basic_timings.txt", content: generateBasicTimingsCSV(basicTimings) }
       : null,
   ].filter(Boolean) as GTSSFilePreview[];
 
@@ -349,12 +368,12 @@ export default function ExportPanel() {
 
             <div className="border border-grey-200 rounded-lg p-4">
               <h4 className="font-medium text-grey-800 mb-3">Files to Include</h4>
-              <div className="space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div className="flex items-center space-x-3">
                   <Checkbox
                     id="agency"
                     checked={includeFiles.agency}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       setIncludeFiles(prev => ({ ...prev, agency: checked as boolean }))
                     }
                   />
@@ -366,7 +385,7 @@ export default function ExportPanel() {
                   <Checkbox
                     id="signals"
                     checked={includeFiles.signals}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       setIncludeFiles(prev => ({ ...prev, signals: checked as boolean }))
                     }
                   />
@@ -376,9 +395,21 @@ export default function ExportPanel() {
                 </div>
                 <div className="flex items-center space-x-3">
                   <Checkbox
+                    id="approaches"
+                    checked={includeFiles.approaches}
+                    onCheckedChange={(checked) =>
+                      setIncludeFiles(prev => ({ ...prev, approaches: checked as boolean }))
+                    }
+                  />
+                  <Label htmlFor="approaches" className="text-sm text-grey-700">
+                    approaches.txt ({approaches.length} records)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Checkbox
                     id="phases"
                     checked={includeFiles.phases}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       setIncludeFiles(prev => ({ ...prev, phases: checked as boolean }))
                     }
                   />
@@ -390,12 +421,24 @@ export default function ExportPanel() {
                   <Checkbox
                     id="detection"
                     checked={includeFiles.detection}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       setIncludeFiles(prev => ({ ...prev, detection: checked as boolean }))
                     }
                   />
                   <Label htmlFor="detection" className="text-sm text-grey-700">
                     detectors.txt ({detectors.length} records)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Checkbox
+                    id="basicTimings"
+                    checked={includeFiles.basicTimings}
+                    onCheckedChange={(checked) =>
+                      setIncludeFiles(prev => ({ ...prev, basicTimings: checked as boolean }))
+                    }
+                  />
+                  <Label htmlFor="basicTimings" className="text-sm text-grey-700">
+                    basic_timings.txt ({basicTimings.length} records)
                   </Label>
                 </div>
               </div>

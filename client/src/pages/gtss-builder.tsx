@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { useLoadFromStorage } from "@/lib/localStorageHooks";
-import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Navigation, Plus, Map, Coffee, Trash2, Menu, X, ExternalLink } from "lucide-react";
+import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Navigation, Plus, Map, Coffee, Trash2, Menu, X, ExternalLink, Compass, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import AgencyForm from "@/components/gtss/agency-form";
 import SignalsTable from "@/components/gtss/signals-table";
+import ApproachesTable from "@/components/gtss/approaches-table";
 import PhasesTable from "@/components/gtss/phases-table";
 import DetectorsTable from "@/components/gtss/detectors-table";
+import BasicTimingsTable from "@/components/gtss/basic-timings-table";
 import ExportPanel from "@/components/gtss/export-panel";
 import SignalDetails from "@/pages/signal-details";
 import { useGTSSStore } from "@/store/gtss-store";
@@ -15,19 +17,23 @@ import { useToast } from "@/hooks/use-toast";
 import { clearAllData } from "@/lib/localStorage";
 import { cn } from "@/lib/utils";
 
-type TabType = "agency" | "signals" | "phases" | "detectors";
+type TabType = "agency" | "signals" | "approaches" | "phases" | "detectors" | "basic-timings";
 
 const tabs = [
   { id: "signals", label: "Traffic Signals", icon: MapPin },
+  { id: "approaches", label: "Approaches", icon: Compass },
   { id: "phases", label: "Phases", icon: ArrowUpDown },
+  { id: "basic-timings", label: "Basic Timings", icon: Clock },
   { id: "detectors", label: "Detectors", icon: Target },
   { id: "agency", label: "Agency Info", icon: Building },
 ];
 
-const tabTitles = {
+const tabTitles: Record<TabType, { title: string; desc: string }> = {
   agency: { title: "Agency Information", desc: "Configure your traffic management agency details" },
   signals: { title: "Traffic Signals", desc: "Manage traffic signal installation locations" },
+  approaches: { title: "Approaches", desc: "Configure approach directions and speeds for each signal" },
   phases: { title: "Signal Phases", desc: "Configure movement phases for each signal" },
+  "basic-timings": { title: "Basic Timings", desc: "Configure timing parameters for each phase" },
   detectors: { title: "Detection Systems", desc: "Configure vehicle and pedestrian detection equipment" },
 };
 
@@ -35,39 +41,47 @@ export default function GTSSBuilder() {
   const [activeTab, setActiveTab] = useState<TabType>("signals");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showExportPanel, setShowExportPanel] = useState(false);
-  const { signals, phases, detectors, currentView, setAgency, setSignals, setPhases, setDetectors, navigateToSignalDetails } = useGTSSStore();
+  const { signals, approaches, phases, detectors, basicTimings, currentView, setAgency, setSignals, setApproaches, setPhases, setDetectors, setBasicTimings, navigateToSignalDetails } = useGTSSStore();
   const { toast } = useToast();
-  
+
   // Load data from localStorage on mount
   useLoadFromStorage();
 
   const getCounts = () => ({
     signals: signals.length,
+    approaches: approaches.length,
     phases: phases.length,
     detectors: detectors.length,
+    "basic-timings": basicTimings.length,
   });
 
   const counts = getCounts();
 
   const [triggerAdd, setTriggerAdd] = useState(0);
   const [triggerBulk, setTriggerBulk] = useState(0);
+  const [triggerAddApproach, setTriggerAddApproach] = useState(0);
   const [triggerAddPhase, setTriggerAddPhase] = useState(0);
   const [triggerVisualEditor, setTriggerVisualEditor] = useState(0);
   const [triggerAddDetector, setTriggerAddDetector] = useState(0);
+  const [triggerAddBasicTiming, setTriggerAddBasicTiming] = useState(0);
 
   const renderTabContent = () => {
     // If export panel is shown, render it regardless of active tab
     if (showExportPanel) {
       return <ExportPanel />;
     }
-    
+
     switch (activeTab) {
       case "agency":
         return <AgencyForm />;
       case "signals":
         return <SignalsTable triggerAdd={triggerAdd} triggerBulk={triggerBulk} />;
+      case "approaches":
+        return <ApproachesTable triggerAdd={triggerAddApproach} />;
       case "phases":
         return <PhasesTable triggerAdd={triggerAddPhase} triggerVisualEditor={triggerVisualEditor} />;
+      case "basic-timings":
+        return <BasicTimingsTable triggerAdd={triggerAddBasicTiming} />;
       case "detectors":
         return <DetectorsTable triggerAdd={triggerAddDetector} />;
       default:
@@ -84,6 +98,10 @@ export default function GTSSBuilder() {
     setTriggerBulk(prev => prev + 1);
   };
 
+  const handleAddApproach = () => {
+    setTriggerAddApproach(prev => prev + 1);
+  };
+
   const handleAddPhase = () => {
     setTriggerAddPhase(prev => prev + 1);
   };
@@ -96,17 +114,23 @@ export default function GTSSBuilder() {
     setTriggerAddDetector(prev => prev + 1);
   };
 
+  const handleAddBasicTiming = () => {
+    setTriggerAddBasicTiming(prev => prev + 1);
+  };
+
   const handleClearAllData = () => {
     clearAllData();
     // Reset store to empty state
     setAgency(null);
     setSignals([]);
+    setApproaches([]);
     setPhases([]);
     setDetectors([]);
-    
+    setBasicTimings([]);
+
     toast({
       title: "Data Cleared",
-      description: "All signal, phase, detector, and agency data has been cleared",
+      description: "All signal, approach, phase, detector, timing, and agency data has been cleared",
     });
   };
 
@@ -119,7 +143,7 @@ export default function GTSSBuilder() {
     <div className="h-screen flex bg-grey-50">
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
@@ -150,16 +174,18 @@ export default function GTSSBuilder() {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               const count = counts[tab.id as keyof typeof counts] || 0;
-              
+
               return (
                 <button
                   key={tab.id}
                   onClick={() => {
                     setTriggerAdd(0);
                     setTriggerBulk(0);
+                    setTriggerAddApproach(0);
                     setTriggerAddPhase(0);
                     setTriggerVisualEditor(0);
                     setTriggerAddDetector(0);
+                    setTriggerAddBasicTiming(0);
                     setActiveTab(tab.id as TabType);
                     setShowExportPanel(false);
                     setIsMobileMenuOpen(false);
@@ -175,9 +201,9 @@ export default function GTSSBuilder() {
                   <div className="flex-1">
                     <span className="text-xs font-medium">{tab.label}</span>
                   </div>
-                  {count > 0 && tab.id !== "phases" && tab.id !== "detectors" && (
-                    <Badge 
-                      variant={isActive ? "default" : "secondary"} 
+                  {count > 0 && tab.id === "signals" && (
+                    <Badge
+                      variant={isActive ? "default" : "secondary"}
                       className="text-xs px-1.5 py-0 min-w-[18px] h-4"
                     >
                       {count}
@@ -250,7 +276,7 @@ export default function GTSSBuilder() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Clear All Data</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will permanently delete all agency information, signals, phases, and detectors. 
+                  This will permanently delete all agency information, signals, approaches, phases, timings, and detectors.
                   This action cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
@@ -305,6 +331,14 @@ export default function GTSSBuilder() {
                 </Button>
               </div>
             )}
+            {!showExportPanel && activeTab === "approaches" && (
+              <div className="flex space-x-1">
+                <Button onClick={handleAddApproach} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
+                  <Plus className="w-3 h-3 sm:mr-1" />
+                  <span className="hidden sm:inline">Add Approach</span>
+                </Button>
+              </div>
+            )}
             {!showExportPanel && activeTab === "phases" && (
               <div className="flex space-x-1">
                 <Button onClick={handleVisualEditor} variant="outline" className="h-7 px-2 text-xs border-grey-300 text-grey-700 hover:bg-white hover:text-grey-900 hidden sm:flex">
@@ -314,6 +348,14 @@ export default function GTSSBuilder() {
                 <Button onClick={handleAddPhase} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700 text-white">
                   <Plus className="w-3 h-3 sm:mr-1" />
                   <span className="hidden sm:inline">Add Phase</span>
+                </Button>
+              </div>
+            )}
+            {!showExportPanel && activeTab === "basic-timings" && (
+              <div className="flex space-x-1">
+                <Button onClick={handleAddBasicTiming} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
+                  <Plus className="w-3 h-3 sm:mr-1" />
+                  <span className="hidden sm:inline">Add Timing</span>
                 </Button>
               </div>
             )}

@@ -221,11 +221,8 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
       movementType: p.movementType as any,
       isPedestrian: p.isPedestrian,
       isOverlap: p.isOverlap,
-      compassBearing: p.bearing,
-      postedSpeed: p.postedSpeed,
       numOfLanes: p.numOfLanes,
-      vehicleDetectionIds: p.vehicleDetectionIds,
-      pedAudibleEnabled: p.pedAudibleEnabled,
+      // Note: compassBearing and postedSpeed are now stored on approaches, not phases
     }));
     
     onPhasesCreate(phasesToCreate);
@@ -320,27 +317,7 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
             );
           })}
 
-          {/* Draw bearing lines for existing phases */}
-          {existingPhases.map((phase) => {
-            if (phase.compassBearing) {
-              // Reverse the bearing by 180 degrees for line display to match traffic flow direction
-              const reversedBearing = (phase.compassBearing + 180) % 360;
-              const endPoint = getBearingEndpoint(selectedSignal, reversedBearing, 0.002);
-              return (
-                <Polyline
-                  key={`existing-line-${phase.id}`}
-                  positions={[
-                    [selectedSignal.latitude || 0, selectedSignal.longitude || 0],
-                    endPoint
-                  ]}
-                  color="#10b981"
-                  weight={2}
-                  opacity={0.6}
-                />
-              );
-            }
-            return null;
-          })}
+          {/* Note: Bearing lines for existing phases removed - bearing now stored on approaches */}
 
           {/* Phase bearing markers */}
           {pendingPhases.map((phase) => {
@@ -494,16 +471,6 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
 
 
               <div>
-                <Label className="text-xs">Posted Speed</Label>
-                <Input
-                  type="number"
-                  value={editingPhase.postedSpeed || ""}
-                  onChange={(e) => handlePhaseUpdate(editingPhase.id, { postedSpeed: parseInt(e.target.value) || undefined })}
-                  className="h-8"
-                />
-              </div>
-
-              <div>
                 <Label className="text-xs">Number of Lanes</Label>
                 <Input
                   type="number"
@@ -570,7 +537,7 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
               </CardHeader>
               <CardContent className="space-y-2">
                 {existingPhases.map((phase) => (
-                  <div 
+                  <div
                     key={phase.id}
                     className="p-2 border rounded bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
                     onClick={() => handleExistingPhaseEdit(phase)}
@@ -578,13 +545,12 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-medium">Phase {phase.phase}</div>
                       <div className="flex items-center space-x-2">
-                        <div className="text-xs text-gray-500">{phase.compassBearing}°</div>
                         <Edit className="w-3 h-3 text-gray-400" />
                       </div>
                     </div>
                     <div className="text-xs text-gray-600">
                       {phase.movementType}
-
+                      {phase.approachId && ` • ${phase.approachId}`}
                       {phase.isOverlap && " • Overlap"}
                     </div>
                   </div>
@@ -640,33 +606,6 @@ export default function VisualPhaseEditor({ signal, onPhasesCreate, onClose }: V
                     <SelectItem value="Pedestrian">Pedestrian</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium">Compass Bearing (degrees)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="360"
-                  value={editingExistingPhase.compassBearing || ""}
-                  onChange={(e) => setEditingExistingPhase({
-                    ...editingExistingPhase,
-                    compassBearing: parseInt(e.target.value) || null
-                  })}
-                />
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium">Posted Speed</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={editingExistingPhase.postedSpeed || ""}
-                  onChange={(e) => setEditingExistingPhase({
-                    ...editingExistingPhase,
-                    postedSpeed: parseInt(e.target.value) || null
-                  })}
-                />
               </div>
 
               <div>

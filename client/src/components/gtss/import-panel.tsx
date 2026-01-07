@@ -5,8 +5,8 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, FileText, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
-import { parseAgencyTXT, parseSignalsTXT, parsePhasesTXT, parseDetectorsTXT, importData } from '@/lib/localStorage';
-import { Agency, Signal, Phase, Detector } from '@shared/schema';
+import { parseAgencyTXT, parseSignalsTXT, parseApproachesTXT, parsePhasesTXT, parseDetectorsTXT, parseBasicTimingsTXT, importData } from '@/lib/localStorage';
+import { Agency, Signal, Approach, Phase, Detector, BasicTiming } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -22,14 +22,16 @@ import {
 type FileData = {
   name: string;
   content: string;
-  type: 'agency' | 'signals' | 'phases' | 'detectors' | 'unknown';
+  type: 'agency' | 'signals' | 'approaches' | 'phases' | 'detectors' | 'basic_timings' | 'unknown';
 };
 
 type ParsedData = {
   agency?: Agency | null;
   signals?: Signal[];
+  approaches?: Approach[];
   phases?: Phase[];
   detectors?: Detector[];
+  basicTimings?: BasicTiming[];
 };
 
 type ValidationError = {
@@ -46,12 +48,14 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
   const [dragActive, setDragActive] = useState(false);
   const { toast } = useToast();
 
-  const detectFileType = (filename: string): 'agency' | 'signals' | 'phases' | 'detectors' | 'unknown' => {
+  const detectFileType = (filename: string): 'agency' | 'signals' | 'approaches' | 'phases' | 'detectors' | 'basic_timings' | 'unknown' => {
     const lower = filename.toLowerCase();
     if (lower.includes('agency')) return 'agency';
     if (lower.includes('signal')) return 'signals';
+    if (lower.includes('approach')) return 'approaches';
     if (lower.includes('phase')) return 'phases';
     if (lower.includes('detector')) return 'detectors';
+    if (lower.includes('basic_timing') || lower.includes('timing')) return 'basic_timings';
     return 'unknown';
   };
 
@@ -93,6 +97,10 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
             const signals = parseSignalsTXT(file.content);
             parsed.signals = signals;
             break;
+          case 'approaches':
+            const approaches = parseApproachesTXT(file.content);
+            parsed.approaches = approaches;
+            break;
           case 'phases':
             const phases = parsePhasesTXT(file.content);
             parsed.phases = phases;
@@ -101,13 +109,17 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
             const detectors = parseDetectorsTXT(file.content);
             parsed.detectors = detectors;
             break;
+          case 'basic_timings':
+            const basicTimings = parseBasicTimingsTXT(file.content);
+            parsed.basicTimings = basicTimings;
+            break;
           case 'unknown':
-            errors.push({ file: file.name, message: 'Could not determine file type from filename. File should contain "agency", "signal", "phase", or "detector" in the name.' });
+            errors.push({ file: file.name, message: 'Could not determine file type from filename. File should contain "agency", "signal", "approach", "phase", "detector", or "timing" in the name.' });
             break;
         }
       } catch (error) {
-        errors.push({ 
-          file: file.name, 
+        errors.push({
+          file: file.name,
           message: error instanceof Error ? error.message : 'Unknown error occurred'
         });
       }
@@ -120,17 +132,28 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
   const handleImport = () => {
     try {
       importData(parsedData, importMode);
-      
+
       const stats = {
         agency: parsedData.agency ? 1 : 0,
         signals: parsedData.signals?.length || 0,
+        approaches: parsedData.approaches?.length || 0,
         phases: parsedData.phases?.length || 0,
         detectors: parsedData.detectors?.length || 0,
+        basicTimings: parsedData.basicTimings?.length || 0,
       };
+
+      const importedItems = [
+        stats.agency > 0 ? `${stats.agency} agency` : null,
+        stats.signals > 0 ? `${stats.signals} signals` : null,
+        stats.approaches > 0 ? `${stats.approaches} approaches` : null,
+        stats.phases > 0 ? `${stats.phases} phases` : null,
+        stats.detectors > 0 ? `${stats.detectors} detectors` : null,
+        stats.basicTimings > 0 ? `${stats.basicTimings} timings` : null,
+      ].filter(Boolean).join(', ');
 
       toast({
         title: "Import Successful",
-        description: `Imported: ${stats.agency} agency, ${stats.signals} signals, ${stats.phases} phases, ${stats.detectors} detectors`,
+        description: `Imported: ${importedItems}`,
       });
 
       // Reset state
@@ -185,7 +208,7 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
       <CardHeader>
         <CardTitle>Import GTSS Data</CardTitle>
         <CardDescription>
-          Upload TXT files to import traffic signal data. Supports agency.txt, signals.txt, phases.txt, and detectors.txt files.
+          Upload TXT files to import traffic signal data. Supports agency.txt, signals.txt, approaches.txt, phases.txt, detectors.txt, and basic_timings.txt files.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -298,6 +321,11 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
                     ✓ {parsedData.signals.length} Signal{parsedData.signals.length !== 1 ? 's' : ''}
                   </li>
                 )}
+                {parsedData.approaches && parsedData.approaches.length > 0 && (
+                  <li data-testid="preview-approaches">
+                    ✓ {parsedData.approaches.length} Approach{parsedData.approaches.length !== 1 ? 'es' : ''}
+                  </li>
+                )}
                 {parsedData.phases && parsedData.phases.length > 0 && (
                   <li data-testid="preview-phases">
                     ✓ {parsedData.phases.length} Phase{parsedData.phases.length !== 1 ? 's' : ''}
@@ -306,6 +334,11 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
                 {parsedData.detectors && parsedData.detectors.length > 0 && (
                   <li data-testid="preview-detectors">
                     ✓ {parsedData.detectors.length} Detector{parsedData.detectors.length !== 1 ? 's' : ''}
+                  </li>
+                )}
+                {parsedData.basicTimings && parsedData.basicTimings.length > 0 && (
+                  <li data-testid="preview-basicTimings">
+                    ✓ {parsedData.basicTimings.length} Basic Timing{parsedData.basicTimings.length !== 1 ? 's' : ''}
                   </li>
                 )}
               </ul>

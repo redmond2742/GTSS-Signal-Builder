@@ -11,8 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
-import { X, Trash2, MapPin, Copy } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Trash2, Copy, Navigation } from "lucide-react";
 
 interface PhaseModalProps {
   phase: Phase | null;
@@ -21,7 +21,7 @@ interface PhaseModalProps {
 }
 
 export default function PhaseModal({ phase, onClose, preSelectedSignalId }: PhaseModalProps) {
-  const { signals } = useGTSSStore();
+  const { signals, approaches } = useGTSSStore();
   const { toast } = useToast();
   const phaseHooks = usePhases();
   const [isLoading, setIsLoading] = useState(false);
@@ -35,8 +35,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
       isPedestrian: true,
       isOverlap: false,
       numOfLanes: 1,
-      compassBearing: undefined,
-      postedSpeed: undefined,
+      approachId: undefined,
     },
   });
 
@@ -52,8 +51,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
         isPedestrian: phase.isPedestrian ?? phase.movementType === "Through",
         isOverlap: phase.isOverlap,
         numOfLanes: phase.numOfLanes || 1,
-        compassBearing: phase.compassBearing || undefined,
-        postedSpeed: phase.postedSpeed || undefined,
+        approachId: phase.approachId || undefined,
       });
     }
   }, [phase, form]);
@@ -139,7 +137,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
         movementType: "Left Turn",
         isPedestrian: false,
         numOfLanes: 1, // Default to 1 lane as specified
-        // Keep same compass bearing and posted speed
+        // Keep same approach reference
       };
 
       phaseHooks.save(leftTurnPhase);
@@ -313,51 +311,61 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
 
               <FormField
                 control={form.control}
-                name="compassBearing"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Compass Bearing (degrees)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="360"
-                        placeholder="90"
-                        {...field}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          field.onChange(value ? parseInt(value) : undefined);
-                        }}
-                        value={field.value || ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                name="approachId"
+                render={({ field }) => {
+                  const selectedSignalId = form.watch("signalId");
+                  const signalApproaches = approaches.filter(a => a.signalId === selectedSignalId);
+                  const selectedApproach = approaches.find(a => a.approachId === field.value);
 
-              <FormField
-                control={form.control}
-                name="postedSpeed"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Posted Speed</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="0"
-                        placeholder="35"
-                        {...field}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          field.onChange(value ? parseInt(value) : undefined);
-                        }}
-                        value={field.value || ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                  return (
+                    <FormItem className="md:col-span-2">
+                      <FormLabel className="flex items-center gap-2">
+                        <Navigation className="w-4 h-4" />
+                        Approach
+                      </FormLabel>
+                      {signalApproaches.length > 0 ? (
+                        <>
+                          <Select onValueChange={field.onChange} value={field.value || ""}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select approach (optional)" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {signalApproaches.map((approach) => (
+                                <SelectItem key={approach.approachId} value={approach.approachId}>
+                                  {approach.approachId} - {approach.streetName}
+                                  {approach.compassBearing !== null && ` (${approach.compassBearing}°)`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {selectedApproach && (
+                            <div className="flex gap-2 mt-2">
+                              {selectedApproach.compassBearing !== null && (
+                                <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
+                                  {selectedApproach.compassBearing}° bearing
+                                </Badge>
+                              )}
+                              {selectedApproach.postedSpeed !== null && (
+                                <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                                  {selectedApproach.postedSpeed} mph
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-xs text-grey-500 italic">
+                          {selectedSignalId
+                            ? "No approaches configured for this signal. Create approaches first in the Approaches tab."
+                            : "Select a signal to view available approaches."}
+                        </p>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
 
               <FormField
@@ -421,65 +429,6 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                 />
               </div>
             </div>
-
-            {/* Map section with signal location and optional bearing visualization */}
-            {form.watch("signalId") && (
-              <div className="bg-gray-50 p-4 rounded-lg border">
-                <h3 className="text-lg font-medium mb-3 flex items-center">
-                  <MapPin className="w-5 h-5 mr-2 text-blue-600" />
-                  Signal Location {form.watch("compassBearing") ? "& Phase Direction" : ""}
-                </h3>
-                <div className="h-64 rounded-lg overflow-hidden border">
-                  {(() => {
-                    const selectedSignal = signals.find(s => s.signalId === form.watch("signalId"));
-                    const bearing = form.watch("compassBearing");
-                    
-                    if (!selectedSignal || !selectedSignal.latitude || !selectedSignal.longitude) return null;
-                    
-                    // Calculate end point for bearing line (reversed for traffic flow direction)
-                    const reversedBearing = bearing ? (bearing + 180) % 360 : 0;
-                    const distance = 0.002; // degrees
-                    const bearingRad = (reversedBearing * Math.PI) / 180;
-                    const endLat = (selectedSignal.latitude || 0) + distance * Math.cos(bearingRad);
-                    const endLon = (selectedSignal.longitude || 0) + distance * Math.sin(bearingRad);
-                    
-                    return (
-                      <MapContainer
-                        center={[selectedSignal.latitude!, selectedSignal.longitude!]}
-                        zoom={18}
-                        style={{ height: "100%", width: "100%" }}
-                      >
-                        <TileLayer
-                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        />
-                        <Marker position={[selectedSignal.latitude!, selectedSignal.longitude!]}>
-                          <Popup>
-                            <div className="text-center">
-                              <div className="font-medium">{selectedSignal.signalId}</div>
-                              <div className="text-xs text-gray-600">
-                                {selectedSignal.streetName1} & {selectedSignal.streetName2}
-                              </div>
-                            </div>
-                          </Popup>
-                        </Marker>
-                        {bearing && (
-                          <Polyline
-                            positions={[
-                              [selectedSignal.latitude!, selectedSignal.longitude!],
-                              [endLat, endLon]
-                            ]}
-                            color="#10b981"
-                            weight={3}
-                            opacity={0.8}
-                          />
-                        )}
-                      </MapContainer>
-                    );
-                  })()}
-                </div>
-              </div>
-            )}
 
             <div className="space-y-3 border-t border-grey-200 pt-4">
               <div className="rounded-lg border border-grey-200 bg-grey-50 p-4 text-sm text-grey-700">

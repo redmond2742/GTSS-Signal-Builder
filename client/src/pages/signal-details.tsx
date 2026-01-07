@@ -73,9 +73,7 @@ export default function SignalDetails() {
       phase: 1,
       movementType: "Through",
       isPedestrian: true,
-      compassBearing: null,
       numOfLanes: 1,
-      postedSpeed: null,
       isOverlap: false,
     },
   });
@@ -206,9 +204,7 @@ export default function SignalDetails() {
       phase: signalPhases.length + 1,
       movementType: "Through",
       isPedestrian: true,
-      compassBearing: null,
       numOfLanes: 1,
-      postedSpeed: null,
       isOverlap: false,
     });
     setShowPhaseModal(true);
@@ -221,10 +217,9 @@ export default function SignalDetails() {
       phase: phase.phase,
       movementType: phase.movementType,
       isPedestrian: phase.isPedestrian ?? phase.movementType === "Through",
-      compassBearing: phase.compassBearing,
       numOfLanes: phase.numOfLanes,
-      postedSpeed: phase.postedSpeed,
       isOverlap: phase.isOverlap,
+      approachId: phase.approachId,
     });
     setShowPhaseModal(true);
   };
@@ -755,9 +750,8 @@ export default function SignalDetails() {
                   <TableRow className="bg-grey-50 border-b border-grey-200">
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Phase</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Movement</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Bearing</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Approach</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Lanes</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Speed</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -778,12 +772,9 @@ export default function SignalDetails() {
                       </TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{phase.movementType}</TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>
-                        {phase.compassBearing ? `${phase.compassBearing}°` : 'N/A'}
+                        {phase.approachId || '-'}
                       </TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{phase.numOfLanes}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>
-                        {phase.postedSpeed ? `${phase.postedSpeed} mph` : 'N/A'}
-                      </TableCell>
                       <TableCell className="py-1 px-1.5">
                         <Button
                           variant="ghost"
@@ -986,38 +977,6 @@ export default function SignalDetails() {
                 />
                 <FormField
                   control={phaseForm.control}
-                  name="compassBearing"
-                  render={({ field }) => (
-                    <FormItem className="space-y-0.5">
-                      <div className="flex items-center space-x-1">
-                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Bearing (°)</FormLabel>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-xs">Compass direction of traffic flow in degrees (0-360). 0° = North, 90° = East, 180° = South, 270° = West.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          type="number" 
-                          min="0" 
-                          max="360"
-                          className="h-6 px-2"
-                          style={{ fontSize: '12px' }}
-                          value={field.value || ""}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || null)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={phaseForm.control}
                   name="numOfLanes"
                   render={({ field }) => (
                     <FormItem className="space-y-0.5">
@@ -1042,37 +1001,6 @@ export default function SignalDetails() {
                           style={{ fontSize: '12px' }}
                           value={field.value || ""}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={phaseForm.control}
-                  name="postedSpeed"
-                  render={({ field }) => (
-                    <FormItem className="space-y-0.5">
-                      <div className="flex items-center space-x-1">
-                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Posted Speed (mph)</FormLabel>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-xs">Speed limit for this approach in miles per hour. Leave blank if not applicable.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          type="number" 
-                          min="0"
-                          className="h-6 px-2"
-                          style={{ fontSize: '12px' }}
-                          value={field.value || ""}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || null)}
                         />
                       </FormControl>
                       <FormMessage />

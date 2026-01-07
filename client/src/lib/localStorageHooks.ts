@@ -1,18 +1,22 @@
 import { useEffect } from 'react';
 import { useGTSSStore } from '@/store/gtss-store';
-import { 
-  agencyStorage, 
-  signalStorage, 
-  phaseStorage, 
+import {
+  agencyStorage,
+  signalStorage,
+  approachStorage,
+  phaseStorage,
   detectorStorage,
+  basicTimingStorage,
   exportAsZip,
   exportAsIndividualFiles
 } from './localStorage';
-import { 
-  InsertAgency, 
-  InsertSignal, 
-  InsertPhase, 
-  InsertDetector 
+import {
+  InsertAgency,
+  InsertSignal,
+  InsertApproach,
+  InsertPhase,
+  InsertDetector,
+  InsertBasicTiming
 } from '@shared/schema';
 
 // Custom hooks to replace TanStack Query for localStorage operations
@@ -59,6 +63,36 @@ export const useSignals = () => {
     save: saveSignal,
     update: updateSignalById,
     delete: deleteSignalById,
+  };
+};
+
+export const useApproaches = () => {
+  const { approaches, setApproaches, addApproach, updateApproach, deleteApproach } = useGTSSStore();
+
+  const saveApproach = (data: InsertApproach) => {
+    const savedApproach = approachStorage.save(data);
+    addApproach(savedApproach);
+    return savedApproach;
+  };
+
+  const updateApproachById = (id: string, data: Partial<InsertApproach>) => {
+    const updatedApproach = approachStorage.update(id, data);
+    if (updatedApproach) {
+      updateApproach(id, updatedApproach);
+    }
+    return updatedApproach;
+  };
+
+  const deleteApproachById = (id: string) => {
+    approachStorage.delete(id);
+    deleteApproach(id);
+  };
+
+  return {
+    data: approaches,
+    save: saveApproach,
+    update: updateApproachById,
+    delete: deleteApproachById,
   };
 };
 
@@ -119,6 +153,36 @@ export const useDetectors = () => {
     save: saveDetector,
     update: updateDetectorById,
     delete: deleteDetectorById,
+  };
+};
+
+export const useBasicTimings = () => {
+  const { basicTimings, setBasicTimings, addBasicTiming, updateBasicTiming, deleteBasicTiming } = useGTSSStore();
+
+  const saveBasicTiming = (data: InsertBasicTiming) => {
+    const savedTiming = basicTimingStorage.save(data);
+    addBasicTiming(savedTiming);
+    return savedTiming;
+  };
+
+  const updateBasicTimingById = (id: string, data: Partial<InsertBasicTiming>) => {
+    const updatedTiming = basicTimingStorage.update(id, data);
+    if (updatedTiming) {
+      updateBasicTiming(id, updatedTiming);
+    }
+    return updatedTiming;
+  };
+
+  const deleteBasicTimingById = (id: string) => {
+    basicTimingStorage.delete(id);
+    deleteBasicTiming(id);
+  };
+
+  return {
+    data: basicTimings,
+    save: saveBasicTiming,
+    update: updateBasicTimingById,
+    delete: deleteBasicTimingById,
   };
 };
 

@@ -1,13 +1,92 @@
-import { Agency, Signal, Phase, Detector, InsertAgency, InsertSignal, InsertPhase, InsertDetector } from '@shared/schema';
+import { Agency, Signal, Phase, Detector, Approach, BasicTiming, InsertAgency, InsertSignal, InsertPhase, InsertDetector, InsertApproach, InsertBasicTiming } from '@shared/schema';
 import { nanoid } from 'nanoid';
 
 // Storage keys
 const STORAGE_KEYS = {
   AGENCY: 'gtss_agency',
-  SIGNALS: 'gtss_signals', 
+  SIGNALS: 'gtss_signals',
   PHASES: 'gtss_phases',
   DETECTORS: 'gtss_detectors',
+  APPROACHES: 'gtss_approaches',
+  BASIC_TIMINGS: 'gtss_basic_timings',
 };
+
+// Maximum localStorage size (5MB)
+const MAX_STORAGE_SIZE = 5 * 1024 * 1024;
+
+// CSV sanitization to prevent formula injection attacks
+function sanitizeCSVField(value: string | number | boolean | null | undefined): string {
+  if (value == null) return '';
+
+  const strValue = String(value);
+
+  // Escape dangerous characters that could start formulas in spreadsheet applications
+  // Characters =, +, -, @, tab, carriage return can trigger formula execution
+  if (/^[=+\-@\t\r]/.test(strValue)) {
+    // Prepend single quote to neutralize formula execution and escape internal quotes
+    return `"'${strValue.replace(/"/g, '""')}"`;
+  }
+
+  // Quote fields containing commas, quotes, or newlines
+  if (/[",\n\r]/.test(strValue)) {
+    return `"${strValue.replace(/"/g, '""')}"`;
+  }
+
+  return strValue;
+}
+
+// Proper CSV line parser that handles quoted fields
+function parseCSVLine(line: string): string[] {
+  const fields: string[] = [];
+  let field = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const nextChar = line[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        // Escaped quote inside quoted field
+        field += '"';
+        i++; // Skip next quote
+      } else {
+        // Toggle quote mode
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      // End of field
+      fields.push(field.trim());
+      field = '';
+    } else {
+      field += char;
+    }
+  }
+
+  // Push the last field
+  fields.push(field.trim());
+  return fields;
+}
+
+// Safer number validation without ReDoS risk
+function isValidNumber(value: string): boolean {
+  if (!value || value.trim() === '') return false;
+  const num = Number(value);
+  return !isNaN(num) && isFinite(num);
+}
+
+function isValidInteger(value: string): boolean {
+  if (!value || value.trim() === '') return false;
+  const num = Number(value);
+  return !isNaN(num) && isFinite(num) && Number.isInteger(num);
+}
+
+// Check for prototype pollution attempts
+function hasPrototypePollution(obj: Record<string, unknown>): boolean {
+  return Object.prototype.hasOwnProperty.call(obj, '__proto__') ||
+         Object.prototype.hasOwnProperty.call(obj, 'constructor') ||
+         Object.prototype.hasOwnProperty.call(obj, 'prototype');
+}
 
 // Helper function to safely parse JSON from localStorage
 function getFromStorage<T>(key: string, defaultValue: T): T {
@@ -19,12 +98,24 @@ function getFromStorage<T>(key: string, defaultValue: T): T {
   }
 }
 
-// Helper function to save to localStorage
+// Helper function to save to localStorage with size limit check
 function saveToStorage<T>(key: string, data: T): void {
   try {
-    localStorage.setItem(key, JSON.stringify(data));
+    const serialized = JSON.stringify(data);
+
+    // Check size before saving
+    if (serialized.length > MAX_STORAGE_SIZE) {
+      throw new Error('Data too large for localStorage. Please reduce the number of records.');
+    }
+
+    localStorage.setItem(key, serialized);
   } catch (error) {
+    if (error instanceof Error && error.name === 'QuotaExceededError') {
+      console.error('localStorage quota exceeded');
+      throw new Error('Storage quota exceeded. Please delete some data before adding more.');
+    }
     console.error('Failed to save to localStorage:', error);
+    throw error;
   }
 }
 
@@ -77,20 +168,25 @@ export const signalStorage = {
       streetName2: signal.streetName2,
       latitude: signal.latitude,
       longitude: signal.longitude,
-
     };
-    
+
     const updatedSignals = [...signals, newSignal];
     saveToStorage(STORAGE_KEYS.SIGNALS, updatedSignals);
     return newSignal;
   },
 
   update: (signalId: string, updates: Partial<InsertSignal>): Signal | null => {
+    // Prevent prototype pollution
+    if (hasPrototypePollution(updates as Record<string, unknown>)) {
+      console.error('Attempted prototype pollution in signal update');
+      return null;
+    }
+
     const signals = signalStorage.getAll();
     const index = signals.findIndex(s => s.signalId === signalId);
-    
+
     if (index === -1) return null;
-    
+
     const updatedSignal = { ...signals[index], ...updates };
     signals[index] = updatedSignal;
     saveToStorage(STORAGE_KEYS.SIGNALS, signals);
@@ -98,6 +194,8 @@ export const signalStorage = {
     if (updates.signalId && updates.signalId !== signalId) {
       phaseStorage.updateSignalId(signalId, updates.signalId);
       detectorStorage.updateSignalId(signalId, updates.signalId);
+      approachStorage.updateSignalId(signalId, updates.signalId);
+      basicTimingStorage.updateSignalId(signalId, updates.signalId);
     }
     return updatedSignal;
   },
@@ -106,10 +204,12 @@ export const signalStorage = {
     const signals = signalStorage.getAll();
     const updatedSignals = signals.filter(s => s.signalId !== signalId);
     saveToStorage(STORAGE_KEYS.SIGNALS, updatedSignals);
-    
-    // Also delete related phases and detectors
+
+    // Also delete related phases, detectors, approaches, and basic timings
     phaseStorage.deleteBySignal(signalId);
     detectorStorage.deleteBySignal(signalId);
+    approachStorage.deleteBySignal(signalId);
+    basicTimingStorage.deleteBySignal(signalId);
   },
 
   clear: (): void => {
@@ -117,7 +217,76 @@ export const signalStorage = {
   },
 };
 
-// Phase operations
+// Approach operations - new for GTSSv1.1
+export const approachStorage = {
+  getAll: (): Approach[] => {
+    return getFromStorage<Approach[]>(STORAGE_KEYS.APPROACHES, []);
+  },
+
+  getBySignal: (signalId: string): Approach[] => {
+    const approaches = approachStorage.getAll();
+    return approaches.filter(a => a.signalId === signalId);
+  },
+
+  save: (approach: InsertApproach): Approach => {
+    const approaches = approachStorage.getAll();
+    const newApproach: Approach = {
+      id: nanoid(),
+      approachId: approach.approachId || `APR_${String(approaches.length + 1).padStart(3, '0')}`,
+      signalId: approach.signalId,
+      streetName: approach.streetName,
+      compassBearing: approach.compassBearing ?? null,
+      postedSpeed: approach.postedSpeed ?? null,
+    };
+
+    const updatedApproaches = [...approaches, newApproach];
+    saveToStorage(STORAGE_KEYS.APPROACHES, updatedApproaches);
+    return newApproach;
+  },
+
+  update: (id: string, updates: Partial<InsertApproach>): Approach | null => {
+    if (hasPrototypePollution(updates as Record<string, unknown>)) {
+      console.error('Attempted prototype pollution in approach update');
+      return null;
+    }
+
+    const approaches = approachStorage.getAll();
+    const index = approaches.findIndex(a => a.id === id);
+
+    if (index === -1) return null;
+
+    const updatedApproach = { ...approaches[index], ...updates };
+    approaches[index] = updatedApproach;
+    saveToStorage(STORAGE_KEYS.APPROACHES, approaches);
+    return updatedApproach;
+  },
+
+  delete: (id: string): void => {
+    const approaches = approachStorage.getAll();
+    const updatedApproaches = approaches.filter(a => a.id !== id);
+    saveToStorage(STORAGE_KEYS.APPROACHES, updatedApproaches);
+  },
+
+  deleteBySignal: (signalId: string): void => {
+    const approaches = approachStorage.getAll();
+    const updatedApproaches = approaches.filter(a => a.signalId !== signalId);
+    saveToStorage(STORAGE_KEYS.APPROACHES, updatedApproaches);
+  },
+
+  updateSignalId: (oldSignalId: string, newSignalId: string): void => {
+    const approaches = approachStorage.getAll();
+    const updatedApproaches = approaches.map(approach =>
+      approach.signalId === oldSignalId ? { ...approach, signalId: newSignalId } : approach
+    );
+    saveToStorage(STORAGE_KEYS.APPROACHES, updatedApproaches);
+  },
+
+  clear: (): void => {
+    localStorage.removeItem(STORAGE_KEYS.APPROACHES);
+  },
+};
+
+// Phase operations - updated for GTSSv1.1
 export const phaseStorage = {
   getAll: (): Phase[] => {
     return getFromStorage<Phase[]>(STORAGE_KEYS.PHASES, []);
@@ -137,22 +306,27 @@ export const phaseStorage = {
       movementType: phase.movementType,
       isPedestrian: phase.isPedestrian ?? phase.movementType === "Through",
       numOfLanes: phase.numOfLanes ?? 1,
-      compassBearing: phase.compassBearing ?? null,
-      postedSpeed: phase.postedSpeed ?? null,
+      approachId: phase.approachId ?? null,
       isOverlap: phase.isOverlap ?? false,
     };
-    
+
     const updatedPhases = [...phases, newPhase];
     saveToStorage(STORAGE_KEYS.PHASES, updatedPhases);
     return newPhase;
   },
 
   update: (id: string, updates: Partial<InsertPhase>): Phase | null => {
+    // Prevent prototype pollution
+    if (hasPrototypePollution(updates as Record<string, unknown>)) {
+      console.error('Attempted prototype pollution in phase update');
+      return null;
+    }
+
     const phases = phaseStorage.getAll();
     const index = phases.findIndex(p => p.id === id);
-    
+
     if (index === -1) return null;
-    
+
     const updatedPhase = { ...phases[index], ...updates };
     phases[index] = updatedPhase;
     saveToStorage(STORAGE_KEYS.PHASES, phases);
@@ -210,18 +384,24 @@ export const detectorStorage = {
       length: detector.length ?? null,
       stopbarSetbackDist: detector.stopbarSetbackDist ?? null,
     };
-    
+
     const updatedDetectors = [...detectors, newDetector];
     saveToStorage(STORAGE_KEYS.DETECTORS, updatedDetectors);
     return newDetector;
   },
 
   update: (id: string, updates: Partial<InsertDetector>): Detector | null => {
+    // Prevent prototype pollution
+    if (hasPrototypePollution(updates as Record<string, unknown>)) {
+      console.error('Attempted prototype pollution in detector update');
+      return null;
+    }
+
     const detectors = detectorStorage.getAll();
     const index = detectors.findIndex(d => d.id === id);
-    
+
     if (index === -1) return null;
-    
+
     const updatedDetector = { ...detectors[index], ...updates };
     detectors[index] = updatedDetector;
     saveToStorage(STORAGE_KEYS.DETECTORS, detectors);
@@ -253,12 +433,89 @@ export const detectorStorage = {
   },
 };
 
+// Basic Timing operations - new for GTSSv1.1
+export const basicTimingStorage = {
+  getAll: (): BasicTiming[] => {
+    return getFromStorage<BasicTiming[]>(STORAGE_KEYS.BASIC_TIMINGS, []);
+  },
+
+  getBySignal: (signalId: string): BasicTiming[] => {
+    const timings = basicTimingStorage.getAll();
+    return timings.filter(t => t.signalId === signalId);
+  },
+
+  save: (timing: InsertBasicTiming): BasicTiming => {
+    const timings = basicTimingStorage.getAll();
+    const newTiming: BasicTiming = {
+      id: nanoid(),
+      phase: timing.phase,
+      signalId: timing.signalId,
+      pedWalk: timing.pedWalk ?? null,
+      pedClearance: timing.pedClearance ?? null,
+      leadingPedInterval: timing.leadingPedInterval ?? null,
+      minGreen: timing.minGreen ?? null,
+      maxGreen: timing.maxGreen ?? null,
+      yellow: timing.yellow ?? null,
+      allRed: timing.allRed ?? null,
+      vehRecallType: timing.vehRecallType ?? "None",
+      pedRecall: timing.pedRecall ?? false,
+    };
+
+    const updatedTimings = [...timings, newTiming];
+    saveToStorage(STORAGE_KEYS.BASIC_TIMINGS, updatedTimings);
+    return newTiming;
+  },
+
+  update: (id: string, updates: Partial<InsertBasicTiming>): BasicTiming | null => {
+    if (hasPrototypePollution(updates as Record<string, unknown>)) {
+      console.error('Attempted prototype pollution in basic timing update');
+      return null;
+    }
+
+    const timings = basicTimingStorage.getAll();
+    const index = timings.findIndex(t => t.id === id);
+
+    if (index === -1) return null;
+
+    const updatedTiming = { ...timings[index], ...updates };
+    timings[index] = updatedTiming;
+    saveToStorage(STORAGE_KEYS.BASIC_TIMINGS, timings);
+    return updatedTiming;
+  },
+
+  delete: (id: string): void => {
+    const timings = basicTimingStorage.getAll();
+    const updatedTimings = timings.filter(t => t.id !== id);
+    saveToStorage(STORAGE_KEYS.BASIC_TIMINGS, updatedTimings);
+  },
+
+  deleteBySignal: (signalId: string): void => {
+    const timings = basicTimingStorage.getAll();
+    const updatedTimings = timings.filter(t => t.signalId !== signalId);
+    saveToStorage(STORAGE_KEYS.BASIC_TIMINGS, updatedTimings);
+  },
+
+  updateSignalId: (oldSignalId: string, newSignalId: string): void => {
+    const timings = basicTimingStorage.getAll();
+    const updatedTimings = timings.map(timing =>
+      timing.signalId === oldSignalId ? { ...timing, signalId: newSignalId } : timing
+    );
+    saveToStorage(STORAGE_KEYS.BASIC_TIMINGS, updatedTimings);
+  },
+
+  clear: (): void => {
+    localStorage.removeItem(STORAGE_KEYS.BASIC_TIMINGS);
+  },
+};
+
 // Clear all GTSS data
 export const clearAllData = (): void => {
   agencyStorage.clear();
   signalStorage.clear();
+  approachStorage.clear();
   phaseStorage.clear();
   detectorStorage.clear();
+  basicTimingStorage.clear();
 };
 
 // Export all data
@@ -266,53 +523,85 @@ export const exportData = () => {
   return {
     agency: agencyStorage.get(),
     signals: signalStorage.getAll(),
+    approaches: approachStorage.getAll(),
     phases: phaseStorage.getAll(),
     detectors: detectorStorage.getAll(),
+    basicTimings: basicTimingStorage.getAll(),
   };
 };
 
+// Movement type encoding mapping
+const MOVEMENT_TYPE_MAP: { [key: string]: string } = {
+  "Through": "T",
+  "Left Turn": "L",
+  "Left Through Shared": "LT",
+  "Permissive Phase": "TL",
+  "Flashing Yellow Arrow": "FYA",
+  "U-Turn": "U",
+  "Right Turn": "R",
+  "Through-Right": "TR",
+  "Pedestrian": "PED"
+};
 
+// Movement type reverse mapping for import
+const MOVEMENT_TYPE_REVERSE_MAP: { [key: string]: string } = {
+  "T": "Through",
+  "L": "Left Turn",
+  "LT": "Left Through Shared",
+  "TL": "Permissive Phase",
+  "FYA": "Flashing Yellow Arrow",
+  "U": "U-Turn",
+  "R": "Right Turn",
+  "TR": "Through-Right",
+  "PED": "Pedestrian"
+};
 
-// CSV export functions
+// CSV export functions with sanitization to prevent formula injection
 export function generateAgencyCSV(agency: Agency | null): string {
   if (!agency) return 'agency_id,agency_name,agency_url,agency_timezone,agency_email\n';
-  
+
   return [
     'agency_id,agency_name,agency_url,agency_timezone,agency_email',
-    `${agency.agencyId},${agency.agencyName},${agency.agencyUrl || ''},${agency.agencyTimezone},${agency.agencyEmail || ''}`
+    `${sanitizeCSVField(agency.agencyId)},${sanitizeCSVField(agency.agencyName)},${sanitizeCSVField(agency.agencyUrl)},${sanitizeCSVField(agency.agencyTimezone)},${sanitizeCSVField(agency.agencyEmail)}`
   ].join('\n');
 }
 
 export function generateSignalsCSV(signals: Signal[]): string {
   const headers = 'signal_id,agency_id,street_name_1,street_name_2,latitude,longitude';
-  
+
   if (signals.length === 0) return headers + '\n';
-  
-  const rows = signals.map(signal => 
-    `${signal.signalId},${signal.agencyId},${signal.streetName1},${signal.streetName2},${signal.latitude},${signal.longitude}`
+
+  const rows = signals.map(signal =>
+    `${sanitizeCSVField(signal.signalId)},${sanitizeCSVField(signal.agencyId)},${sanitizeCSVField(signal.streetName1)},${sanitizeCSVField(signal.streetName2)},${sanitizeCSVField(signal.latitude)},${sanitizeCSVField(signal.longitude)}`
   );
-  
+
   return [headers, ...rows].join('\n');
 }
 
+// New for GTSSv1.1
+export function generateApproachesCSV(approaches: Approach[]): string {
+  const headers = 'approach_id,signal_id,street_name,compass_bearing,posted_speed';
+
+  if (approaches.length === 0) return headers + '\n';
+
+  const sortedApproaches = [...approaches].sort((a, b) => {
+    if (a.signalId !== b.signalId) return a.signalId.localeCompare(b.signalId);
+    return a.approachId.localeCompare(b.approachId);
+  });
+
+  const rows = sortedApproaches.map(approach =>
+    `${sanitizeCSVField(approach.approachId)},${sanitizeCSVField(approach.signalId)},${sanitizeCSVField(approach.streetName)},${sanitizeCSVField(approach.compassBearing)},${sanitizeCSVField(approach.postedSpeed)}`
+  );
+
+  return [headers, ...rows].join('\n');
+}
+
+// Updated for GTSSv1.1 - removed compass_bearing, posted_speed; added approach_id
 export function generatePhasesCSV(phases: Phase[]): string {
-  const headers = 'phase,signal_id,movement_type,num_of_lanes,compass_bearing,posted_speed,is_overlap,pedestrian_phase_enabled';
-  
+  const headers = 'phase,signal_id,movement_type,num_of_lanes,approach_id,is_overlap,pedestrian_phase_enabled';
+
   if (phases.length === 0) return headers + '\n';
-  
-  // Movement type encoding mapping
-  const movementTypeMap: { [key: string]: string } = {
-    "Through": "T",
-    "Left Turn": "L",
-    "Left Through Shared": "LT",
-    "Permissive Phase": "TL",
-    "Flashing Yellow Arrow": "FYA",
-    "U-Turn": "U",
-    "Right Turn": "R",
-    "Through-Right": "TR",
-    "Pedestrian": "PED"
-  };
-  
+
   // Sort phases by signal ID first, then by phase number
   const sortedPhases = [...phases].sort((a, b) => {
     if (a.signalId !== b.signalId) {
@@ -320,25 +609,43 @@ export function generatePhasesCSV(phases: Phase[]): string {
     }
     return a.phase - b.phase;
   });
-  
+
   const rows = sortedPhases.map(phase => {
-    const encodedMovementType = movementTypeMap[phase.movementType] || phase.movementType;
+    const encodedMovementType = MOVEMENT_TYPE_MAP[phase.movementType] || phase.movementType;
     const isPedestrian = phase.isPedestrian ?? phase.movementType === "Through";
-    return `${phase.phase},${phase.signalId},${encodedMovementType},${phase.numOfLanes || 1},${phase.compassBearing || ''},${phase.postedSpeed || ''},${phase.isOverlap || false},${isPedestrian}`;
+    return `${sanitizeCSVField(phase.phase)},${sanitizeCSVField(phase.signalId)},${sanitizeCSVField(encodedMovementType)},${sanitizeCSVField(phase.numOfLanes || 1)},${sanitizeCSVField(phase.approachId)},${sanitizeCSVField(phase.isOverlap || false)},${sanitizeCSVField(isPedestrian)}`;
   });
-  
+
   return [headers, ...rows].join('\n');
 }
 
 export function generateDetectionCSV(detectors: Detector[]): string {
   const headers = 'channel,signal_id,phase,description,purpose,vehicle_type,lane,technology_type,length,stopbar_setback_dist';
-  
+
   if (detectors.length === 0) return headers + '\n';
-  
-  const rows = detectors.map(detector => 
-    `${detector.channel},${detector.signalId},${detector.phase},${detector.description || ''},${detector.purpose},${detector.vehicleType || ''},${detector.lane || ''},${detector.technologyType},${detector.length || ''},${detector.stopbarSetbackDist ?? ''}`
+
+  const rows = detectors.map(detector =>
+    `${sanitizeCSVField(detector.channel)},${sanitizeCSVField(detector.signalId)},${sanitizeCSVField(detector.phase)},${sanitizeCSVField(detector.description)},${sanitizeCSVField(detector.purpose)},${sanitizeCSVField(detector.vehicleType)},${sanitizeCSVField(detector.lane)},${sanitizeCSVField(detector.technologyType)},${sanitizeCSVField(detector.length)},${sanitizeCSVField(detector.stopbarSetbackDist)}`
   );
-  
+
+  return [headers, ...rows].join('\n');
+}
+
+// New for GTSSv1.1
+export function generateBasicTimingsCSV(timings: BasicTiming[]): string {
+  const headers = 'phase,signal_id,ped_walk,ped_clearance,leading_ped_interval,min_green,max_green,yellow,all_red,veh_recall_type,ped_recall';
+
+  if (timings.length === 0) return headers + '\n';
+
+  const sortedTimings = [...timings].sort((a, b) => {
+    if (a.signalId !== b.signalId) return a.signalId.localeCompare(b.signalId);
+    return a.phase - b.phase;
+  });
+
+  const rows = sortedTimings.map(t =>
+    `${sanitizeCSVField(t.phase)},${sanitizeCSVField(t.signalId)},${sanitizeCSVField(t.pedWalk)},${sanitizeCSVField(t.pedClearance)},${sanitizeCSVField(t.leadingPedInterval)},${sanitizeCSVField(t.minGreen)},${sanitizeCSVField(t.maxGreen)},${sanitizeCSVField(t.yellow)},${sanitizeCSVField(t.allRed)},${sanitizeCSVField(t.vehRecallType)},${sanitizeCSVField(t.pedRecall)}`
+  );
+
   return [headers, ...rows].join('\n');
 }
 
@@ -355,35 +662,47 @@ const downloadFile = (content: string, filename: string) => {
   URL.revokeObjectURL(url);
 };
 
-// Export individual TXT files
+// Export individual TXT files - updated for GTSSv1.1
 export const exportAsIndividualFiles = async (includeFiles: {
   agency: boolean;
   signals: boolean;
+  approaches: boolean;
   phases: boolean;
   detection: boolean;
+  basicTimings: boolean;
 }): Promise<void> => {
   try {
     const data = exportData();
-    
+
     // Generate and download each selected file
     if (includeFiles.agency) {
       const agencyCSV = generateAgencyCSV(data.agency);
       downloadFile(agencyCSV, 'agency.txt');
     }
-    
+
     if (includeFiles.signals) {
       const signalsCSV = generateSignalsCSV(data.signals);
       downloadFile(signalsCSV, 'signals.txt');
     }
-    
+
+    if (includeFiles.approaches) {
+      const approachesCSV = generateApproachesCSV(data.approaches);
+      downloadFile(approachesCSV, 'approaches.txt');
+    }
+
     if (includeFiles.phases) {
       const phasesCSV = generatePhasesCSV(data.phases);
       downloadFile(phasesCSV, 'phases.txt');
     }
-    
+
     if (includeFiles.detection) {
       const detectionCSV = generateDetectionCSV(data.detectors);
       downloadFile(detectionCSV, 'detectors.txt');
+    }
+
+    if (includeFiles.basicTimings) {
+      const basicTimingsCSV = generateBasicTimingsCSV(data.basicTimings);
+      downloadFile(basicTimingsCSV, 'basic_timings.txt');
     }
   } catch (error) {
     console.error('Export failed:', error);
@@ -391,39 +710,51 @@ export const exportAsIndividualFiles = async (includeFiles: {
   }
 };
 
-// Export as ZIP using JSZip
+// Export as ZIP using JSZip - updated for GTSSv1.1
 export const exportAsZip = async (includeFiles: {
   agency: boolean;
   signals: boolean;
+  approaches: boolean;
   phases: boolean;
   detection: boolean;
-} = { agency: true, signals: true, phases: true, detection: true }): Promise<void> => {
+  basicTimings: boolean;
+} = { agency: true, signals: true, approaches: true, phases: true, detection: true, basicTimings: true }): Promise<void> => {
   try {
     // Dynamically import JSZip
     const JSZip = (await import('jszip')).default;
     const zip = new JSZip();
 
     const data = exportData();
-    
+
     // Add selected files to ZIP
     if (includeFiles.agency) {
       const agencyCSV = generateAgencyCSV(data.agency);
       zip.file('agency.txt', agencyCSV);
     }
-    
+
     if (includeFiles.signals) {
       const signalsCSV = generateSignalsCSV(data.signals);
       zip.file('signals.txt', signalsCSV);
     }
-    
+
+    if (includeFiles.approaches) {
+      const approachesCSV = generateApproachesCSV(data.approaches);
+      zip.file('approaches.txt', approachesCSV);
+    }
+
     if (includeFiles.phases) {
       const phasesCSV = generatePhasesCSV(data.phases);
       zip.file('phases.txt', phasesCSV);
     }
-    
+
     if (includeFiles.detection) {
       const detectionCSV = generateDetectionCSV(data.detectors);
       zip.file('detectors.txt', detectionCSV);
+    }
+
+    if (includeFiles.basicTimings) {
+      const basicTimingsCSV = generateBasicTimingsCSV(data.basicTimings);
+      zip.file('basic_timings.txt', basicTimingsCSV);
     }
 
     // Generate ZIP file and download
@@ -442,29 +773,16 @@ export const exportAsZip = async (includeFiles: {
   }
 };
 
-// Movement type reverse mapping for import
-const MOVEMENT_TYPE_REVERSE_MAP: { [key: string]: string } = {
-  "T": "Through",
-  "L": "Left Turn",
-  "LT": "Left Through Shared",
-  "TL": "Permissive Phase",
-  "FYA": "Flashing Yellow Arrow",
-  "U": "U-Turn",
-  "R": "Right Turn",
-  "TR": "Through-Right",
-  "PED": "Pedestrian"
-};
-
 // Parse agency.txt file
 export function parseAgencyTXT(content: string): Agency | null {
   const lines = content.trim().split('\n').filter(line => line.trim());
   if (lines.length < 2) {
     throw new Error('Agency file must contain header and at least one data row');
   }
-  
-  const dataLine = lines[1].trim();
-  const values = dataLine.split(',').map(v => v.trim());
-  
+
+  // Use proper CSV parser to handle quoted fields
+  const values = parseCSVLine(lines[1]);
+
   if (values.length < 5) {
     throw new Error('Agency data must have at least 5 fields: agencyId, agencyName, agencyUrl, agencyTimezone, agencyEmail');
   }
@@ -479,7 +797,7 @@ export function parseAgencyTXT(content: string): Agency | null {
   if (!values[3]) {
     throw new Error('Agency Timezone is required');
   }
-  
+
   return {
     id: nanoid(),
     agencyId: values[0],
@@ -499,13 +817,14 @@ export function parseSignalsTXT(content: string): Signal[] {
   if (lines.length < 2) {
     throw new Error('Signals file must contain header and at least one data row');
   }
-  
+
   const signals: Signal[] = [];
   const errors: string[] = [];
-  
+
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => v.trim());
-    
+    // Use proper CSV parser to handle quoted fields
+    const values = parseCSVLine(lines[i]);
+
     if (values.length < 6) {
       errors.push(`Row ${i + 1}: Must have 6 fields (signalId, agencyId, streetName1, streetName2, latitude, longitude)`);
       continue;
@@ -529,13 +848,12 @@ export function parseSignalsTXT(content: string): Signal[] {
       continue;
     }
 
-    // Validate numeric fields - strict validation, no partial numbers
-    // Check regex BEFORE converting to ensure no malformed input
-    if (!values[4] || values[4].trim() === '' || !/^-?\d*\.?\d+$/.test(values[4])) {
+    // Validate numeric fields using safer validation
+    if (!isValidNumber(values[4])) {
       errors.push(`Row ${i + 1}: Latitude must be a valid number, got "${values[4]}"`);
       continue;
     }
-    if (!values[5] || values[5].trim() === '' || !/^-?\d*\.?\d+$/.test(values[5])) {
+    if (!isValidNumber(values[5])) {
       errors.push(`Row ${i + 1}: Longitude must be a valid number, got "${values[5]}"`);
       continue;
     }
@@ -565,27 +883,97 @@ export function parseSignalsTXT(content: string): Signal[] {
   return signals;
 }
 
-// Parse phases.txt file
+// Parse approaches.txt file - new for GTSSv1.1
+export function parseApproachesTXT(content: string): Approach[] {
+  const lines = content.trim().split('\n').filter(line => line.trim());
+  if (lines.length < 2) {
+    throw new Error('Approaches file must contain header and at least one data row');
+  }
+
+  const approaches: Approach[] = [];
+  const errors: string[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVLine(lines[i]);
+
+    if (values.length < 5) {
+      errors.push(`Row ${i + 1}: Must have 5 fields (approachId, signalId, streetName, compassBearing, postedSpeed)`);
+      continue;
+    }
+
+    if (!values[0]) {
+      errors.push(`Row ${i + 1}: Approach ID is required`);
+      continue;
+    }
+    if (!values[1]) {
+      errors.push(`Row ${i + 1}: Signal ID is required`);
+      continue;
+    }
+    if (!values[2]) {
+      errors.push(`Row ${i + 1}: Street Name is required`);
+      continue;
+    }
+
+    let compassBearing: number | null = null;
+    if (values[3] && values[3].trim() !== '') {
+      if (!isValidInteger(values[3])) {
+        errors.push(`Row ${i + 1}: Compass bearing must be a valid integer or empty, got "${values[3]}"`);
+        continue;
+      }
+      compassBearing = Number(values[3]);
+    }
+
+    let postedSpeed: number | null = null;
+    if (values[4] && values[4].trim() !== '') {
+      if (!isValidInteger(values[4])) {
+        errors.push(`Row ${i + 1}: Posted speed must be a valid integer or empty, got "${values[4]}"`);
+        continue;
+      }
+      postedSpeed = Number(values[4]);
+    }
+
+    approaches.push({
+      id: nanoid(),
+      approachId: values[0],
+      signalId: values[1],
+      streetName: values[2],
+      compassBearing,
+      postedSpeed,
+    });
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Approaches validation errors:\n${errors.join('\n')}`);
+  }
+
+  if (approaches.length === 0) {
+    throw new Error('No valid approaches found in file');
+  }
+
+  return approaches;
+}
+
+// Parse phases.txt file - updated for GTSSv1.1
 export function parsePhasesTXT(content: string): Phase[] {
   const lines = content.trim().split('\n').filter(line => line.trim());
   if (lines.length < 2) {
     throw new Error('Phases file must contain header and at least one data row');
   }
-  
+
   const phases: Phase[] = [];
   const errors: string[] = [];
-  
+
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => v.trim());
-    
-    if (values.length < 7) {
-      errors.push(`Row ${i + 1}: Must have at least 7 fields (phase, signalId, movementType, numOfLanes, compassBearing, postedSpeed, isOverlap)`);
+    // Use proper CSV parser to handle quoted fields
+    const values = parseCSVLine(lines[i]);
+
+    if (values.length < 6) {
+      errors.push(`Row ${i + 1}: Must have at least 6 fields (phase, signalId, movementType, numOfLanes, approachId, isOverlap)`);
       continue;
     }
 
-    // Validate required fields - strict integer validation
-    // Check regex BEFORE converting to ensure no malformed input
-    if (!values[0] || !/^-?\d+$/.test(values[0])) {
+    // Validate required fields using safer validation
+    if (!isValidInteger(values[0])) {
       errors.push(`Row ${i + 1}: Phase number must be a valid integer, got "${values[0]}"`);
       continue;
     }
@@ -600,7 +988,7 @@ export function parsePhasesTXT(content: string): Phase[] {
       continue;
     }
 
-    if (!values[3] || !/^-?\d+$/.test(values[3])) {
+    if (!isValidInteger(values[3])) {
       errors.push(`Row ${i + 1}: Number of lanes must be a valid integer, got "${values[3]}"`);
       continue;
     }
@@ -612,7 +1000,7 @@ export function parsePhasesTXT(content: string): Phase[] {
     const encodedMovement = values[2];
     const movementType = MOVEMENT_TYPE_REVERSE_MAP[encodedMovement] || encodedMovement;
 
-    // Validate movement type is recognized (warn if not in reverse map)
+    // Validate movement type is recognized - reject unrecognized types
     if (!MOVEMENT_TYPE_REVERSE_MAP[encodedMovement]) {
       // If it's not a known code, verify it's a valid full movement type name
       const validTypes = ["Through", "Left Turn", "Left Through Shared", "Permissive Phase", "Flashing Yellow Arrow", "U-Turn", "Right Turn", "Through-Right", "Pedestrian"];
@@ -622,44 +1010,26 @@ export function parsePhasesTXT(content: string): Phase[] {
       }
     }
 
-    // Parse optional numeric fields - strict validation
-    // Check regex BEFORE converting to ensure no malformed input
-    let compassBearing: number | null = null;
-    let postedSpeed: number | null = null;
-
-    if (values[4] && values[4].trim() !== '') {
-      if (!/^-?\d+$/.test(values[4])) {
-        errors.push(`Row ${i + 1}: Compass bearing must be a valid integer or empty, got "${values[4]}"`);
-        continue;
-      }
-      compassBearing = Number(values[4]);
-    }
-
-    if (values[5] && values[5].trim() !== '') {
-      if (!/^-?\d+$/.test(values[5])) {
-        errors.push(`Row ${i + 1}: Posted speed must be a valid integer or empty, got "${values[5]}"`);
-        continue;
-      }
-      postedSpeed = Number(values[5]);
-    }
+    // Parse optional approach_id field
+    const approachId = values[4] && values[4].trim() !== '' ? values[4] : null;
 
     // Validate overlap boolean
-    const overlapValue = values[6].toLowerCase();
+    const overlapValue = values[5].toLowerCase();
     if (overlapValue !== 'true' && overlapValue !== 'false') {
-      errors.push(`Row ${i + 1}: Overlap must be "true" or "false", got "${values[6]}"`);
+      errors.push(`Row ${i + 1}: Overlap must be "true" or "false", got "${values[5]}"`);
       continue;
     }
 
     let pedestrianPhaseEnabled = movementType === "Through";
-    if (values.length > 7 && values[7].trim() !== '') {
-      const pedestrianValue = values[7].toLowerCase();
+    if (values.length > 6 && values[6].trim() !== '') {
+      const pedestrianValue = values[6].toLowerCase();
       if (pedestrianValue !== 'true' && pedestrianValue !== 'false') {
-        errors.push(`Row ${i + 1}: Pedestrian phase enabled must be "true" or "false", got "${values[7]}"`);
+        errors.push(`Row ${i + 1}: Pedestrian phase enabled must be "true" or "false", got "${values[6]}"`);
         continue;
       }
       pedestrianPhaseEnabled = pedestrianValue === 'true';
     }
-    
+
     phases.push({
       id: nanoid(),
       phase: phaseNum,
@@ -667,8 +1037,7 @@ export function parsePhasesTXT(content: string): Phase[] {
       movementType: movementType,
       isPedestrian: pedestrianPhaseEnabled,
       numOfLanes: numOfLanes,
-      compassBearing,
-      postedSpeed,
+      approachId,
       isOverlap: overlapValue === 'true',
     });
   }
@@ -690,13 +1059,14 @@ export function parseDetectorsTXT(content: string): Detector[] {
   if (lines.length < 2) {
     throw new Error('Detectors file must contain header and at least one data row');
   }
-  
+
   const detectors: Detector[] = [];
   const errors: string[] = [];
-  
+
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => v.trim());
-    
+    // Use proper CSV parser to handle quoted fields
+    const values = parseCSVLine(lines[i]);
+
     if (values.length < 10) {
       errors.push(`Row ${i + 1}: Must have 10 fields (channel, signalId, phase, description, purpose, vehicleType, lane, technologyType, length, stopbarSetbackDist)`);
       continue;
@@ -713,8 +1083,8 @@ export function parseDetectorsTXT(content: string): Detector[] {
       continue;
     }
 
-    // Check regex BEFORE converting to ensure no malformed input
-    if (!values[2] || !/^-?\d+$/.test(values[2])) {
+    // Use safer integer validation
+    if (!isValidInteger(values[2])) {
       errors.push(`Row ${i + 1}: Phase must be a valid integer, got "${values[2]}"`);
       continue;
     }
@@ -731,12 +1101,12 @@ export function parseDetectorsTXT(content: string): Detector[] {
 
     const phase = Number(values[2]);
 
-    // Parse optional numeric fields - strict validation
+    // Parse optional numeric fields using safer validation
     let length: number | null = null;
     let stopbarSetbackDist: number | null = null;
 
     if (values[8] && values[8].trim() !== '') {
-      if (!/^-?\d*\.?\d+$/.test(values[8])) {
+      if (!isValidNumber(values[8])) {
         errors.push(`Row ${i + 1}: Length must be a valid number or empty, got "${values[8]}"`);
         continue;
       }
@@ -744,7 +1114,7 @@ export function parseDetectorsTXT(content: string): Detector[] {
     }
 
     if (values[9] && values[9].trim() !== '') {
-      if (!/^-?\d*\.?\d+$/.test(values[9])) {
+      if (!isValidNumber(values[9])) {
         errors.push(`Row ${i + 1}: Stopbar setback distance must be a valid number or empty, got "${values[9]}"`);
         continue;
       }
@@ -777,13 +1147,107 @@ export function parseDetectorsTXT(content: string): Detector[] {
   return detectors;
 }
 
-// Import data with replace or merge mode
+// Parse basic_timings.txt file - new for GTSSv1.1
+export function parseBasicTimingsTXT(content: string): BasicTiming[] {
+  const lines = content.trim().split('\n').filter(line => line.trim());
+  if (lines.length < 2) {
+    throw new Error('Basic timings file must contain header and at least one data row');
+  }
+
+  const timings: BasicTiming[] = [];
+  const errors: string[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVLine(lines[i]);
+
+    if (values.length < 11) {
+      errors.push(`Row ${i + 1}: Must have 11 fields (phase, signalId, pedWalk, pedClearance, leadingPedInterval, minGreen, maxGreen, yellow, allRed, vehRecallType, pedRecall)`);
+      continue;
+    }
+
+    if (!isValidInteger(values[0])) {
+      errors.push(`Row ${i + 1}: Phase must be a valid integer, got "${values[0]}"`);
+      continue;
+    }
+
+    if (!values[1]) {
+      errors.push(`Row ${i + 1}: Signal ID is required`);
+      continue;
+    }
+
+    const phase = Number(values[0]);
+
+    // Parse optional numeric fields
+    const parseOptionalNumber = (val: string, fieldName: string, rowNum: number): number | null | 'error' => {
+      if (!val || val.trim() === '') return null;
+      if (!isValidNumber(val)) {
+        errors.push(`Row ${rowNum}: ${fieldName} must be a valid number or empty, got "${val}"`);
+        return 'error';
+      }
+      return Number(val);
+    };
+
+    const pedWalk = parseOptionalNumber(values[2], 'Ped walk', i + 1);
+    const pedClearance = parseOptionalNumber(values[3], 'Ped clearance', i + 1);
+    const leadingPedInterval = parseOptionalNumber(values[4], 'Leading ped interval', i + 1);
+    const minGreen = parseOptionalNumber(values[5], 'Min green', i + 1);
+    const maxGreen = parseOptionalNumber(values[6], 'Max green', i + 1);
+    const yellow = parseOptionalNumber(values[7], 'Yellow', i + 1);
+    const allRed = parseOptionalNumber(values[8], 'All red', i + 1);
+
+    if (pedWalk === 'error' || pedClearance === 'error' || leadingPedInterval === 'error' ||
+        minGreen === 'error' || maxGreen === 'error' || yellow === 'error' || allRed === 'error') {
+      continue;
+    }
+
+    const vehRecallType = values[9] || 'None';
+    if (!['None', 'Min', 'Max', 'Soft'].includes(vehRecallType)) {
+      errors.push(`Row ${i + 1}: veh_recall_type must be None, Min, Max, or Soft, got "${vehRecallType}"`);
+      continue;
+    }
+
+    const pedRecallStr = values[10]?.toLowerCase() || 'false';
+    if (pedRecallStr !== 'true' && pedRecallStr !== 'false') {
+      errors.push(`Row ${i + 1}: ped_recall must be true or false, got "${values[10]}"`);
+      continue;
+    }
+
+    timings.push({
+      id: nanoid(),
+      phase,
+      signalId: values[1],
+      pedWalk: pedWalk as number | null,
+      pedClearance: pedClearance as number | null,
+      leadingPedInterval: leadingPedInterval as number | null,
+      minGreen: minGreen as number | null,
+      maxGreen: maxGreen as number | null,
+      yellow: yellow as number | null,
+      allRed: allRed as number | null,
+      vehRecallType,
+      pedRecall: pedRecallStr === 'true',
+    });
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Basic timings validation errors:\n${errors.join('\n')}`);
+  }
+
+  if (timings.length === 0) {
+    throw new Error('No valid basic timings found in file');
+  }
+
+  return timings;
+}
+
+// Import data with replace or merge mode - updated for GTSSv1.1
 export function importData(
   parsedData: {
     agency?: Agency | null;
     signals?: Signal[];
+    approaches?: Approach[];
     phases?: Phase[];
     detectors?: Detector[];
+    basicTimings?: BasicTiming[];
   },
   mode: 'replace' | 'merge' = 'replace'
 ): void {
@@ -796,43 +1260,65 @@ export function importData(
         localStorage.removeItem(STORAGE_KEYS.AGENCY);
       }
     }
-    
+
     if (parsedData.signals !== undefined) {
       saveToStorage(STORAGE_KEYS.SIGNALS, parsedData.signals);
     }
-    
+
+    if (parsedData.approaches !== undefined) {
+      saveToStorage(STORAGE_KEYS.APPROACHES, parsedData.approaches);
+    }
+
     if (parsedData.phases !== undefined) {
       saveToStorage(STORAGE_KEYS.PHASES, parsedData.phases);
     }
-    
+
     if (parsedData.detectors !== undefined) {
       saveToStorage(STORAGE_KEYS.DETECTORS, parsedData.detectors);
+    }
+
+    if (parsedData.basicTimings !== undefined) {
+      saveToStorage(STORAGE_KEYS.BASIC_TIMINGS, parsedData.basicTimings);
     }
   } else {
     // Merge mode
     if (parsedData.agency) {
       saveToStorage(STORAGE_KEYS.AGENCY, parsedData.agency);
     }
-    
+
     if (parsedData.signals && parsedData.signals.length > 0) {
       const existingSignals = getFromStorage<Signal[]>(STORAGE_KEYS.SIGNALS, []);
       const existingSignalIds = new Set(existingSignals.map(s => s.signalId));
       const newSignals = parsedData.signals.filter(s => !existingSignalIds.has(s.signalId));
       saveToStorage(STORAGE_KEYS.SIGNALS, [...existingSignals, ...newSignals]);
     }
-    
+
+    if (parsedData.approaches && parsedData.approaches.length > 0) {
+      const existingApproaches = getFromStorage<Approach[]>(STORAGE_KEYS.APPROACHES, []);
+      const existingKeys = new Set(existingApproaches.map(a => `${a.signalId}-${a.approachId}`));
+      const newApproaches = parsedData.approaches.filter(a => !existingKeys.has(`${a.signalId}-${a.approachId}`));
+      saveToStorage(STORAGE_KEYS.APPROACHES, [...existingApproaches, ...newApproaches]);
+    }
+
     if (parsedData.phases && parsedData.phases.length > 0) {
       const existingPhases = getFromStorage<Phase[]>(STORAGE_KEYS.PHASES, []);
       const existingKeys = new Set(existingPhases.map(p => `${p.signalId}-${p.phase}`));
       const newPhases = parsedData.phases.filter(p => !existingKeys.has(`${p.signalId}-${p.phase}`));
       saveToStorage(STORAGE_KEYS.PHASES, [...existingPhases, ...newPhases]);
     }
-    
+
     if (parsedData.detectors && parsedData.detectors.length > 0) {
       const existingDetectors = getFromStorage<Detector[]>(STORAGE_KEYS.DETECTORS, []);
       const existingKeys = new Set(existingDetectors.map(d => `${d.signalId}-${d.channel}`));
       const newDetectors = parsedData.detectors.filter(d => !existingKeys.has(`${d.signalId}-${d.channel}`));
       saveToStorage(STORAGE_KEYS.DETECTORS, [...existingDetectors, ...newDetectors]);
+    }
+
+    if (parsedData.basicTimings && parsedData.basicTimings.length > 0) {
+      const existingTimings = getFromStorage<BasicTiming[]>(STORAGE_KEYS.BASIC_TIMINGS, []);
+      const existingKeys = new Set(existingTimings.map(t => `${t.signalId}-${t.phase}`));
+      const newTimings = parsedData.basicTimings.filter(t => !existingKeys.has(`${t.signalId}-${t.phase}`));
+      saveToStorage(STORAGE_KEYS.BASIC_TIMINGS, [...existingTimings, ...newTimings]);
     }
   }
 }

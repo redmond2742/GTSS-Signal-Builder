@@ -25,6 +25,17 @@ export const signals = pgTable("signals", {
   longitude: real("longitude").notNull(),
 });
 
+// Approaches table - new for GTSSv1.1
+export const approaches = pgTable("approaches", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  approachId: text("approach_id").notNull(),
+  signalId: text("signal_id").notNull(),
+  streetName: text("street_name").notNull(),
+  compassBearing: integer("compass_bearing"),
+  postedSpeed: integer("posted_speed"),
+});
+
+// Phases table - updated for GTSSv1.1 (removed compassBearing, postedSpeed; added approachId)
 export const phases = pgTable("phases", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   phase: integer("phase").notNull(),
@@ -32,8 +43,7 @@ export const phases = pgTable("phases", {
   movementType: text("movement_type").notNull(),
   isPedestrian: boolean("is_pedestrian").default(false),
   numOfLanes: integer("num_of_lanes").default(1),
-  compassBearing: integer("compass_bearing"),
-  postedSpeed: integer("posted_speed"),
+  approachId: text("approach_id"),
   isOverlap: boolean("is_overlap").default(false),
 });
 
@@ -51,6 +61,22 @@ export const detectors = pgTable("detectors", {
   stopbarSetbackDist: real("stopbar_setback_dist"),
 });
 
+// Basic Timings table - new for GTSSv1.1
+export const basicTimings = pgTable("basic_timings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  phase: integer("phase").notNull(),
+  signalId: text("signal_id").notNull(),
+  pedWalk: real("ped_walk"),
+  pedClearance: real("ped_clearance"),
+  leadingPedInterval: real("leading_ped_interval"),
+  minGreen: real("min_green"),
+  maxGreen: real("max_green"),
+  yellow: real("yellow"),
+  allRed: real("all_red"),
+  vehRecallType: text("veh_recall_type").default("None"),
+  pedRecall: boolean("ped_recall").default(false),
+});
+
 export const insertAgencySchema = createInsertSchema(agencies).omit({
   id: true,
 }).extend({
@@ -60,7 +86,13 @@ export const insertAgencySchema = createInsertSchema(agencies).omit({
 export const insertSignalSchema = createInsertSchema(signals).omit({
   id: true,
 }).extend({
-  signalId: z.string().optional(), // Make signal ID optional when creating
+  signalId: z.string().optional(),
+});
+
+export const insertApproachSchema = createInsertSchema(approaches).omit({
+  id: true,
+}).extend({
+  approachId: z.string().optional(),
 });
 
 export const insertPhaseSchema = createInsertSchema(phases).omit({
@@ -71,18 +103,30 @@ export const insertDetectorSchema = createInsertSchema(detectors).omit({
   id: true,
 });
 
+export const insertBasicTimingSchema = createInsertSchema(basicTimings).omit({
+  id: true,
+}).extend({
+  vehRecallType: z.enum(["None", "Min", "Max", "Soft"]).optional(),
+});
+
 export type Agency = typeof agencies.$inferSelect;
 export type InsertAgency = z.infer<typeof insertAgencySchema>;
 export type Signal = typeof signals.$inferSelect;
 export type InsertSignal = z.infer<typeof insertSignalSchema>;
+export type Approach = typeof approaches.$inferSelect;
+export type InsertApproach = z.infer<typeof insertApproachSchema>;
 export type Phase = typeof phases.$inferSelect;
 export type InsertPhase = z.infer<typeof insertPhaseSchema>;
 export type Detector = typeof detectors.$inferSelect;
 export type InsertDetector = z.infer<typeof insertDetectorSchema>;
+export type BasicTiming = typeof basicTimings.$inferSelect;
+export type InsertBasicTiming = z.infer<typeof insertBasicTimingSchema>;
 
 export type GTSSData = {
   agency: Agency | null;
   signals: Signal[];
+  approaches: Approach[];
   phases: Phase[];
   detectors: Detector[];
+  basicTimings: BasicTiming[];
 };

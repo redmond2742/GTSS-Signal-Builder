@@ -15,7 +15,7 @@ import VisualPhaseEditor from "./visual-phase-editor";
 import SignalsMap from "@/components/ui/signals-map";
 import { Checkbox } from "@/components/ui/checkbox";
 
-type SortField = 'phase' | 'signalId' | 'movementType' | 'bearing' | 'postedSpeed' | 'numOfLanes';
+type SortField = 'phase' | 'signalId' | 'movementType' | 'approachId' | 'numOfLanes';
 type SortDirection = 'asc' | 'desc';
 
 interface PhasesTableProps {
@@ -88,9 +88,13 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
           aValue = a.movementType;
           bValue = b.movementType;
           break;
-        case 'bearing':
-          aValue = a.compassBearing || 0;
-          bValue = b.compassBearing || 0;
+        case 'approachId':
+          aValue = a.approachId || '';
+          bValue = b.approachId || '';
+          break;
+        case 'numOfLanes':
+          aValue = a.numOfLanes || 1;
+          bValue = b.numOfLanes || 1;
           break;
         default:
           aValue = a.phase;
@@ -158,7 +162,7 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
   }, [filterSignal]);
 
   useEffect(() => {
-    setSelectedPhaseIds((prev) => new Set([...prev].filter((id) => phases.some((phase) => phase.id === id))));
+    setSelectedPhaseIds((prev) => new Set(Array.from(prev).filter((id) => phases.some((phase) => phase.id === id))));
   }, [phases]);
 
   const handleToggleSelectAll = (checked: boolean) => {
@@ -370,15 +374,14 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
                   <SortableHeader field="signalId">Signal ID</SortableHeader>
                   <SortableHeader field="phase">Phase</SortableHeader>
                   <SortableHeader field="movementType">Movement</SortableHeader>
-                  <SortableHeader field="bearing">Bearing</SortableHeader>
-                  <SortableHeader field="postedSpeed">Speed</SortableHeader>
+                  <SortableHeader field="approachId">Approach</SortableHeader>
                   <SortableHeader field="numOfLanes">Lanes</SortableHeader>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredPhases.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-grey-500">
+                    <TableCell colSpan={6} className="text-center py-8 text-grey-500">
                       {filterSignal === "all" 
                         ? "No phases configured. Add your first phase to get started."
                         : "No phases found for the selected signal."
@@ -415,10 +418,7 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
                         </div>
                       </TableCell>
                       <TableCell className="text-grey-600 text-xs py-1 px-2">
-                        {phase.compassBearing ? `${phase.compassBearing}°` : 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-grey-600 text-xs py-1 px-2">
-                        {phase.postedSpeed ? `${phase.postedSpeed} mph` : 'N/A'}
+                        {phase.approachId || '-'}
                       </TableCell>
                       <TableCell className="text-grey-600 text-xs py-1 px-2">
                         {phase.numOfLanes}

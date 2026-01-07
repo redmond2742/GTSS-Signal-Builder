@@ -73,7 +73,7 @@ interface DetectorModalProps {
 }
 
 export default function DetectorModal({ detector, onClose, preSelectedSignalId }: DetectorModalProps) {
-  const { signals, phases } = useGTSSStore();
+  const { signals, phases, approaches } = useGTSSStore();
   const { toast } = useToast();
   const detectorHooks = useDetectors();
   const [selectedZone, setSelectedZone] = useState<'stopbar' | 'advance' | 'count' | null>(null);
@@ -230,12 +230,16 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
     const selectedPhase = phases.find(
       (phase) => phase.signalId === selectedSignalId && phase.phase === watchedPhase,
     );
-    const direction = bearingToDirection(selectedPhase?.compassBearing ?? null);
+    // Get bearing from the phase's approach
+    const approach = selectedPhase?.approachId
+      ? approaches.find((a) => a.approachId === selectedPhase.approachId)
+      : null;
+    const direction = bearingToDirection(approach?.compassBearing ?? null);
     const formattedPurpose = formatPurposeForDescription(watchedPurpose ?? "");
     const laneValue = watchedLane?.toString().trim() ?? "";
     const description = buildDetectorDescription(direction, formattedPurpose, laneValue);
     form.setValue("description", description);
-  }, [form, isDescriptionDirty, phases, selectedSignalId, watchedLane, watchedPhase, watchedPurpose]);
+  }, [form, isDescriptionDirty, phases, approaches, selectedSignalId, watchedLane, watchedPhase, watchedPurpose]);
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -335,7 +339,10 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                           </FormControl>
                           <SelectContent>
                             {signalPhases.map((phase) => {
-                              const direction = bearingToDirection(phase.compassBearing);
+                              const approach = phase.approachId
+                                ? approaches.find((a) => a.approachId === phase.approachId)
+                                : null;
+                              const direction = bearingToDirection(approach?.compassBearing ?? null);
                               const bearingLabel = direction ? ` (${direction})` : "";
                               return (
                                 <SelectItem key={phase.id} value={phase.phase.toString()}>
