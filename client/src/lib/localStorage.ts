@@ -230,9 +230,12 @@ export const approachStorage = {
 
   save: (approach: InsertApproach): Approach => {
     const approaches = approachStorage.getAll();
+    // Count approaches for this specific signal to generate per-signal ID
+    const signalApproaches = approaches.filter(a => a.signalId === approach.signalId);
+    const nextApproachNum = signalApproaches.length + 1;
     const newApproach: Approach = {
       id: nanoid(),
-      approachId: approach.approachId || `APR_${String(approaches.length + 1).padStart(3, '0')}`,
+      approachId: approach.approachId || `${approach.signalId}-${nextApproachNum}`,
       signalId: approach.signalId,
       streetName: approach.streetName,
       compassBearing: approach.compassBearing ?? null,
@@ -812,6 +815,7 @@ export function parseAgencyTXT(content: string): Agency | null {
 }
 
 // Parse signals.txt file
+// Format: signal_id,agency_id,latitude,longitude
 export function parseSignalsTXT(content: string): Signal[] {
   const lines = content.trim().split('\n').filter(line => line.trim());
   if (lines.length < 2) {
@@ -825,8 +829,8 @@ export function parseSignalsTXT(content: string): Signal[] {
     // Use proper CSV parser to handle quoted fields
     const values = parseCSVLine(lines[i]);
 
-    if (values.length < 6) {
-      errors.push(`Row ${i + 1}: Must have 6 fields (signalId, agencyId, streetName1, streetName2, latitude, longitude)`);
+    if (values.length < 4) {
+      errors.push(`Row ${i + 1}: Must have 4 fields (signal_id, agency_id, latitude, longitude)`);
       continue;
     }
 
@@ -839,34 +843,26 @@ export function parseSignalsTXT(content: string): Signal[] {
       errors.push(`Row ${i + 1}: Agency ID is required`);
       continue;
     }
-    if (!values[2]) {
-      errors.push(`Row ${i + 1}: Street Name 1 is required`);
-      continue;
-    }
-    if (!values[3]) {
-      errors.push(`Row ${i + 1}: Street Name 2 is required`);
-      continue;
-    }
 
     // Validate numeric fields using safer validation
-    if (!isValidNumber(values[4])) {
-      errors.push(`Row ${i + 1}: Latitude must be a valid number, got "${values[4]}"`);
+    if (!isValidNumber(values[2])) {
+      errors.push(`Row ${i + 1}: Latitude must be a valid number, got "${values[2]}"`);
       continue;
     }
-    if (!isValidNumber(values[5])) {
-      errors.push(`Row ${i + 1}: Longitude must be a valid number, got "${values[5]}"`);
+    if (!isValidNumber(values[3])) {
+      errors.push(`Row ${i + 1}: Longitude must be a valid number, got "${values[3]}"`);
       continue;
     }
 
-    const latitude = Number(values[4]);
-    const longitude = Number(values[5]);
+    const latitude = Number(values[2]);
+    const longitude = Number(values[3]);
 
     signals.push({
       id: nanoid(),
       signalId: values[0],
       agencyId: values[1],
-      streetName1: values[2],
-      streetName2: values[3],
+      streetName1: "", // Not in GTSS import format
+      streetName2: "", // Not in GTSS import format
       latitude,
       longitude,
     });

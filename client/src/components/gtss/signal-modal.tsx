@@ -188,29 +188,9 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                   <MapPicker
                     center={getMapCenter()}
                     selectedPosition={form.watch("latitude") !== undefined && form.watch("longitude") !== undefined ? [form.watch("latitude"), form.watch("longitude")] : undefined}
-                    onLocationSelect={async (lat, lng) => {
+                    onLocationSelect={(lat, lng) => {
                       form.setValue("latitude", lat);
                       form.setValue("longitude", lng);
-                      
-                      // Try to auto-populate street names using reverse geocoding
-                      try {
-                        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
-                        const data = await response.json();
-                        
-                        if (data.address) {
-                          const streetName = data.address.road || data.address.street || "";
-                          const intersectingStreet = data.address.neighbourhood || data.address.suburb || "";
-                          
-                          if (streetName) {
-                            form.setValue("streetName1", streetName);
-                          }
-                          if (intersectingStreet && intersectingStreet !== streetName) {
-                            form.setValue("streetName2", intersectingStreet);
-                          }
-                        }
-                      } catch (error) {
-                        console.log("Geocoding failed, manual entry required");
-                      }
                     }}
                     className="w-full"
                   />

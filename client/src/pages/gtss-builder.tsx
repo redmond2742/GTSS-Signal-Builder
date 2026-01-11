@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLoadFromStorage } from "@/lib/localStorageHooks";
-import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, Navigation, Plus, Map, Coffee, Trash2, Menu, X, ExternalLink, Compass, Clock } from "lucide-react";
+import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, FolderInput, Navigation, Plus, Coffee, Trash2, Menu, X, ExternalLink, Compass, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -11,6 +11,7 @@ import PhasesTable from "@/components/gtss/phases-table";
 import DetectorsTable from "@/components/gtss/detectors-table";
 import BasicTimingsTable from "@/components/gtss/basic-timings-table";
 import ExportPanel from "@/components/gtss/export-panel";
+import { ImportPanel } from "@/components/gtss/import-panel";
 import SignalDetails from "@/pages/signal-details";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +42,7 @@ export default function GTSSBuilder() {
   const [activeTab, setActiveTab] = useState<TabType>("signals");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showExportPanel, setShowExportPanel] = useState(false);
+  const [showImportPanel, setShowImportPanel] = useState(false);
   const { signals, approaches, phases, detectors, basicTimings, currentView, setAgency, setSignals, setApproaches, setPhases, setDetectors, setBasicTimings, navigateToSignalDetails } = useGTSSStore();
   const { toast } = useToast();
 
@@ -61,7 +63,6 @@ export default function GTSSBuilder() {
   const [triggerBulk, setTriggerBulk] = useState(0);
   const [triggerAddApproach, setTriggerAddApproach] = useState(0);
   const [triggerAddPhase, setTriggerAddPhase] = useState(0);
-  const [triggerVisualEditor, setTriggerVisualEditor] = useState(0);
   const [triggerAddDetector, setTriggerAddDetector] = useState(0);
   const [triggerAddBasicTiming, setTriggerAddBasicTiming] = useState(0);
 
@@ -69,6 +70,11 @@ export default function GTSSBuilder() {
     // If export panel is shown, render it regardless of active tab
     if (showExportPanel) {
       return <ExportPanel />;
+    }
+
+    // If import panel is shown, render it regardless of active tab
+    if (showImportPanel) {
+      return <ImportPanel onImportComplete={() => window.location.reload()} />;
     }
 
     switch (activeTab) {
@@ -79,7 +85,7 @@ export default function GTSSBuilder() {
       case "approaches":
         return <ApproachesTable triggerAdd={triggerAddApproach} />;
       case "phases":
-        return <PhasesTable triggerAdd={triggerAddPhase} triggerVisualEditor={triggerVisualEditor} />;
+        return <PhasesTable triggerAdd={triggerAddPhase} />;
       case "basic-timings":
         return <BasicTimingsTable triggerAdd={triggerAddBasicTiming} />;
       case "detectors":
@@ -104,10 +110,6 @@ export default function GTSSBuilder() {
 
   const handleAddPhase = () => {
     setTriggerAddPhase(prev => prev + 1);
-  };
-
-  const handleVisualEditor = () => {
-    setTriggerVisualEditor(prev => prev + 1);
   };
 
   const handleAddDetector = () => {
@@ -183,11 +185,11 @@ export default function GTSSBuilder() {
                     setTriggerBulk(0);
                     setTriggerAddApproach(0);
                     setTriggerAddPhase(0);
-                    setTriggerVisualEditor(0);
                     setTriggerAddDetector(0);
                     setTriggerAddBasicTiming(0);
                     setActiveTab(tab.id as TabType);
                     setShowExportPanel(false);
+                    setShowImportPanel(false);
                     setIsMobileMenuOpen(false);
                   }}
                   className={cn(
@@ -247,18 +249,44 @@ export default function GTSSBuilder() {
           {/* Import/Export section */}
           <div className="mb-4 pb-3 border-b border-grey-200">
             <p className="text-xs font-medium text-grey-600 mb-2 px-2">Data Management</p>
-            <Button
-              variant="outline"
-              className="w-full h-7 text-xs bg-grey-100 text-grey-700 hover:bg-grey-200"
-              onClick={() => {
-                setShowExportPanel(!showExportPanel);
-                setIsMobileMenuOpen(false);
-              }}
-              data-testid="button-import-export"
-            >
-              <FolderOutput className="w-3 h-3 mr-1" />
-              Import/Export
-            </Button>
+            <div className="space-y-1">
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full h-7 text-xs",
+                  showImportPanel
+                    ? "bg-primary-100 text-primary-700 border-primary-200"
+                    : "bg-grey-100 text-grey-700 hover:bg-grey-200"
+                )}
+                onClick={() => {
+                  setShowImportPanel(true);
+                  setShowExportPanel(false);
+                  setIsMobileMenuOpen(false);
+                }}
+                data-testid="button-import"
+              >
+                <FolderInput className="w-3 h-3 mr-1" />
+                Import
+              </Button>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full h-7 text-xs",
+                  showExportPanel
+                    ? "bg-primary-100 text-primary-700 border-primary-200"
+                    : "bg-grey-100 text-grey-700 hover:bg-grey-200"
+                )}
+                onClick={() => {
+                  setShowExportPanel(true);
+                  setShowImportPanel(false);
+                  setIsMobileMenuOpen(false);
+                }}
+                data-testid="button-export"
+              >
+                <FolderOutput className="w-3 h-3 mr-1" />
+                Export
+              </Button>
+            </div>
           </div>
 
           {/* Clear All Data */}
@@ -312,14 +340,14 @@ export default function GTSSBuilder() {
               </Button>
               <div>
                 <h2 className="text-base lg:text-lg font-bold text-grey-800">
-                  {showExportPanel ? "Import/Export" : tabTitles[activeTab].title}
+                  {showExportPanel ? "Export Data" : showImportPanel ? "Import Data" : tabTitles[activeTab].title}
                 </h2>
                 <p className="text-xs text-grey-500 hidden sm:block">
-                  {showExportPanel ? "Import and export your traffic signal data" : tabTitles[activeTab].desc}
+                  {showExportPanel ? "Export your traffic signal data to files" : showImportPanel ? "Import traffic signal data from files or paste" : tabTitles[activeTab].desc}
                 </p>
               </div>
             </div>
-            {!showExportPanel && activeTab === "signals" && (
+            {!showExportPanel && !showImportPanel && activeTab === "signals" && (
               <div className="flex space-x-1">
                 <Button onClick={handleAddMultiple} variant="outline" className="h-7 px-2 text-xs border-primary-200 text-primary-700 hover:bg-primary-50 hidden sm:flex">
                   <Navigation className="w-3 h-3 sm:mr-1" />
@@ -331,7 +359,7 @@ export default function GTSSBuilder() {
                 </Button>
               </div>
             )}
-            {!showExportPanel && activeTab === "approaches" && (
+            {!showExportPanel && !showImportPanel && activeTab === "approaches" && (
               <div className="flex space-x-1">
                 <Button onClick={handleAddApproach} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
                   <Plus className="w-3 h-3 sm:mr-1" />
@@ -339,19 +367,15 @@ export default function GTSSBuilder() {
                 </Button>
               </div>
             )}
-            {!showExportPanel && activeTab === "phases" && (
+            {!showExportPanel && !showImportPanel && activeTab === "phases" && (
               <div className="flex space-x-1">
-                <Button onClick={handleVisualEditor} variant="outline" className="h-7 px-2 text-xs border-grey-300 text-grey-700 hover:bg-white hover:text-grey-900 hidden sm:flex">
-                  <Map className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Visual Editor</span>
-                </Button>
                 <Button onClick={handleAddPhase} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700 text-white">
                   <Plus className="w-3 h-3 sm:mr-1" />
                   <span className="hidden sm:inline">Add Phase</span>
                 </Button>
               </div>
             )}
-            {!showExportPanel && activeTab === "basic-timings" && (
+            {!showExportPanel && !showImportPanel && activeTab === "basic-timings" && (
               <div className="flex space-x-1">
                 <Button onClick={handleAddBasicTiming} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
                   <Plus className="w-3 h-3 sm:mr-1" />
@@ -359,7 +383,7 @@ export default function GTSSBuilder() {
                 </Button>
               </div>
             )}
-            {!showExportPanel && activeTab === "detectors" && (
+            {!showExportPanel && !showImportPanel && activeTab === "detectors" && (
               <div className="flex space-x-1">
                 <Button onClick={handleAddDetector} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
                   <Plus className="w-3 h-3 sm:mr-1" />

@@ -107,38 +107,51 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
     }
   };
 
+  // Natural sort comparison - handles numeric parts in strings properly
+  // e.g., "SIG-1", "SIG-2", "SIG-11" instead of "SIG-1", "SIG-11", "SIG-2"
+  const naturalCompare = (a: string, b: string): number => {
+    const aParts = a.split(/(\d+)/);
+    const bParts = b.split(/(\d+)/);
+
+    for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+      const aPart = aParts[i] || '';
+      const bPart = bParts[i] || '';
+
+      // Check if both parts are numeric
+      const aNum = parseInt(aPart, 10);
+      const bNum = parseInt(bPart, 10);
+
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        if (aNum !== bNum) return aNum - bNum;
+      } else {
+        if (aPart !== bPart) return aPart.localeCompare(bPart);
+      }
+    }
+    return 0;
+  };
+
   const getSortedSignals = () => {
     return [...signals].sort((a, b) => {
-      let aValue: string | number;
-      let bValue: string | number;
+      let comparison = 0;
 
       switch (sortField) {
         case 'signalId':
-          aValue = a.signalId;
-          bValue = b.signalId;
+          comparison = naturalCompare(a.signalId, b.signalId);
           break;
         case 'streetName1':
-          aValue = a.streetName1;
-          bValue = b.streetName1;
+          comparison = a.streetName1.localeCompare(b.streetName1);
           break;
         case 'streetName2':
-          aValue = a.streetName2;
-          bValue = b.streetName2;
+          comparison = a.streetName2.localeCompare(b.streetName2);
           break;
         case 'coordinates':
-          aValue = `${a.latitude},${a.longitude}`;
-          bValue = `${b.latitude},${b.longitude}`;
+          comparison = `${a.latitude},${a.longitude}`.localeCompare(`${b.latitude},${b.longitude}`);
           break;
         default:
-          aValue = a.signalId;
-          bValue = b.signalId;
+          comparison = naturalCompare(a.signalId, b.signalId);
       }
 
-      if (sortDirection === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
+      return sortDirection === 'asc' ? comparison : -comparison;
     });
   };
 

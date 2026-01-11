@@ -8,10 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Map, ChevronUp, ChevronDown, MapPin, AlertTriangle, Trash2, Copy } from "lucide-react";
+import { Plus, ChevronUp, ChevronDown, MapPin, AlertTriangle, Trash2, Copy } from "lucide-react";
 import PhaseModal from "./phase-modal";
-import VisualPhaseEditor from "./visual-phase-editor";
 import SignalsMap from "@/components/ui/signals-map";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -20,13 +18,11 @@ type SortDirection = 'asc' | 'desc';
 
 interface PhasesTableProps {
   triggerAdd?: number;
-  triggerVisualEditor?: number;
 }
 
-export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesTableProps) {
+export default function PhasesTable({ triggerAdd }: PhasesTableProps) {
   const [editingPhase, setEditingPhase] = useState<Phase | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [showVisualEditor, setShowVisualEditor] = useState(false);
   const [filterSignal, setFilterSignal] = useState<string>("");
   const [sortField, setSortField] = useState<SortField>('phase');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -41,12 +37,6 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
       handleAdd();
     }
   }, [triggerAdd]);
-
-  useEffect(() => {
-    if (triggerVisualEditor && triggerVisualEditor > 0) {
-      setShowVisualEditor(true);
-    }
-  }, [triggerVisualEditor]);
 
   // Auto-select first signal on mount
   useEffect(() => {
@@ -70,42 +60,52 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
     }
   };
 
+  // Natural sort comparison - handles numeric parts in strings properly
+  const naturalCompare = (a: string, b: string): number => {
+    const aParts = a.split(/(\d+)/);
+    const bParts = b.split(/(\d+)/);
+
+    for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+      const aPart = aParts[i] || '';
+      const bPart = bParts[i] || '';
+
+      const aNum = parseInt(aPart, 10);
+      const bNum = parseInt(bPart, 10);
+
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        if (aNum !== bNum) return aNum - bNum;
+      } else {
+        if (aPart !== bPart) return aPart.localeCompare(bPart);
+      }
+    }
+    return 0;
+  };
+
   const getSortedPhases = () => {
     return [...filteredPhases].sort((a, b) => {
-      let aValue: string | number;
-      let bValue: string | number;
+      let comparison = 0;
 
       switch (sortField) {
         case 'phase':
-          aValue = a.phase;
-          bValue = b.phase;
+          comparison = a.phase - b.phase;
           break;
         case 'signalId':
-          aValue = a.signalId;
-          bValue = b.signalId;
+          comparison = naturalCompare(a.signalId, b.signalId);
           break;
         case 'movementType':
-          aValue = a.movementType;
-          bValue = b.movementType;
+          comparison = a.movementType.localeCompare(b.movementType);
           break;
         case 'approachId':
-          aValue = a.approachId || '';
-          bValue = b.approachId || '';
+          comparison = naturalCompare(a.approachId || '', b.approachId || '');
           break;
         case 'numOfLanes':
-          aValue = a.numOfLanes || 1;
-          bValue = b.numOfLanes || 1;
+          comparison = (a.numOfLanes || 1) - (b.numOfLanes || 1);
           break;
         default:
-          aValue = a.phase;
-          bValue = b.phase;
+          comparison = a.phase - b.phase;
       }
 
-      if (sortDirection === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
+      return sortDirection === 'asc' ? comparison : -comparison;
     });
   };
 
@@ -243,25 +243,6 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
   const handleModalClose = () => {
     setShowModal(false);
     setEditingPhase(null);
-  };
-
-  const handleVisualEditorClose = () => {
-    setShowVisualEditor(false);
-  };
-
-  const handleBulkPhasesCreate = async (phases: InsertPhase[]) => {
-    try {
-      for (const phaseData of phases) {
-        phaseHooks.save(phaseData);
-      }
-      // Don't show toast or close the visual editor to allow rapid phase creation
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create some phases",
-        variant: "destructive",
-      });
-    }
   };
 
   const getSignalInfo = (signalId: string) => {
@@ -438,21 +419,6 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
           onClose={handleModalClose}
           preSelectedSignalId={filterSignal !== "all" ? filterSignal : undefined}
         />
-      )}
-
-      {showVisualEditor && filterSignal !== "all" && (
-        <Dialog open onOpenChange={handleVisualEditorClose}>
-          <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden p-0">
-            <DialogHeader className="p-6 pb-0">
-              <DialogTitle>Visual Phase Editor</DialogTitle>
-            </DialogHeader>
-            <VisualPhaseEditor
-              signal={signals.find(s => s.signalId === filterSignal)!}
-              onPhasesCreate={handleBulkPhasesCreate}
-              onClose={handleVisualEditorClose}
-            />
-          </DialogContent>
-        </Dialog>
       )}
     </div>
   );

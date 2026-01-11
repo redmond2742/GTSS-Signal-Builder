@@ -62,17 +62,18 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
   const selectedSignal = signals.find(s => s.signalId === selectedSignalId);
   const compassBearing = form.watch("compassBearing");
 
-  // Calculate bearing from signal to clicked point
+  // Calculate bearing for approach direction (direction vehicles travel TOWARD the intersection)
+  // User clicks where traffic is coming FROM, we calculate the approach direction (opposite)
   const handleMapClick = (clickLat: number, clickLng: number) => {
     if (!selectedSignal || !selectedSignal.latitude || !selectedSignal.longitude) return;
 
     const signalLat = selectedSignal.latitude;
     const signalLng = selectedSignal.longitude;
 
-    // Calculate bearing using spherical trigonometry
-    const dLng = (clickLng - signalLng) * Math.PI / 180;
-    const lat1 = signalLat * Math.PI / 180;
-    const lat2 = clickLat * Math.PI / 180;
+    // Calculate bearing from clicked point TO the signal (approach direction)
+    const dLng = (signalLng - clickLng) * Math.PI / 180;
+    const lat1 = clickLat * Math.PI / 180;
+    const lat2 = signalLat * Math.PI / 180;
 
     const y = Math.sin(dLng) * Math.cos(lat2);
     const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
@@ -83,14 +84,16 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
     form.setValue('compassBearing', Math.round(bearing));
   };
 
-  // Calculate end point for bearing visualization line
+  // Calculate end point for bearing visualization line (shows where traffic comes FROM)
   const getBearingEndPoint = () => {
     if (!selectedSignal || !selectedSignal.latitude || !selectedSignal.longitude || !compassBearing) {
       return null;
     }
 
     const distance = 0.002; // degrees (~200m at equator)
-    const bearingRad = (compassBearing * Math.PI) / 180;
+    // Show line in opposite direction of bearing (where traffic comes FROM)
+    const oppositeBearing = (compassBearing + 180) % 360;
+    const bearingRad = (oppositeBearing * Math.PI) / 180;
     const endLat = selectedSignal.latitude + distance * Math.cos(bearingRad);
     const endLon = selectedSignal.longitude + distance * Math.sin(bearingRad);
 

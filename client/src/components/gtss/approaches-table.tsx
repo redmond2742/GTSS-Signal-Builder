@@ -83,46 +83,52 @@ export default function ApproachesTable({ triggerAdd }: ApproachesTableProps) {
     setShowModal(true);
   };
 
+  // Natural sort comparison - handles numeric parts in strings properly
+  const naturalCompare = (a: string, b: string): number => {
+    const aParts = a.split(/(\d+)/);
+    const bParts = b.split(/(\d+)/);
+
+    for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+      const aPart = aParts[i] || '';
+      const bPart = bParts[i] || '';
+
+      const aNum = parseInt(aPart, 10);
+      const bNum = parseInt(bPart, 10);
+
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        if (aNum !== bNum) return aNum - bNum;
+      } else {
+        if (aPart !== bPart) return aPart.localeCompare(bPart);
+      }
+    }
+    return 0;
+  };
+
   const getSortedApproaches = () => {
     return [...filteredApproaches].sort((a, b) => {
-      let aValue: string | number;
-      let bValue: string | number;
+      let comparison = 0;
 
       switch (sortField) {
         case 'signalId':
-          aValue = a.signalId;
-          bValue = b.signalId;
+          comparison = naturalCompare(a.signalId, b.signalId);
           break;
         case 'approachId':
-          aValue = a.approachId;
-          bValue = b.approachId;
+          comparison = naturalCompare(a.approachId, b.approachId);
           break;
         case 'streetName':
-          aValue = a.streetName;
-          bValue = b.streetName;
+          comparison = a.streetName.localeCompare(b.streetName);
           break;
         case 'compassBearing':
-          aValue = a.compassBearing || 0;
-          bValue = b.compassBearing || 0;
+          comparison = (a.compassBearing || 0) - (b.compassBearing || 0);
           break;
         case 'postedSpeed':
-          aValue = a.postedSpeed || 0;
-          bValue = b.postedSpeed || 0;
+          comparison = (a.postedSpeed || 0) - (b.postedSpeed || 0);
           break;
         default:
-          aValue = a.approachId;
-          bValue = b.approachId;
+          comparison = naturalCompare(a.approachId, b.approachId);
       }
 
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortDirection === 'asc'
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      } else {
-        return sortDirection === 'asc'
-          ? (aValue as number) - (bValue as number)
-          : (bValue as number) - (aValue as number);
-      }
+      return sortDirection === 'asc' ? comparison : -comparison;
     });
   };
 
