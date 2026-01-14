@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChevronUp, ChevronDown, MapPin } from "lucide-react";
 import SignalsMap from "@/components/ui/signals-map";
 import BasicTimingModal from "./basic-timing-modal";
+import { getSignalDisplayName } from "@/lib/utils";
 
 type SortField = 'phase' | 'minGreen' | 'maxGreen' | 'yellow' | 'allRed' | 'vehRecallType';
 type SortDirection = 'asc' | 'desc';
@@ -23,7 +24,7 @@ export default function BasicTimingsTable({ triggerAdd }: BasicTimingsTableProps
   const [selectedSignalId, setSelectedSignalId] = useState<string>("");
   const [sortField, setSortField] = useState<SortField>('phase');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const { basicTimings, signals } = useGTSSStore();
+  const { basicTimings, signals, approaches } = useGTSSStore();
 
   // Auto-select first signal on mount
   useEffect(() => {
@@ -45,14 +46,6 @@ export default function BasicTimingsTable({ triggerAdd }: BasicTimingsTableProps
   const filteredTimings = selectedSignalId
     ? basicTimings.filter(timing => timing.signalId === selectedSignalId)
     : [];
-
-  // Get signal display name
-  const getSignalDisplayName = (signalId: string) => {
-    const signal = signals.find(s => s.signalId === signalId);
-    return signal
-      ? `${signal.signalId} - ${signal.streetName1} & ${signal.streetName2}`
-      : signalId;
-  };
 
   const handleAdd = () => {
     setEditingTiming(null);
@@ -178,7 +171,7 @@ export default function BasicTimingsTable({ triggerAdd }: BasicTimingsTableProps
                   <SelectContent>
                     {signals.map((signal) => (
                       <SelectItem key={signal.signalId} value={signal.signalId}>
-                        {getSignalDisplayName(signal.signalId)}
+                        {getSignalDisplayName(signal, approaches)}
                       </SelectItem>
                     ))}
                   </SelectContent>

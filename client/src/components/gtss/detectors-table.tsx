@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, ChevronUp, ChevronDown, MapPin } from "lucide-react";
 import SignalsMap from "@/components/ui/signals-map";
+import { getSignalDisplayName } from "@/lib/utils";
 
 type SortField = 'signalId' | 'channel' | 'phase' | 'technologyType' | 'purpose';
 type SortDirection = 'asc' | 'desc';
@@ -25,7 +26,7 @@ export default function DetectorsTable({ triggerAdd }: DetectorsTableProps) {
   const [selectedSignalId, setSelectedSignalId] = useState<string>("");
   const [sortField, setSortField] = useState<SortField>('signalId');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const { detectors, signals } = useGTSSStore();
+  const { detectors, signals, approaches } = useGTSSStore();
   
   // Auto-select first signal on mount
   useEffect(() => {
@@ -47,14 +48,6 @@ export default function DetectorsTable({ triggerAdd }: DetectorsTableProps) {
   const filteredDetectors = selectedSignalId 
     ? detectors.filter(detector => detector.signalId === selectedSignalId)
     : [];
-
-  // Get signal display name
-  const getSignalDisplayName = (signalId: string) => {
-    const signal = signals.find(s => s.signalId === signalId);
-    return signal 
-      ? `${signal.signalId} - ${signal.streetName1} & ${signal.streetName2}`
-      : signalId;
-  };
 
   const handleEdit = (detector: Detector) => {
     setEditingDetector(detector);
@@ -177,7 +170,7 @@ export default function DetectorsTable({ triggerAdd }: DetectorsTableProps) {
                   <SelectContent>
                     {signals.map((signal) => (
                       <SelectItem key={signal.signalId} value={signal.signalId}>
-                        {getSignalDisplayName(signal.signalId)}
+                        {getSignalDisplayName(signal, approaches)}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Copy, Navigation } from "lucide-react";
+import { getSignalDisplayName } from "@/lib/utils";
 
 interface PhaseModalProps {
   phase: Phase | null;
@@ -295,7 +296,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                       <SelectContent>
                         {signals.map((signal) => (
                           <SelectItem key={signal.signalId} value={signal.signalId}>
-                            {signal.signalId} - {signal.streetName1} & {signal.streetName2}
+                            {getSignalDisplayName(signal, approaches)}
                           </SelectItem>
                         ))}
                       </SelectContent>

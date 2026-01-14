@@ -18,6 +18,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Trash2, Clock, ClipboardPaste, AlertTriangle, CheckCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { getSignalDisplayName } from "@/lib/utils";
 
 interface ParsedTimingRow {
   phase: number;
@@ -63,7 +64,7 @@ interface BasicTimingModalProps {
 }
 
 export default function BasicTimingModal({ timing, onClose, preSelectedSignalId }: BasicTimingModalProps) {
-  const { signals, phases } = useGTSSStore();
+  const { signals, phases, approaches } = useGTSSStore();
   const { toast } = useToast();
   const timingHooks = useBasicTimings();
   const phaseHooks = usePhases();
@@ -534,7 +535,7 @@ export default function BasicTimingModal({ timing, onClose, preSelectedSignalId 
                 <SelectContent>
                   {signals.map((signal) => (
                     <SelectItem key={signal.signalId} value={signal.signalId}>
-                      {signal.signalId} - {signal.streetName1} & {signal.streetName2}
+                      {getSignalDisplayName(signal, approaches)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -728,7 +729,7 @@ export default function BasicTimingModal({ timing, onClose, preSelectedSignalId 
                 <SelectContent>
                   {signals.map((signal) => (
                     <SelectItem key={signal.signalId} value={signal.signalId}>
-                      {signal.signalId} - {signal.streetName1} & {signal.streetName2}
+                      {getSignalDisplayName(signal, approaches)}
                     </SelectItem>
                   ))}
                 </SelectContent>

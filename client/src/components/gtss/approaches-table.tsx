@@ -7,19 +7,23 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronUp, ChevronDown, MapPin } from "lucide-react";
-import SignalsMap from "@/components/ui/signals-map";
+import SignalsMap, { approachColors } from "@/components/ui/signals-map";
 import ApproachModal from "./approach-modal";
+import BulkApproachModal from "./bulk-approach-modal";
+import { getSignalDisplayName } from "@/lib/utils";
 
 type SortField = 'signalId' | 'approachId' | 'streetName' | 'compassBearing' | 'postedSpeed';
 type SortDirection = 'asc' | 'desc';
 
 interface ApproachesTableProps {
   triggerAdd?: number;
+  triggerBulk?: number;
 }
 
-export default function ApproachesTable({ triggerAdd }: ApproachesTableProps) {
+export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesTableProps) {
   const [editingApproach, setEditingApproach] = useState<Approach | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [selectedSignalId, setSelectedSignalId] = useState<string>("");
   const [sortField, setSortField] = useState<SortField>('approachId');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -41,18 +45,17 @@ export default function ApproachesTable({ triggerAdd }: ApproachesTableProps) {
     }
   }, [triggerAdd]);
 
+  useEffect(() => {
+    if (triggerBulk && triggerBulk > 0) {
+      setShowBulkModal(true);
+    }
+  }, [triggerBulk]);
+
   // Filter approaches by selected signal
   const filteredApproaches = selectedSignalId
     ? approaches.filter(approach => approach.signalId === selectedSignalId)
     : [];
 
-  // Get signal display name
-  const getSignalDisplayName = (signalId: string) => {
-    const signal = signals.find(s => s.signalId === signalId);
-    return signal
-      ? `${signal.signalId} - ${signal.streetName1} & ${signal.streetName2}`
-      : signalId;
-  };
 
   const handleEdit = (approach: Approach) => {
     setEditingApproach(approach);
@@ -167,50 +170,54 @@ export default function ApproachesTable({ triggerAdd }: ApproachesTableProps) {
   return (
     <div className="max-w-6xl">
       <Card>
-        <CardHeader className="bg-grey-50 border-b border-grey-200 flex flex-row items-center justify-start px-3 py-2">
-          <div className="flex space-x-2 items-center">
-            {signals.length === 0 ? (
-              <div className="p-2 bg-warning-50 border border-warning-200 rounded-md">
-                <p className="text-xs text-warning-700">
-                  No signals configured. Please add signals before creating approaches.
-                </p>
-              </div>
-            ) : (
-              <>
+        <CardHeader className="bg-grey-50 border-b border-grey-200 p-3">
+          {signals.length === 0 ? (
+            <div className="p-2 bg-warning-50 border border-warning-200 rounded-md">
+              <p className="text-xs text-warning-700">
+                No signals configured. Please add signals before creating approaches.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
                 <Select value={selectedSignalId} onValueChange={setSelectedSignalId}>
-                  <SelectTrigger className="w-80 h-7 text-xs">
-                    <SelectValue placeholder="Choose signal to view approaches" />
+                  <SelectTrigger className="flex-1 h-8 text-sm">
+                    <SelectValue placeholder="Select Signal" />
                   </SelectTrigger>
                   <SelectContent>
                     {signals.map((signal) => (
                       <SelectItem key={signal.signalId} value={signal.signalId}>
-                        {getSignalDisplayName(signal.signalId)}
+                        {getSignalDisplayName(signal, approaches)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 {selectedSignalId && (
-                  <span className="text-xs text-grey-600">({filteredApproaches.length} approach(es))</span>
-                )}
-              </>
-            )}
-          </div>
-          {selectedSignalId && (() => {
-            const selectedSignal = signals.find(s => s.signalId === selectedSignalId);
-            return (
-              <div className="flex-1 ml-4 h-20">
-                {selectedSignal && selectedSignal.latitude && selectedSignal.longitude ? (
-                  <div className="w-full h-full border border-grey-300 rounded-md overflow-hidden bg-white relative z-0">
-                    <SignalsMap signals={[selectedSignal]} className="w-full h-full" />
-                  </div>
-                ) : (
-                  <div className="w-full h-full border border-grey-300 rounded-md bg-grey-100 flex items-center justify-center">
-                    <MapPin className="w-6 h-6 text-grey-400" />
-                  </div>
+                  <span className="text-xs text-grey-600 whitespace-nowrap">({filteredApproaches.length} approach{filteredApproaches.length !== 1 ? 'es' : ''})</span>
                 )}
               </div>
-            );
-          })()}
+              {selectedSignalId && (() => {
+                const selectedSignal = signals.find(s => s.signalId === selectedSignalId);
+                return (
+                  <div className="w-full h-72">
+                    {selectedSignal && selectedSignal.latitude && selectedSignal.longitude ? (
+                      <div className="w-full h-full border border-grey-300 rounded-md overflow-hidden bg-white relative z-0">
+                        <SignalsMap
+                          signals={[selectedSignal]}
+                          approaches={filteredApproaches}
+                          className="w-full h-full"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full h-full border border-grey-300 rounded-md bg-grey-100 flex items-center justify-center">
+                        <MapPin className="w-6 h-6 text-grey-400" />
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -277,6 +284,13 @@ export default function ApproachesTable({ triggerAdd }: ApproachesTableProps) {
           approach={editingApproach}
           onClose={handleModalClose}
           preSelectedSignalId={editingApproach ? undefined : selectedSignalId}
+        />
+      )}
+
+      {showBulkModal && (
+        <BulkApproachModal
+          onClose={() => setShowBulkModal(false)}
+          preSelectedSignalId={selectedSignalId}
         />
       )}
     </div>

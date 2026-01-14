@@ -12,6 +12,7 @@ import { Plus, Edit, Trash2, Map, List, Navigation, ChevronUp, ChevronDown, Eye,
 import SignalModal from "./signal-modal";
 import BulkSignalModal from "./bulk-signal-modal";
 import SignalsMap from "@/components/ui/signals-map";
+import { getDerivedStreetNames } from "@/lib/utils";
 
 
 
@@ -30,7 +31,7 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
   const [sortField, setSortField] = useState<SortField>('signalId');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-  const { signals, navigateToSignalDetails } = useGTSSStore();
+  const { signals, approaches, navigateToSignalDetails } = useGTSSStore();
   const { toast } = useToast();
   const signalHooks = useSignals();
 
@@ -231,17 +232,21 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
                     </TableRow>
                   ) : (
                     getSortedSignals().map((signal) => (
-                      <TableRow 
+                      <TableRow
                         key={signal.id}
                         className="hover:bg-grey-50 cursor-pointer transition-colors"
                         onClick={() => navigateToSignalDetails(signal.signalId)}
                         data-testid={`row-signal-${signal.signalId}`}
                       >
                         <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">{signal.signalId}</TableCell>
-                        <TableCell className="text-grey-600 text-xs py-1.5 px-2">{signal.streetName1}</TableCell>
-                        <TableCell className="text-grey-600 text-xs py-1.5 px-2">{signal.streetName2}</TableCell>
                         <TableCell className="text-grey-600 text-xs py-1.5 px-2">
-                          {signal.latitude && signal.longitude 
+                          {getDerivedStreetNames(signal.signalId, approaches).streetName1 || signal.streetName1 || '-'}
+                        </TableCell>
+                        <TableCell className="text-grey-600 text-xs py-1.5 px-2">
+                          {getDerivedStreetNames(signal.signalId, approaches).streetName2 || signal.streetName2 || '-'}
+                        </TableCell>
+                        <TableCell className="text-grey-600 text-xs py-1.5 px-2">
+                          {signal.latitude && signal.longitude
                             ? `${signal.latitude.toFixed(4)}, ${signal.longitude.toFixed(4)}`
                             : 'Not set'
                           }

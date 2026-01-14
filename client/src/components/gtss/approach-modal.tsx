@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertApproachSchema, type InsertApproach, type Approach } from "@shared/schema";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents } from "react-leaflet";
 import { Trash2, MapPin, Navigation } from "lucide-react";
+import { getSignalDisplayName } from "@/lib/utils";
 
 interface ApproachModalProps {
   approach: Approach | null;
@@ -30,7 +31,7 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number
 }
 
 export default function ApproachModal({ approach, onClose, preSelectedSignalId }: ApproachModalProps) {
-  const { signals } = useGTSSStore();
+  const { signals, approaches } = useGTSSStore();
   const { toast } = useToast();
   const approachHooks = useApproaches();
   const [isLoading, setIsLoading] = useState(false);
@@ -61,6 +62,17 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
   const selectedSignalId = form.watch("signalId");
   const selectedSignal = signals.find(s => s.signalId === selectedSignalId);
   const compassBearing = form.watch("compassBearing");
+
+  // Get unique street names from all approaches for autocomplete
+  const uniqueStreetNames = useMemo(() => {
+    const names = new Set<string>();
+    approaches.forEach(a => {
+      if (a.streetName && a.streetName.trim()) {
+        names.add(a.streetName.trim());
+      }
+    });
+    return Array.from(names).sort();
+  }, [approaches]);
 
   // Calculate bearing for approach direction (direction vehicles travel TOWARD the intersection)
   // User clicks where traffic is coming FROM, we calculate the approach direction (opposite)
@@ -177,7 +189,7 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
                       <SelectContent>
                         {signals.map((signal) => (
                           <SelectItem key={signal.signalId} value={signal.signalId}>
-                            {signal.signalId} - {signal.streetName1} & {signal.streetName2}
+                            {getSignalDisplayName(signal, approaches)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -212,10 +224,19 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
                   <FormItem>
                     <FormLabel>Street Name *</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="e.g., Main Street NB"
-                        {...field}
-                      />
+                      <>
+                        <Input
+                          placeholder="e.g., Main Street NB"
+                          list="street-name-suggestions"
+                          autoComplete="off"
+                          {...field}
+                        />
+                        <datalist id="street-name-suggestions">
+                          {uniqueStreetNames.map((name) => (
+                            <option key={name} value={name} />
+                          ))}
+                        </datalist>
+                      </>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

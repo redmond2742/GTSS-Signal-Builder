@@ -18,18 +18,24 @@ const MAX_STORAGE_SIZE = 5 * 1024 * 1024;
 function sanitizeCSVField(value: string | number | boolean | null | undefined): string {
   if (value == null) return '';
 
-  const strValue = String(value);
-
-  // Escape dangerous characters that could start formulas in spreadsheet applications
-  // Characters =, +, -, @, tab, carriage return can trigger formula execution
-  if (/^[=+\-@\t\r]/.test(strValue)) {
-    // Prepend single quote to neutralize formula execution and escape internal quotes
-    return `"'${strValue.replace(/"/g, '""')}"`;
+  // For numeric and boolean values, just convert to string (no formula risk)
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
   }
+
+  const strValue = String(value);
 
   // Quote fields containing commas, quotes, or newlines
   if (/[",\n\r]/.test(strValue)) {
     return `"${strValue.replace(/"/g, '""')}"`;
+  }
+
+  // Escape dangerous characters that could start formulas in spreadsheet applications
+  // Characters =, +, -, @, tab, carriage return can trigger formula execution
+  // Only apply to string values that aren't already quoted
+  if (/^[=+\-@\t\r]/.test(strValue)) {
+    // Prepend single quote to neutralize formula execution and wrap in quotes
+    return `"'${strValue.replace(/"/g, '""')}"`;
   }
 
   return strValue;
@@ -570,12 +576,12 @@ export function generateAgencyCSV(agency: Agency | null): string {
 }
 
 export function generateSignalsCSV(signals: Signal[]): string {
-  const headers = 'signal_id,agency_id,street_name_1,street_name_2,latitude,longitude';
+  const headers = 'signal_id,agency_id,latitude,longitude';
 
   if (signals.length === 0) return headers + '\n';
 
   const rows = signals.map(signal =>
-    `${sanitizeCSVField(signal.signalId)},${sanitizeCSVField(signal.agencyId)},${sanitizeCSVField(signal.streetName1)},${sanitizeCSVField(signal.streetName2)},${sanitizeCSVField(signal.latitude)},${sanitizeCSVField(signal.longitude)}`
+    `${sanitizeCSVField(signal.signalId)},${sanitizeCSVField(signal.agencyId)},${sanitizeCSVField(signal.latitude)},${sanitizeCSVField(signal.longitude)}`
   );
 
   return [headers, ...rows].join('\n');

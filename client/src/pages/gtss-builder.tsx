@@ -62,7 +62,9 @@ export default function GTSSBuilder() {
   const [triggerAdd, setTriggerAdd] = useState(0);
   const [triggerBulk, setTriggerBulk] = useState(0);
   const [triggerAddApproach, setTriggerAddApproach] = useState(0);
+  const [triggerBulkApproach, setTriggerBulkApproach] = useState(0);
   const [triggerAddPhase, setTriggerAddPhase] = useState(0);
+  const [triggerBulkPhase, setTriggerBulkPhase] = useState(0);
   const [triggerAddDetector, setTriggerAddDetector] = useState(0);
   const [triggerAddBasicTiming, setTriggerAddBasicTiming] = useState(0);
 
@@ -83,9 +85,9 @@ export default function GTSSBuilder() {
       case "signals":
         return <SignalsTable triggerAdd={triggerAdd} triggerBulk={triggerBulk} />;
       case "approaches":
-        return <ApproachesTable triggerAdd={triggerAddApproach} />;
+        return <ApproachesTable triggerAdd={triggerAddApproach} triggerBulk={triggerBulkApproach} />;
       case "phases":
-        return <PhasesTable triggerAdd={triggerAddPhase} />;
+        return <PhasesTable triggerAdd={triggerAddPhase} triggerBulk={triggerBulkPhase} />;
       case "basic-timings":
         return <BasicTimingsTable triggerAdd={triggerAddBasicTiming} />;
       case "detectors":
@@ -184,7 +186,9 @@ export default function GTSSBuilder() {
                     setTriggerAdd(0);
                     setTriggerBulk(0);
                     setTriggerAddApproach(0);
+                    setTriggerBulkApproach(0);
                     setTriggerAddPhase(0);
+                    setTriggerBulkPhase(0);
                     setTriggerAddDetector(0);
                     setTriggerAddBasicTiming(0);
                     setActiveTab(tab.id as TabType);
@@ -361,6 +365,14 @@ export default function GTSSBuilder() {
             )}
             {!showExportPanel && !showImportPanel && activeTab === "approaches" && (
               <div className="flex space-x-1">
+                <Button
+                  variant="outline"
+                  onClick={() => setTriggerBulkApproach(prev => prev + 1)}
+                  className="h-7 px-2 text-xs"
+                >
+                  <Plus className="w-3 h-3 sm:mr-1" />
+                  <span className="hidden sm:inline">Add Multiple</span>
+                </Button>
                 <Button onClick={handleAddApproach} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
                   <Plus className="w-3 h-3 sm:mr-1" />
                   <span className="hidden sm:inline">Add Approach</span>
@@ -369,6 +381,14 @@ export default function GTSSBuilder() {
             )}
             {!showExportPanel && !showImportPanel && activeTab === "phases" && (
               <div className="flex space-x-1">
+                <Button
+                  variant="outline"
+                  onClick={() => setTriggerBulkPhase(prev => prev + 1)}
+                  className="h-7 px-2 text-xs"
+                >
+                  <Plus className="w-3 h-3 sm:mr-1" />
+                  <span className="hidden sm:inline">Add Multiple</span>
+                </Button>
                 <Button onClick={handleAddPhase} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700 text-white">
                   <Plus className="w-3 h-3 sm:mr-1" />
                   <span className="hidden sm:inline">Add Phase</span>

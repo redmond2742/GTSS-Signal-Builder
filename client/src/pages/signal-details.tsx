@@ -110,6 +110,21 @@ export default function SignalDetails() {
     return uniqueStreets.join(" & ");
   }, [signalApproaches]);
 
+  // Get individual derived street names for display
+  const derivedStreetName1 = useMemo(() => {
+    const uniqueStreets = Array.from(
+      new Set(signalApproaches.map(a => a.streetName).filter(name => name && name.trim()))
+    );
+    return uniqueStreets[0] || null;
+  }, [signalApproaches]);
+
+  const derivedStreetName2 = useMemo(() => {
+    const uniqueStreets = Array.from(
+      new Set(signalApproaches.map(a => a.streetName).filter(name => name && name.trim()))
+    );
+    return uniqueStreets[1] || null;
+  }, [signalApproaches]);
+
 
   useEffect(() => {
     if (isNewSignal) {
@@ -553,32 +568,18 @@ export default function SignalDetails() {
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={signalForm.control}
-                    name="streetName1"
-                    render={({ field }) => (
-                      <FormItem className="space-y-1">
-                        <FormLabel className="text-xs font-medium">Street Name 1</FormLabel>
-                        <FormControl>
-                          <Input {...field} className="h-7 px-2 text-xs" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={signalForm.control}
-                    name="streetName2"
-                    render={({ field }) => (
-                      <FormItem className="space-y-1">
-                        <FormLabel className="text-xs font-medium">Street Name 2</FormLabel>
-                        <FormControl>
-                          <Input {...field} className="h-7 px-2 text-xs" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Street Name 1</label>
+                    <div className="h-7 px-2 text-xs flex items-center bg-grey-50 border border-grey-200 rounded-md text-grey-600">
+                      {derivedStreetName1 || <span className="text-grey-400 italic">From approaches</span>}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Street Name 2</label>
+                    <div className="h-7 px-2 text-xs flex items-center bg-grey-50 border border-grey-200 rounded-md text-grey-600">
+                      {derivedStreetName2 || <span className="text-grey-400 italic">From approaches</span>}
+                    </div>
+                  </div>
                   <FormField
                     control={signalForm.control}
                     name="latitude"
