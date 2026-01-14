@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertApproachSchema, type InsertApproach, type Approach } from "@shared/schema";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents } from "react-leaflet";
 import { Trash2, MapPin, Navigation } from "lucide-react";
+import { getSignalDisplayName } from "@/lib/utils";
 
 interface ApproachModalProps {
   approach: Approach | null;
@@ -30,7 +31,7 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number
 }
 
 export default function ApproachModal({ approach, onClose, preSelectedSignalId }: ApproachModalProps) {
-  const { signals } = useGTSSStore();
+  const { signals, approaches } = useGTSSStore();
   const { toast } = useToast();
   const approachHooks = useApproaches();
   const [isLoading, setIsLoading] = useState(false);
@@ -62,17 +63,29 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
   const selectedSignal = signals.find(s => s.signalId === selectedSignalId);
   const compassBearing = form.watch("compassBearing");
 
-  // Calculate bearing from signal to clicked point
+  // Get unique street names from all approaches for autocomplete
+  const uniqueStreetNames = useMemo(() => {
+    const names = new Set<string>();
+    approaches.forEach(a => {
+      if (a.streetName && a.streetName.trim()) {
+        names.add(a.streetName.trim());
+      }
+    });
+    return Array.from(names).sort();
+  }, [approaches]);
+
+  // Calculate bearing for approach direction (direction vehicles travel TOWARD the intersection)
+  // User clicks where traffic is coming FROM, we calculate the approach direction (opposite)
   const handleMapClick = (clickLat: number, clickLng: number) => {
     if (!selectedSignal || !selectedSignal.latitude || !selectedSignal.longitude) return;
 
     const signalLat = selectedSignal.latitude;
     const signalLng = selectedSignal.longitude;
 
-    // Calculate bearing using spherical trigonometry
-    const dLng = (clickLng - signalLng) * Math.PI / 180;
-    const lat1 = signalLat * Math.PI / 180;
-    const lat2 = clickLat * Math.PI / 180;
+    // Calculate bearing from clicked point TO the signal (approach direction)
+    const dLng = (signalLng - clickLng) * Math.PI / 180;
+    const lat1 = clickLat * Math.PI / 180;
+    const lat2 = signalLat * Math.PI / 180;
 
     const y = Math.sin(dLng) * Math.cos(lat2);
     const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
@@ -83,14 +96,16 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
     form.setValue('compassBearing', Math.round(bearing));
   };
 
-  // Calculate end point for bearing visualization line
+  // Calculate end point for bearing visualization line (shows where traffic comes FROM)
   const getBearingEndPoint = () => {
     if (!selectedSignal || !selectedSignal.latitude || !selectedSignal.longitude || !compassBearing) {
       return null;
     }
 
     const distance = 0.002; // degrees (~200m at equator)
-    const bearingRad = (compassBearing * Math.PI) / 180;
+    // Show line in opposite direction of bearing (where traffic comes FROM)
+    const oppositeBearing = (compassBearing + 180) % 360;
+    const bearingRad = (oppositeBearing * Math.PI) / 180;
     const endLat = selectedSignal.latitude + distance * Math.cos(bearingRad);
     const endLon = selectedSignal.longitude + distance * Math.sin(bearingRad);
 
@@ -174,7 +189,7 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
                       <SelectContent>
                         {signals.map((signal) => (
                           <SelectItem key={signal.signalId} value={signal.signalId}>
-                            {signal.signalId} - {signal.streetName1} & {signal.streetName2}
+                            {getSignalDisplayName(signal, approaches)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -209,10 +224,19 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
                   <FormItem>
                     <FormLabel>Street Name *</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="e.g., Main Street NB"
-                        {...field}
-                      />
+                      <>
+                        <Input
+                          placeholder="e.g., Main Street NB"
+                          list="street-name-suggestions"
+                          autoComplete="off"
+                          {...field}
+                        />
+                        <datalist id="street-name-suggestions">
+                          {uniqueStreetNames.map((name) => (
+                            <option key={name} value={name} />
+                          ))}
+                        </datalist>
+                      </>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

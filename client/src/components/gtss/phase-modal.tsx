@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Copy, Navigation } from "lucide-react";
+import { getSignalDisplayName } from "@/lib/utils";
 
 interface PhaseModalProps {
   phase: Phase | null;
@@ -221,6 +222,33 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
     return ((phaseNumber + 3) % 8) + 1;
   };
 
+  // Convert compass bearing to direction name
+  const getBearingDirection = (bearing: number | null | undefined): string => {
+    if (bearing === undefined || bearing === null) return '';
+    if (bearing >= 337.5 || bearing < 22.5) return 'N';
+    if (bearing >= 22.5 && bearing < 67.5) return 'NE';
+    if (bearing >= 67.5 && bearing < 112.5) return 'E';
+    if (bearing >= 112.5 && bearing < 157.5) return 'SE';
+    if (bearing >= 157.5 && bearing < 202.5) return 'S';
+    if (bearing >= 202.5 && bearing < 247.5) return 'SW';
+    if (bearing >= 247.5 && bearing < 292.5) return 'W';
+    if (bearing >= 292.5 && bearing < 337.5) return 'NW';
+    return '';
+  };
+
+  // Get approach number from approachId (e.g., "SIG001-2" -> "2")
+  const getApproachNumber = (approachId: string): string => {
+    const parts = approachId.split('-');
+    return parts.length > 1 ? parts[parts.length - 1] : approachId;
+  };
+
+  // Format approach for display: "2 - Main St. - SW"
+  const formatApproachDisplay = (approach: { approachId: string; streetName: string; compassBearing: number | null }): string => {
+    const approachNum = getApproachNumber(approach.approachId);
+    const direction = approach.compassBearing !== null ? getBearingDirection(approach.compassBearing) : '';
+    return `${approachNum} - ${approach.streetName}${direction ? ` - ${direction}` : ''}`;
+  };
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-screen overflow-auto">
@@ -268,7 +296,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                       <SelectContent>
                         {signals.map((signal) => (
                           <SelectItem key={signal.signalId} value={signal.signalId}>
-                            {signal.signalId} - {signal.streetName1} & {signal.streetName2}
+                            {getSignalDisplayName(signal, approaches)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -334,8 +362,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                             <SelectContent>
                               {signalApproaches.map((approach) => (
                                 <SelectItem key={approach.approachId} value={approach.approachId}>
-                                  {approach.approachId} - {approach.streetName}
-                                  {approach.compassBearing !== null && ` (${approach.compassBearing}°)`}
+                                  {formatApproachDisplay(approach)}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -344,7 +371,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                             <div className="flex gap-2 mt-2">
                               {selectedApproach.compassBearing !== null && (
                                 <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
-                                  {selectedApproach.compassBearing}° bearing
+                                  {selectedApproach.compassBearing}° {getBearingDirection(selectedApproach.compassBearing)}
                                 </Badge>
                               )}
                               {selectedApproach.postedSpeed !== null && (

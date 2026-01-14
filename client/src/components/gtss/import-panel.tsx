@@ -4,7 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Upload, FileText, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Upload, FileText, AlertTriangle, CheckCircle, ClipboardPaste } from 'lucide-react';
 import { parseAgencyTXT, parseSignalsTXT, parseApproachesTXT, parsePhasesTXT, parseDetectorsTXT, parseBasicTimingsTXT, importData } from '@/lib/localStorage';
 import { Agency, Signal, Approach, Phase, Detector, BasicTiming } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
@@ -46,6 +49,8 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [pasteContent, setPasteContent] = useState<string>("");
+  const [pasteFileType, setPasteFileType] = useState<'agency' | 'signals' | 'approaches' | 'phases' | 'detectors' | 'basic_timings'>('signals');
   const { toast } = useToast();
 
   const detectFileType = (filename: string): 'agency' | 'signals' | 'approaches' | 'phases' | 'detectors' | 'basic_timings' | 'unknown' => {
@@ -194,10 +199,30 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleFileChange(e.dataTransfer.files);
     }
+  };
+
+  const handlePasteData = () => {
+    if (!pasteContent.trim()) return;
+
+    const fileData: FileData = {
+      name: `pasted_${pasteFileType}.txt`,
+      content: pasteContent,
+      type: pasteFileType,
+    };
+
+    setUploadedFiles([fileData]);
+    parseFiles([fileData]);
+  };
+
+  const clearAll = () => {
+    setUploadedFiles([]);
+    setParsedData({});
+    setValidationErrors([]);
+    setPasteContent("");
   };
 
   const hasData = Object.keys(parsedData).length > 0;
@@ -212,43 +237,97 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* File Upload Area */}
-        <div>
-          <Label>Upload Files</Label>
-          <div
-            className={`mt-2 border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-              dragActive ? 'border-primary bg-primary/5' : 'border-gray-300'
-            }`}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-            data-testid="import-dropzone"
-          >
-            <Upload className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-            <div className="space-y-2">
-              <p className="text-sm text-gray-600">
-                Drag and drop TXT files here, or click to browse
-              </p>
-              <input
-                type="file"
-                multiple
-                accept=".txt"
-                onChange={(e) => handleFileChange(e.target.files)}
-                className="hidden"
-                id="file-upload"
-                data-testid="input-file-upload"
-              />
-              <Button
-                variant="outline"
-                onClick={() => document.getElementById('file-upload')?.click()}
-                data-testid="button-browse-files"
+        <Tabs defaultValue="upload" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="upload" className="flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              Upload Files
+            </TabsTrigger>
+            <TabsTrigger value="paste" className="flex items-center gap-2">
+              <ClipboardPaste className="h-4 w-4" />
+              Paste Data
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="upload" className="mt-4">
+            {/* File Upload Area */}
+            <div>
+              <div
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  dragActive ? 'border-primary bg-primary/5' : 'border-gray-300'
+                }`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                data-testid="import-dropzone"
               >
-                Browse Files
-              </Button>
+                <Upload className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">
+                    Drag and drop TXT files here, or click to browse
+                  </p>
+                  <input
+                    type="file"
+                    multiple
+                    accept=".txt"
+                    onChange={(e) => handleFileChange(e.target.files)}
+                    className="hidden"
+                    id="file-upload"
+                    data-testid="input-file-upload"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => document.getElementById('file-upload')?.click()}
+                    data-testid="button-browse-files"
+                  >
+                    Browse Files
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="paste" className="mt-4 space-y-4">
+            {/* File Type Selector */}
+            <div>
+              <Label>Data Type</Label>
+              <Select value={pasteFileType} onValueChange={(value) => setPasteFileType(value as typeof pasteFileType)}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select data type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="agency">Agency</SelectItem>
+                  <SelectItem value="signals">Signals</SelectItem>
+                  <SelectItem value="approaches">Approaches</SelectItem>
+                  <SelectItem value="phases">Phases</SelectItem>
+                  <SelectItem value="detectors">Detectors</SelectItem>
+                  <SelectItem value="basic_timings">Basic Timings</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Paste Area */}
+            <div>
+              <Label>Paste File Contents</Label>
+              <Textarea
+                placeholder="Paste the contents of a TXT file here (CSV format with header row)..."
+                value={pasteContent}
+                onChange={(e) => setPasteContent(e.target.value)}
+                className="mt-1 min-h-[200px] font-mono text-sm"
+              />
+            </div>
+
+            {/* Parse Button */}
+            <Button
+              onClick={handlePasteData}
+              disabled={!pasteContent.trim()}
+              className="w-full"
+            >
+              Parse Pasted Data
+            </Button>
+          </TabsContent>
+        </Tabs>
 
         {/* Uploaded Files List */}
         {uploadedFiles.length > 0 && (
@@ -351,11 +430,7 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
           <div className="flex justify-end gap-3">
             <Button
               variant="outline"
-              onClick={() => {
-                setUploadedFiles([]);
-                setParsedData({});
-                setValidationErrors([]);
-              }}
+              onClick={clearAll}
               data-testid="button-cancel-import"
             >
               Cancel

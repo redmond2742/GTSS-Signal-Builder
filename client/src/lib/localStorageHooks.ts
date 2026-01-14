@@ -67,7 +67,7 @@ export const useSignals = () => {
 };
 
 export const useApproaches = () => {
-  const { approaches, setApproaches, addApproach, updateApproach, deleteApproach } = useGTSSStore();
+  const { approaches, setApproaches, addApproach, updateApproach, deleteApproach, phases, updatePhase } = useGTSSStore();
 
   const saveApproach = (data: InsertApproach) => {
     const savedApproach = approachStorage.save(data);
@@ -76,9 +76,29 @@ export const useApproaches = () => {
   };
 
   const updateApproachById = (id: string, data: Partial<InsertApproach>) => {
+    // Get the current approach to check if approachId is being changed
+    const currentApproach = approaches.find(a => a.id === id);
+    const oldApproachId = currentApproach?.approachId;
+    const newApproachId = data.approachId;
+
     const updatedApproach = approachStorage.update(id, data);
     if (updatedApproach) {
       updateApproach(id, updatedApproach);
+
+      // If approachId changed, update all phases that reference the old approachId
+      if (oldApproachId && newApproachId && oldApproachId !== newApproachId) {
+        const signalId = currentApproach?.signalId;
+        const phasesToUpdate = phases.filter(
+          p => p.signalId === signalId && p.approachId === oldApproachId
+        );
+
+        for (const phase of phasesToUpdate) {
+          const updatedPhase = phaseStorage.update(phase.id, { approachId: newApproachId });
+          if (updatedPhase) {
+            updatePhase(phase.id, updatedPhase);
+          }
+        }
+      }
     }
     return updatedApproach;
   };

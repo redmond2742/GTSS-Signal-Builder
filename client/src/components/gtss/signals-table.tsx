@@ -12,6 +12,7 @@ import { Plus, Edit, Trash2, Map, List, Navigation, ChevronUp, ChevronDown, Eye,
 import SignalModal from "./signal-modal";
 import BulkSignalModal from "./bulk-signal-modal";
 import SignalsMap from "@/components/ui/signals-map";
+import { getDerivedStreetNames } from "@/lib/utils";
 
 
 
@@ -30,7 +31,7 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
   const [sortField, setSortField] = useState<SortField>('signalId');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-  const { signals, navigateToSignalDetails } = useGTSSStore();
+  const { signals, approaches, navigateToSignalDetails } = useGTSSStore();
   const { toast } = useToast();
   const signalHooks = useSignals();
 
@@ -107,38 +108,51 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
     }
   };
 
+  // Natural sort comparison - handles numeric parts in strings properly
+  // e.g., "SIG-1", "SIG-2", "SIG-11" instead of "SIG-1", "SIG-11", "SIG-2"
+  const naturalCompare = (a: string, b: string): number => {
+    const aParts = a.split(/(\d+)/);
+    const bParts = b.split(/(\d+)/);
+
+    for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+      const aPart = aParts[i] || '';
+      const bPart = bParts[i] || '';
+
+      // Check if both parts are numeric
+      const aNum = parseInt(aPart, 10);
+      const bNum = parseInt(bPart, 10);
+
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        if (aNum !== bNum) return aNum - bNum;
+      } else {
+        if (aPart !== bPart) return aPart.localeCompare(bPart);
+      }
+    }
+    return 0;
+  };
+
   const getSortedSignals = () => {
     return [...signals].sort((a, b) => {
-      let aValue: string | number;
-      let bValue: string | number;
+      let comparison = 0;
 
       switch (sortField) {
         case 'signalId':
-          aValue = a.signalId;
-          bValue = b.signalId;
+          comparison = naturalCompare(a.signalId, b.signalId);
           break;
         case 'streetName1':
-          aValue = a.streetName1;
-          bValue = b.streetName1;
+          comparison = a.streetName1.localeCompare(b.streetName1);
           break;
         case 'streetName2':
-          aValue = a.streetName2;
-          bValue = b.streetName2;
+          comparison = a.streetName2.localeCompare(b.streetName2);
           break;
         case 'coordinates':
-          aValue = `${a.latitude},${a.longitude}`;
-          bValue = `${b.latitude},${b.longitude}`;
+          comparison = `${a.latitude},${a.longitude}`.localeCompare(`${b.latitude},${b.longitude}`);
           break;
         default:
-          aValue = a.signalId;
-          bValue = b.signalId;
+          comparison = naturalCompare(a.signalId, b.signalId);
       }
 
-      if (sortDirection === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
+      return sortDirection === 'asc' ? comparison : -comparison;
     });
   };
 
@@ -218,17 +232,21 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
                     </TableRow>
                   ) : (
                     getSortedSignals().map((signal) => (
-                      <TableRow 
+                      <TableRow
                         key={signal.id}
                         className="hover:bg-grey-50 cursor-pointer transition-colors"
                         onClick={() => navigateToSignalDetails(signal.signalId)}
                         data-testid={`row-signal-${signal.signalId}`}
                       >
                         <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">{signal.signalId}</TableCell>
-                        <TableCell className="text-grey-600 text-xs py-1.5 px-2">{signal.streetName1}</TableCell>
-                        <TableCell className="text-grey-600 text-xs py-1.5 px-2">{signal.streetName2}</TableCell>
                         <TableCell className="text-grey-600 text-xs py-1.5 px-2">
-                          {signal.latitude && signal.longitude 
+                          {getDerivedStreetNames(signal.signalId, approaches).streetName1 || signal.streetName1 || '-'}
+                        </TableCell>
+                        <TableCell className="text-grey-600 text-xs py-1.5 px-2">
+                          {getDerivedStreetNames(signal.signalId, approaches).streetName2 || signal.streetName2 || '-'}
+                        </TableCell>
+                        <TableCell className="text-grey-600 text-xs py-1.5 px-2">
+                          {signal.latitude && signal.longitude
                             ? `${signal.latitude.toFixed(4)}, ${signal.longitude.toFixed(4)}`
                             : 'Not set'
                           }

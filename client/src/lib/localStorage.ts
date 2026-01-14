@@ -18,18 +18,24 @@ const MAX_STORAGE_SIZE = 5 * 1024 * 1024;
 function sanitizeCSVField(value: string | number | boolean | null | undefined): string {
   if (value == null) return '';
 
-  const strValue = String(value);
-
-  // Escape dangerous characters that could start formulas in spreadsheet applications
-  // Characters =, +, -, @, tab, carriage return can trigger formula execution
-  if (/^[=+\-@\t\r]/.test(strValue)) {
-    // Prepend single quote to neutralize formula execution and escape internal quotes
-    return `"'${strValue.replace(/"/g, '""')}"`;
+  // For numeric and boolean values, just convert to string (no formula risk)
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
   }
+
+  const strValue = String(value);
 
   // Quote fields containing commas, quotes, or newlines
   if (/[",\n\r]/.test(strValue)) {
     return `"${strValue.replace(/"/g, '""')}"`;
+  }
+
+  // Escape dangerous characters that could start formulas in spreadsheet applications
+  // Characters =, +, -, @, tab, carriage return can trigger formula execution
+  // Only apply to string values that aren't already quoted
+  if (/^[=+\-@\t\r]/.test(strValue)) {
+    // Prepend single quote to neutralize formula execution and wrap in quotes
+    return `"'${strValue.replace(/"/g, '""')}"`;
   }
 
   return strValue;
@@ -230,9 +236,12 @@ export const approachStorage = {
 
   save: (approach: InsertApproach): Approach => {
     const approaches = approachStorage.getAll();
+    // Count approaches for this specific signal to generate per-signal ID
+    const signalApproaches = approaches.filter(a => a.signalId === approach.signalId);
+    const nextApproachNum = signalApproaches.length + 1;
     const newApproach: Approach = {
       id: nanoid(),
-      approachId: approach.approachId || `APR_${String(approaches.length + 1).padStart(3, '0')}`,
+      approachId: approach.approachId || `${approach.signalId}-${nextApproachNum}`,
       signalId: approach.signalId,
       streetName: approach.streetName,
       compassBearing: approach.compassBearing ?? null,
@@ -567,12 +576,12 @@ export function generateAgencyCSV(agency: Agency | null): string {
 }
 
 export function generateSignalsCSV(signals: Signal[]): string {
-  const headers = 'signal_id,agency_id,street_name_1,street_name_2,latitude,longitude';
+  const headers = 'signal_id,agency_id,latitude,longitude';
 
   if (signals.length === 0) return headers + '\n';
 
   const rows = signals.map(signal =>
-    `${sanitizeCSVField(signal.signalId)},${sanitizeCSVField(signal.agencyId)},${sanitizeCSVField(signal.streetName1)},${sanitizeCSVField(signal.streetName2)},${sanitizeCSVField(signal.latitude)},${sanitizeCSVField(signal.longitude)}`
+    `${sanitizeCSVField(signal.signalId)},${sanitizeCSVField(signal.agencyId)},${sanitizeCSVField(signal.latitude)},${sanitizeCSVField(signal.longitude)}`
   );
 
   return [headers, ...rows].join('\n');
@@ -812,6 +821,7 @@ export function parseAgencyTXT(content: string): Agency | null {
 }
 
 // Parse signals.txt file
+// Format: signal_id,agency_id,latitude,longitude
 export function parseSignalsTXT(content: string): Signal[] {
   const lines = content.trim().split('\n').filter(line => line.trim());
   if (lines.length < 2) {
@@ -825,8 +835,8 @@ export function parseSignalsTXT(content: string): Signal[] {
     // Use proper CSV parser to handle quoted fields
     const values = parseCSVLine(lines[i]);
 
-    if (values.length < 6) {
-      errors.push(`Row ${i + 1}: Must have 6 fields (signalId, agencyId, streetName1, streetName2, latitude, longitude)`);
+    if (values.length < 4) {
+      errors.push(`Row ${i + 1}: Must have 4 fields (signal_id, agency_id, latitude, longitude)`);
       continue;
     }
 
@@ -839,34 +849,26 @@ export function parseSignalsTXT(content: string): Signal[] {
       errors.push(`Row ${i + 1}: Agency ID is required`);
       continue;
     }
-    if (!values[2]) {
-      errors.push(`Row ${i + 1}: Street Name 1 is required`);
-      continue;
-    }
-    if (!values[3]) {
-      errors.push(`Row ${i + 1}: Street Name 2 is required`);
-      continue;
-    }
 
     // Validate numeric fields using safer validation
-    if (!isValidNumber(values[4])) {
-      errors.push(`Row ${i + 1}: Latitude must be a valid number, got "${values[4]}"`);
+    if (!isValidNumber(values[2])) {
+      errors.push(`Row ${i + 1}: Latitude must be a valid number, got "${values[2]}"`);
       continue;
     }
-    if (!isValidNumber(values[5])) {
-      errors.push(`Row ${i + 1}: Longitude must be a valid number, got "${values[5]}"`);
+    if (!isValidNumber(values[3])) {
+      errors.push(`Row ${i + 1}: Longitude must be a valid number, got "${values[3]}"`);
       continue;
     }
 
-    const latitude = Number(values[4]);
-    const longitude = Number(values[5]);
+    const latitude = Number(values[2]);
+    const longitude = Number(values[3]);
 
     signals.push({
       id: nanoid(),
       signalId: values[0],
       agencyId: values[1],
-      streetName1: values[2],
-      streetName2: values[3],
+      streetName1: "", // Not in GTSS import format
+      streetName2: "", // Not in GTSS import format
       latitude,
       longitude,
     });

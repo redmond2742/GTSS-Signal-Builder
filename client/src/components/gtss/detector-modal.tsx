@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import { X, MapPin, Target, Trash2 } from "lucide-react";
+import { getSignalDisplayName } from "@/lib/utils";
 // Removed image import for simplified interface
 
 const compassDirections = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -275,7 +276,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                       <SelectContent>
                         {signals.map((signal) => (
                           <SelectItem key={signal.id} value={signal.signalId}>
-                            {signal.signalId} - {signal.streetName1} & {signal.streetName2}
+                            {getSignalDisplayName(signal, approaches)}
                           </SelectItem>
                         ))}
                       </SelectContent>

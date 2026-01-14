@@ -1,37 +1,36 @@
 import { useState, useEffect } from "react";
-import { Phase, InsertPhase } from "@shared/schema";
+import { Phase } from "@shared/schema";
 import { usePhases } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Map, ChevronUp, ChevronDown, MapPin, AlertTriangle, Trash2, Copy } from "lucide-react";
-import PhaseModal from "./phase-modal";
-import VisualPhaseEditor from "./visual-phase-editor";
+import { ChevronUp, ChevronDown, AlertTriangle, Trash2, MapPin } from "lucide-react";
 import SignalsMap from "@/components/ui/signals-map";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import PhaseModal from "./phase-modal";
+import BulkPhaseModal from "./bulk-phase-modal";
+import PhaseDiagram from "./phase-diagram";
+import { getSignalDisplayName } from "@/lib/utils";
 
 type SortField = 'phase' | 'signalId' | 'movementType' | 'approachId' | 'numOfLanes';
 type SortDirection = 'asc' | 'desc';
 
 interface PhasesTableProps {
   triggerAdd?: number;
-  triggerVisualEditor?: number;
+  triggerBulk?: number;
 }
 
-export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesTableProps) {
+export default function PhasesTable({ triggerAdd, triggerBulk }: PhasesTableProps) {
   const [editingPhase, setEditingPhase] = useState<Phase | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [showVisualEditor, setShowVisualEditor] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [filterSignal, setFilterSignal] = useState<string>("");
   const [sortField, setSortField] = useState<SortField>('phase');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [selectedPhaseIds, setSelectedPhaseIds] = useState<Set<string>>(new Set());
-  const { signals, phases } = useGTSSStore();
+  const { signals, phases, approaches } = useGTSSStore();
   const { toast } = useToast();
   const phaseHooks = usePhases();
 
@@ -43,10 +42,10 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
   }, [triggerAdd]);
 
   useEffect(() => {
-    if (triggerVisualEditor && triggerVisualEditor > 0) {
-      setShowVisualEditor(true);
+    if (triggerBulk && triggerBulk > 0) {
+      setShowBulkModal(true);
     }
-  }, [triggerVisualEditor]);
+  }, [triggerBulk]);
 
   // Auto-select first signal on mount
   useEffect(() => {
@@ -57,9 +56,7 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
 
   const filteredPhases = phases.filter(phase => phase.signalId === filterSignal);
   const orphanPhases = phases.filter(phase => !signals.some(signal => signal.signalId === phase.signalId));
-  const selectedPhases = filteredPhases.filter(phase => selectedPhaseIds.has(phase.id));
-  const isAllSelected = filteredPhases.length > 0 && selectedPhaseIds.size === filteredPhases.length;
-  const isSomeSelected = selectedPhaseIds.size > 0 && !isAllSelected;
+  const signalApproaches = approaches.filter(a => a.signalId === filterSignal);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -70,42 +67,52 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
     }
   };
 
+  // Natural sort comparison - handles numeric parts in strings properly
+  const naturalCompare = (a: string, b: string): number => {
+    const aParts = a.split(/(\d+)/);
+    const bParts = b.split(/(\d+)/);
+
+    for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+      const aPart = aParts[i] || '';
+      const bPart = bParts[i] || '';
+
+      const aNum = parseInt(aPart, 10);
+      const bNum = parseInt(bPart, 10);
+
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        if (aNum !== bNum) return aNum - bNum;
+      } else {
+        if (aPart !== bPart) return aPart.localeCompare(bPart);
+      }
+    }
+    return 0;
+  };
+
   const getSortedPhases = () => {
     return [...filteredPhases].sort((a, b) => {
-      let aValue: string | number;
-      let bValue: string | number;
+      let comparison = 0;
 
       switch (sortField) {
         case 'phase':
-          aValue = a.phase;
-          bValue = b.phase;
+          comparison = a.phase - b.phase;
           break;
         case 'signalId':
-          aValue = a.signalId;
-          bValue = b.signalId;
+          comparison = naturalCompare(a.signalId, b.signalId);
           break;
         case 'movementType':
-          aValue = a.movementType;
-          bValue = b.movementType;
+          comparison = a.movementType.localeCompare(b.movementType);
           break;
         case 'approachId':
-          aValue = a.approachId || '';
-          bValue = b.approachId || '';
+          comparison = naturalCompare(a.approachId || '', b.approachId || '');
           break;
         case 'numOfLanes':
-          aValue = a.numOfLanes || 1;
-          bValue = b.numOfLanes || 1;
+          comparison = (a.numOfLanes || 1) - (b.numOfLanes || 1);
           break;
         default:
-          aValue = a.phase;
-          bValue = b.phase;
+          comparison = a.phase - b.phase;
       }
 
-      if (sortDirection === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
+      return sortDirection === 'asc' ? comparison : -comparison;
     });
   };
 
@@ -133,11 +140,6 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
     </TableHead>
   );
 
-  const handleEdit = (phase: Phase) => {
-    setEditingPhase(phase);
-    setShowModal(true);
-  };
-
   const handleDeleteOrphanPhases = () => {
     if (orphanPhases.length === 0) {
       return;
@@ -157,84 +159,6 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
     });
   };
 
-  useEffect(() => {
-    setSelectedPhaseIds(new Set());
-  }, [filterSignal]);
-
-  useEffect(() => {
-    setSelectedPhaseIds((prev) => new Set(Array.from(prev).filter((id) => phases.some((phase) => phase.id === id))));
-  }, [phases]);
-
-  const handleToggleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedPhaseIds(new Set(filteredPhases.map((phase) => phase.id)));
-    } else {
-      setSelectedPhaseIds(new Set());
-    }
-  };
-
-  const handleToggleSelection = (phaseId: string, checked: boolean) => {
-    setSelectedPhaseIds((prev) => {
-      const updated = new Set(prev);
-      if (checked) {
-        updated.add(phaseId);
-      } else {
-        updated.delete(phaseId);
-      }
-      return updated;
-    });
-  };
-
-  const handleDuplicateSelectedToLeftTurns = () => {
-    const phaseMapping: Record<number, number> = {
-      2: 5,
-      4: 7,
-      6: 1,
-      8: 3,
-    };
-
-    const eligiblePhases = selectedPhases.filter(
-      (phase) => phase.movementType === "Through" && phaseMapping[phase.phase]
-    );
-
-    if (eligiblePhases.length === 0) {
-      toast({
-        title: "Not Applicable",
-        description: "Select through phases 2, 4, 6, or 8 to duplicate to left turns.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      eligiblePhases.forEach((phase) => {
-        const newPhaseNumber = phaseMapping[phase.phase];
-        const leftTurnPhase: InsertPhase = {
-          ...phase,
-          phase: newPhaseNumber,
-          movementType: "Left Turn",
-          isPedestrian: false,
-          numOfLanes: 1,
-        };
-        phaseHooks.save(leftTurnPhase);
-      });
-
-      toast({
-        title: "Success",
-        description: `Created ${eligiblePhases.length} left turn phase${eligiblePhases.length > 1 ? "s" : ""}.`,
-      });
-      setSelectedPhaseIds(new Set());
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to duplicate selected phases.",
-        variant: "destructive",
-      });
-    }
-  };
-
-
-
   const handleAdd = () => {
     setEditingPhase(null);
     setShowModal(true);
@@ -245,94 +169,61 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
     setEditingPhase(null);
   };
 
-  const handleVisualEditorClose = () => {
-    setShowVisualEditor(false);
-  };
-
-  const handleBulkPhasesCreate = async (phases: InsertPhase[]) => {
-    try {
-      for (const phaseData of phases) {
-        phaseHooks.save(phaseData);
-      }
-      // Don't show toast or close the visual editor to allow rapid phase creation
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create some phases",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const getSignalInfo = (signalId: string) => {
-    const signal = signals.find(s => s.signalId === signalId);
-    return signal ? `${signal.signalId} - ${signal.streetName1} & ${signal.streetName2}` : signalId;
-  };
-
-
-
   return (
     <div className="max-w-6xl">
       <Card>
-        <CardHeader className="bg-grey-50 border-b border-grey-200 flex flex-row items-center justify-start px-3 py-2">
-          <div className="flex space-x-2 items-center">
-            {signals.length === 0 ? (
-              <div className="p-2 bg-warning-50 border border-warning-200 rounded-md">
-                <p className="text-xs text-warning-700">
-                  No signals configured. Please add signals before creating phases.
-                </p>
-              </div>
-            ) : (
-              <>
-                <Select value={filterSignal} onValueChange={setFilterSignal}>
-                  <SelectTrigger className="w-80 h-7 text-xs">
-                    <SelectValue placeholder="Filter by Signal" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {signals.map((signal) => (
-                      <SelectItem key={signal.signalId} value={signal.signalId}>
-                        {getSignalInfo(signal.signalId)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </>
-            )}
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            {selectedPhases.length > 0 && (
-              <span className="text-xs text-grey-500">
-                {selectedPhases.length} selected
-              </span>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleDuplicateSelectedToLeftTurns}
-              disabled={selectedPhases.length === 0}
-              className="h-7 px-2 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
-            >
-              <Copy className="w-3 h-3 mr-1" />
-              Duplicate to Left Turns
-            </Button>
-          </div>
-          {filterSignal && (() => {
-            const selectedSignal = signals.find(s => s.signalId === filterSignal);
-            return (
-              <div className="flex-1 ml-4 h-20">
-                {selectedSignal && selectedSignal.latitude && selectedSignal.longitude ? (
-                  <div className="w-full h-full border border-grey-300 rounded-md overflow-hidden bg-white relative z-0">
-                    <SignalsMap signals={[selectedSignal]} className="w-full h-full" />
-                  </div>
-                ) : (
-                  <div className="w-full h-full border border-grey-300 rounded-md bg-grey-100 flex items-center justify-center">
-                    <MapPin className="w-6 h-6 text-grey-400" />
-                  </div>
-                )}
-              </div>
-            );
-          })()}
+        <CardHeader className="bg-grey-50 border-b border-grey-200 p-3">
+          {signals.length === 0 ? (
+            <div className="p-2 bg-warning-50 border border-warning-200 rounded-md">
+              <p className="text-xs text-warning-700">
+                No signals configured. Please add signals before creating phases.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <Select value={filterSignal} onValueChange={setFilterSignal}>
+                <SelectTrigger className="w-full h-8 text-sm">
+                  <SelectValue placeholder="Select Signal" />
+                </SelectTrigger>
+                <SelectContent>
+                  {signals.map((signal) => (
+                    <SelectItem key={signal.signalId} value={signal.signalId}>
+                      {getSignalDisplayName(signal, approaches)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {filterSignal && (
+                <div className="flex items-stretch gap-3">
+                  {filteredPhases.length > 0 && (
+                    <div className="w-72 h-72 border border-grey-300 rounded-md overflow-hidden bg-white flex-shrink-0">
+                      <PhaseDiagram
+                        phases={filteredPhases}
+                        approaches={signalApproaches}
+                        compact
+                      />
+                    </div>
+                  )}
+                  {(() => {
+                    const selectedSignal = signals.find(s => s.signalId === filterSignal);
+                    return (
+                      <div className="flex-1 h-72">
+                        {selectedSignal && selectedSignal.latitude && selectedSignal.longitude ? (
+                          <div className="w-full h-full border border-grey-300 rounded-md overflow-hidden bg-white relative z-0">
+                            <SignalsMap signals={[selectedSignal]} className="w-full h-full" />
+                          </div>
+                        ) : (
+                          <div className="w-full h-full border border-grey-300 rounded-md bg-grey-100 flex items-center justify-center">
+                            <MapPin className="w-6 h-6 text-grey-400" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          )}
         </CardHeader>
         <CardContent className="p-0">
           {orphanPhases.length > 0 && (
@@ -362,15 +253,6 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
             <Table>
               <TableHeader>
                 <TableRow className="bg-grey-50 border-b border-grey-200">
-                  <TableHead className="w-8">
-                    <div className="flex items-center justify-center">
-                      <Checkbox
-                        checked={isAllSelected ? true : (isSomeSelected ? "indeterminate" : false)}
-                        onCheckedChange={(checked) => handleToggleSelectAll(Boolean(checked))}
-                        aria-label="Select all phases"
-                      />
-                    </div>
-                  </TableHead>
                   <SortableHeader field="signalId">Signal ID</SortableHeader>
                   <SortableHeader field="phase">Phase</SortableHeader>
                   <SortableHeader field="movementType">Movement</SortableHeader>
@@ -381,8 +263,8 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
               <TableBody>
                 {filteredPhases.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-grey-500">
-                      {filterSignal === "all" 
+                    <TableCell colSpan={5} className="text-center py-8 text-grey-500">
+                      {filterSignal === "all"
                         ? "No phases configured. Add your first phase to get started."
                         : "No phases found for the selected signal."
                       }
@@ -390,21 +272,11 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
                   </TableRow>
                 ) : (
                   getSortedPhases().map((phase) => (
-                    <TableRow 
+                    <TableRow
                       key={phase.id}
                       className="hover:bg-grey-50 cursor-pointer transition-colors"
                       onClick={() => handleRowClick(phase)}
                     >
-                      <TableCell className="py-1 px-2">
-                        <div className="flex items-center justify-center">
-                          <Checkbox
-                            checked={selectedPhaseIds.has(phase.id)}
-                            onCheckedChange={(checked) => handleToggleSelection(phase.id, Boolean(checked))}
-                            onClick={(event) => event.stopPropagation()}
-                            aria-label={`Select phase ${phase.phase}`}
-                          />
-                        </div>
-                      </TableCell>
                       <TableCell className="font-medium text-grey-900 text-xs py-1 px-2">{phase.signalId}</TableCell>
                       <TableCell className="text-grey-600 text-xs py-1 px-2">{phase.phase}</TableCell>
                       <TableCell className="text-grey-600 text-xs py-1 px-2">
@@ -440,19 +312,11 @@ export default function PhasesTable({ triggerAdd, triggerVisualEditor }: PhasesT
         />
       )}
 
-      {showVisualEditor && filterSignal !== "all" && (
-        <Dialog open onOpenChange={handleVisualEditorClose}>
-          <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden p-0">
-            <DialogHeader className="p-6 pb-0">
-              <DialogTitle>Visual Phase Editor</DialogTitle>
-            </DialogHeader>
-            <VisualPhaseEditor
-              signal={signals.find(s => s.signalId === filterSignal)!}
-              onPhasesCreate={handleBulkPhasesCreate}
-              onClose={handleVisualEditorClose}
-            />
-          </DialogContent>
-        </Dialog>
+      {showBulkModal && (
+        <BulkPhaseModal
+          onClose={() => setShowBulkModal(false)}
+          preSelectedSignalId={filterSignal !== "all" ? filterSignal : undefined}
+        />
       )}
     </div>
   );

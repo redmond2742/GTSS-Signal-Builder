@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from "react-leaflet";
 import L from "leaflet";
-import { Signal } from "@shared/schema";
+import { Signal, Approach } from "@shared/schema";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Check, X, Edit } from "lucide-react";
@@ -20,11 +20,47 @@ L.Icon.Default.mergeOptions({
 
 interface SignalsMapProps {
   signals: Signal[];
+  approaches?: Approach[];
   onSignalSelect?: (signal: Signal) => void;
   onSignalUpdate?: (signalId: string, updates: Partial<Signal>) => void;
   className?: string;
-
 }
+
+// Calculate endpoint for approach arrow based on bearing and distance
+function getApproachEndpoint(
+  lat: number,
+  lng: number,
+  bearing: number,
+  distanceMeters: number = 50
+): [number, number] {
+  const R = 6371000; // Earth's radius in meters
+  const bearingRad = (bearing * Math.PI) / 180;
+  const lat1 = (lat * Math.PI) / 180;
+  const lng1 = (lng * Math.PI) / 180;
+
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(distanceMeters / R) +
+    Math.cos(lat1) * Math.sin(distanceMeters / R) * Math.cos(bearingRad)
+  );
+  const lng2 = lng1 + Math.atan2(
+    Math.sin(bearingRad) * Math.sin(distanceMeters / R) * Math.cos(lat1),
+    Math.cos(distanceMeters / R) - Math.sin(lat1) * Math.sin(lat2)
+  );
+
+  return [(lat2 * 180) / Math.PI, (lng2 * 180) / Math.PI];
+}
+
+// Approach arrow colors by index
+export const approachColors = [
+  "#3b82f6", // blue
+  "#22c55e", // green
+  "#f97316", // orange
+  "#8b5cf6", // purple
+  "#ef4444", // red
+  "#14b8a6", // teal
+  "#eab308", // yellow
+  "#ec4899", // pink
+];
 
 function MapBounds({ signals }: { signals: Signal[] }) {
   const map = useMap();
@@ -129,7 +165,7 @@ function QuickEditPopup({ signal, onUpdate, onSignalSelect }: {
   );
 }
 
-export default function SignalsMap({ signals, onSignalSelect, onSignalUpdate, className }: SignalsMapProps) {
+export default function SignalsMap({ signals, approaches, onSignalSelect, onSignalUpdate, className }: SignalsMapProps) {
   const agency = useGTSSStore((state) => state.agency);
   
   // Use agency coordinates as starting point for map center
@@ -177,6 +213,32 @@ export default function SignalsMap({ signals, onSignalSelect, onSignalUpdate, cl
             </Popup>
           </Marker>
         ))}
+
+        {/* Render approach arrows */}
+        {approaches && signals.filter(signal => signal.latitude && signal.longitude).map((signal) => {
+          const signalApproaches = approaches.filter(a => a.signalId === signal.signalId && a.compassBearing !== null);
+          return signalApproaches.map((approach, idx) => {
+            const endpoint = getApproachEndpoint(
+              signal.latitude,
+              signal.longitude,
+              approach.compassBearing!,
+              60 // distance in meters
+            );
+            const color = approachColors[idx % approachColors.length];
+            return (
+              <Polyline
+                key={approach.id}
+                positions={[
+                  [signal.latitude, signal.longitude],
+                  endpoint,
+                ]}
+                color={color}
+                weight={4}
+                opacity={0.8}
+              />
+            );
+          });
+        })}
       </MapContainer>
     </div>
   );

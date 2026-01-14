@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, ChevronUp, ChevronDown, MapPin } from "lucide-react";
 import SignalsMap from "@/components/ui/signals-map";
+import { getSignalDisplayName } from "@/lib/utils";
 
 type SortField = 'signalId' | 'channel' | 'phase' | 'technologyType' | 'purpose';
 type SortDirection = 'asc' | 'desc';
@@ -25,7 +26,7 @@ export default function DetectorsTable({ triggerAdd }: DetectorsTableProps) {
   const [selectedSignalId, setSelectedSignalId] = useState<string>("");
   const [sortField, setSortField] = useState<SortField>('signalId');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const { detectors, signals } = useGTSSStore();
+  const { detectors, signals, approaches } = useGTSSStore();
   
   // Auto-select first signal on mount
   useEffect(() => {
@@ -47,14 +48,6 @@ export default function DetectorsTable({ triggerAdd }: DetectorsTableProps) {
   const filteredDetectors = selectedSignalId 
     ? detectors.filter(detector => detector.signalId === selectedSignalId)
     : [];
-
-  // Get signal display name
-  const getSignalDisplayName = (signalId: string) => {
-    const signal = signals.find(s => s.signalId === signalId);
-    return signal 
-      ? `${signal.signalId} - ${signal.streetName1} & ${signal.streetName2}`
-      : signalId;
-  };
 
   const handleEdit = (detector: Detector) => {
     setEditingDetector(detector);
@@ -87,46 +80,52 @@ export default function DetectorsTable({ triggerAdd }: DetectorsTableProps) {
     setShowModal(true);
   };
 
+  // Natural sort comparison - handles numeric parts in strings properly
+  const naturalCompare = (a: string, b: string): number => {
+    const aParts = a.split(/(\d+)/);
+    const bParts = b.split(/(\d+)/);
+
+    for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+      const aPart = aParts[i] || '';
+      const bPart = bParts[i] || '';
+
+      const aNum = parseInt(aPart, 10);
+      const bNum = parseInt(bPart, 10);
+
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        if (aNum !== bNum) return aNum - bNum;
+      } else {
+        if (aPart !== bPart) return aPart.localeCompare(bPart);
+      }
+    }
+    return 0;
+  };
+
   const getSortedDetectors = () => {
     return [...filteredDetectors].sort((a, b) => {
-      let aValue: string | number;
-      let bValue: string | number;
+      let comparison = 0;
 
       switch (sortField) {
         case 'signalId':
-          aValue = a.signalId;
-          bValue = b.signalId;
+          comparison = naturalCompare(a.signalId, b.signalId);
           break;
         case 'channel':
-          aValue = a.channel;
-          bValue = b.channel;
+          comparison = naturalCompare(a.channel, b.channel);
           break;
         case 'phase':
-          aValue = a.phase || 0;
-          bValue = b.phase || 0;
+          comparison = (a.phase || 0) - (b.phase || 0);
           break;
         case 'technologyType':
-          aValue = a.technologyType;
-          bValue = b.technologyType;
+          comparison = a.technologyType.localeCompare(b.technologyType);
           break;
         case 'purpose':
-          aValue = a.purpose;
-          bValue = b.purpose;
+          comparison = a.purpose.localeCompare(b.purpose);
           break;
         default:
-          aValue = a.signalId;
-          bValue = b.signalId;
+          comparison = naturalCompare(a.signalId, b.signalId);
       }
 
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortDirection === 'asc' 
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      } else {
-        return sortDirection === 'asc' 
-          ? (aValue as number) - (bValue as number)
-          : (bValue as number) - (aValue as number);
-      }
+      return sortDirection === 'asc' ? comparison : -comparison;
     });
   };
 
@@ -171,7 +170,7 @@ export default function DetectorsTable({ triggerAdd }: DetectorsTableProps) {
                   <SelectContent>
                     {signals.map((signal) => (
                       <SelectItem key={signal.signalId} value={signal.signalId}>
-                        {getSignalDisplayName(signal.signalId)}
+                        {getSignalDisplayName(signal, approaches)}
                       </SelectItem>
                     ))}
                   </SelectContent>

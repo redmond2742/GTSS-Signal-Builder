@@ -33,12 +33,12 @@ interface BulkSignalModalProps {
 
 function MapClickHandler({ onLocationAdd }: { onLocationAdd: (lat: number, lon: number) => void }) {
   useMapEvents({
-    click: async (e) => {
+    click: (e) => {
       const { lat, lng } = e.latlng;
       onLocationAdd(lat, lng);
     },
   });
-  
+
   return null;
 }
 
@@ -96,33 +96,15 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
     return timezoneCoords[agency.agencyTimezone] || [39.8283, -98.5795];
   };
 
-  const handleLocationAdd = async (lat: number, lon: number) => {
+  const handleLocationAdd = (lat: number, lon: number) => {
+    const signalId = `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const newSignal: PendingSignal = {
-      id: `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: signalId,
       lat,
       lon,
     };
 
-    // Try to auto-populate street names using reverse geocoding
-    try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`);
-      const data = await response.json();
-      
-      if (data.address) {
-        const streetName = data.address.road || data.address.street || "";
-        const intersectingStreet = data.address.neighbourhood || data.address.suburb || "";
-        
-        if (streetName) {
-          newSignal.streetName1 = streetName;
-        }
-        if (intersectingStreet && intersectingStreet !== streetName) {
-          newSignal.streetName2 = intersectingStreet;
-        }
-      }
-    } catch (error) {
-      console.log("Geocoding failed for location, will use manual entry");
-    }
-
+    // Add marker - street names can be edited from the signals table
     setPendingSignals(prev => [...prev, newSignal]);
   };
 
