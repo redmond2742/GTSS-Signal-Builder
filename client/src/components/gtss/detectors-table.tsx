@@ -15,14 +15,17 @@ import { getSignalDisplayName } from "@/lib/utils";
 type SortField = 'signalId' | 'channel' | 'phase' | 'technologyType' | 'purpose';
 type SortDirection = 'asc' | 'desc';
 import DetectorModal from "./detector-modal";
+import BulkDetectorModal from "./bulk-detector-modal";
 
 interface DetectorsTableProps {
   triggerAdd?: number;
+  triggerBulk?: number;
 }
 
-export default function DetectorsTable({ triggerAdd }: DetectorsTableProps) {
+export default function DetectorsTable({ triggerAdd, triggerBulk }: DetectorsTableProps) {
   const [editingDetector, setEditingDetector] = useState<Detector | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [selectedSignalId, setSelectedSignalId] = useState<string>("");
   const [sortField, setSortField] = useState<SortField>('signalId');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -43,6 +46,13 @@ export default function DetectorsTable({ triggerAdd }: DetectorsTableProps) {
       handleAdd();
     }
   }, [triggerAdd]);
+
+  // Handle bulk modal trigger
+  useEffect(() => {
+    if (triggerBulk && triggerBulk > 0) {
+      setShowBulkModal(true);
+    }
+  }, [triggerBulk]);
 
   // Filter detectors by selected signal
   const filteredDetectors = selectedSignalId 
@@ -253,6 +263,13 @@ export default function DetectorsTable({ triggerAdd }: DetectorsTableProps) {
           detector={editingDetector}
           onClose={handleModalClose}
           preSelectedSignalId={editingDetector ? undefined : selectedSignalId}
+        />
+      )}
+
+      {showBulkModal && (
+        <BulkDetectorModal
+          onClose={() => setShowBulkModal(false)}
+          preSelectedSignalId={selectedSignalId}
         />
       )}
     </div>

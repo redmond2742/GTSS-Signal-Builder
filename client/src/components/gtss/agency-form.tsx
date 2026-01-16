@@ -280,6 +280,9 @@ export default function AgencyForm() {
       // Try geocoding the first potential city name
       const cityName = potentialCities[0];
       const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cityName)}&limit=1&countrycodes=us`);
+
+      if (!response.ok) return;
+
       const data = await response.json();
 
       if (data && data.length > 0) {
@@ -294,7 +297,7 @@ export default function AgencyForm() {
           displayName: result.display_name,
         });
         setMapCenter([lat, lon]);
-        
+
         // Update form coordinates
         form.setValue("latitude", lat);
         form.setValue("longitude", lon);
@@ -304,8 +307,8 @@ export default function AgencyForm() {
           description: `Map updated to ${cityName}`,
         });
       }
-    } catch (error) {
-      console.error("City geocoding failed:", error);
+    } catch {
+      // Fail silently - geocoding is optional
     }
   };
 

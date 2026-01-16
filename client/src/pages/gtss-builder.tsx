@@ -24,8 +24,8 @@ const tabs = [
   { id: "signals", label: "Traffic Signals", icon: MapPin },
   { id: "approaches", label: "Approaches", icon: Compass },
   { id: "phases", label: "Phases", icon: ArrowUpDown },
-  { id: "basic-timings", label: "Basic Timings", icon: Clock },
   { id: "detectors", label: "Detectors", icon: Target },
+  { id: "basic-timings", label: "Basic Timings", icon: Clock },
   { id: "agency", label: "Agency Info", icon: Building },
 ];
 
@@ -66,6 +66,7 @@ export default function GTSSBuilder() {
   const [triggerAddPhase, setTriggerAddPhase] = useState(0);
   const [triggerBulkPhase, setTriggerBulkPhase] = useState(0);
   const [triggerAddDetector, setTriggerAddDetector] = useState(0);
+  const [triggerBulkDetector, setTriggerBulkDetector] = useState(0);
   const [triggerAddBasicTiming, setTriggerAddBasicTiming] = useState(0);
 
   const renderTabContent = () => {
@@ -91,7 +92,7 @@ export default function GTSSBuilder() {
       case "basic-timings":
         return <BasicTimingsTable triggerAdd={triggerAddBasicTiming} />;
       case "detectors":
-        return <DetectorsTable triggerAdd={triggerAddDetector} />;
+        return <DetectorsTable triggerAdd={triggerAddDetector} triggerBulk={triggerBulkDetector} />;
       default:
         return <AgencyForm />;
     }
@@ -190,6 +191,7 @@ export default function GTSSBuilder() {
                     setTriggerAddPhase(0);
                     setTriggerBulkPhase(0);
                     setTriggerAddDetector(0);
+                    setTriggerBulkDetector(0);
                     setTriggerAddBasicTiming(0);
                     setActiveTab(tab.id as TabType);
                     setShowExportPanel(false);
@@ -366,32 +368,22 @@ export default function GTSSBuilder() {
             {!showExportPanel && !showImportPanel && activeTab === "approaches" && (
               <div className="flex space-x-1">
                 <Button
-                  variant="outline"
                   onClick={() => setTriggerBulkApproach(prev => prev + 1)}
-                  className="h-7 px-2 text-xs"
+                  className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
                 >
                   <Plus className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Add Multiple</span>
-                </Button>
-                <Button onClick={handleAddApproach} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
-                  <Plus className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Add Approach</span>
+                  <span className="hidden sm:inline">Add Approaches</span>
                 </Button>
               </div>
             )}
             {!showExportPanel && !showImportPanel && activeTab === "phases" && (
               <div className="flex space-x-1">
                 <Button
-                  variant="outline"
                   onClick={() => setTriggerBulkPhase(prev => prev + 1)}
-                  className="h-7 px-2 text-xs"
+                  className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700 text-white"
                 >
                   <Plus className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Add Multiple</span>
-                </Button>
-                <Button onClick={handleAddPhase} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700 text-white">
-                  <Plus className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Add Phase</span>
+                  <span className="hidden sm:inline">Add Phases</span>
                 </Button>
               </div>
             )}
@@ -405,9 +397,9 @@ export default function GTSSBuilder() {
             )}
             {!showExportPanel && !showImportPanel && activeTab === "detectors" && (
               <div className="flex space-x-1">
-                <Button onClick={handleAddDetector} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
+                <Button onClick={() => setTriggerBulkDetector(prev => prev + 1)} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
                   <Plus className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Add Detector</span>
+                  <span className="hidden sm:inline">Add Detectors</span>
                 </Button>
               </div>
             )}

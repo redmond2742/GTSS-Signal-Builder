@@ -244,34 +244,45 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
                     </TableCell>
                   </TableRow>
                 ) : (
-                  getSortedApproaches().map((approach) => (
-                    <TableRow
-                      key={approach.id}
-                      className="cursor-pointer hover:bg-gray-50 transition-colors"
-                      onClick={() => handleRowClick(approach)}
-                    >
-                      <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">{approach.approachId}</TableCell>
-                      <TableCell className="text-grey-600 text-xs py-1.5 px-2">{approach.streetName}</TableCell>
-                      <TableCell className="py-1.5 px-2">
-                        {approach.compassBearing !== null ? (
-                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs py-0 px-1.5 h-4">
-                            {approach.compassBearing}° {getBearingDirection(approach.compassBearing)}
-                          </Badge>
-                        ) : (
-                          <span className="text-grey-400 text-xs">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-1.5 px-2">
-                        {approach.postedSpeed !== null ? (
-                          <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs py-0 px-1.5 h-4">
-                            {approach.postedSpeed} mph
-                          </Badge>
-                        ) : (
-                          <span className="text-grey-400 text-xs">-</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  (() => {
+                    const approachesWithBearing = filteredApproaches.filter(a => a.compassBearing !== null);
+                    return getSortedApproaches().map((approach) => {
+                      const colorIndex = approachesWithBearing.findIndex(a => a.id === approach.id);
+                      const color = colorIndex >= 0 ? approachColors[colorIndex % approachColors.length] : undefined;
+                      return (
+                        <TableRow
+                          key={approach.id}
+                          className="cursor-pointer hover:bg-gray-50 transition-colors"
+                          onClick={() => handleRowClick(approach)}
+                        >
+                          <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">{approach.approachId}</TableCell>
+                          <TableCell className="text-grey-600 text-xs py-1.5 px-2">{approach.streetName}</TableCell>
+                          <TableCell className="py-1.5 px-2">
+                            {approach.compassBearing !== null && color ? (
+                              <Badge
+                                variant="secondary"
+                                className="text-xs py-0 px-1.5 h-4 text-white"
+                                style={{ backgroundColor: color }}
+                              >
+                                {approach.compassBearing}° {getBearingDirection(approach.compassBearing)}
+                              </Badge>
+                            ) : (
+                              <span className="text-grey-400 text-xs">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-1.5 px-2">
+                            {approach.postedSpeed !== null ? (
+                              <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs py-0 px-1.5 h-4">
+                                {approach.postedSpeed} mph
+                              </Badge>
+                            ) : (
+                              <span className="text-grey-400 text-xs">-</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    });
+                  })()
                 )}
               </TableBody>
             </Table>

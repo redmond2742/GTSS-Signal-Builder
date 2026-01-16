@@ -109,7 +109,7 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId }: Bulk
 
       newApproaches.push({
         id: preserveData ? pendingApproaches[i]?.id : undefined,
-        approachId: preserveData && pendingApproaches[i]?.approachId || String(i + 1),
+        approachId: preserveData && pendingApproaches[i]?.approachId || `${selectedSignalId}-${i + 1}`,
         bearing: Math.round(normalizedBearing),
         streetName: preserveData && pendingApproaches[i]?.streetName || "",
         postedSpeed: preserveData && pendingApproaches[i]?.postedSpeed || null,
@@ -181,30 +181,58 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId }: Bulk
     }
   };
 
+  // Find opposite approach index (approximately 180° away)
+  const findOppositeApproachIndex = (index: number, approaches: PendingApproach[]): number | null => {
+    if (approaches.length < 2) return null;
+
+    const currentBearing = approaches[index].bearing;
+    const targetBearing = (currentBearing + 180) % 360;
+
+    let closestIndex: number | null = null;
+    let closestDiff = 360;
+
+    for (let i = 0; i < approaches.length; i++) {
+      if (i === index) continue;
+
+      const diff = Math.abs(((approaches[i].bearing - targetBearing + 180) % 360) - 180);
+      if (diff < closestDiff && diff < 45) { // Within 45° of opposite
+        closestDiff = diff;
+        closestIndex = i;
+      }
+    }
+
+    return closestIndex;
+  };
+
   // Handle street name change with auto-fill for opposite approach
   const handleStreetNameChange = (index: number, value: string) => {
     setPendingApproaches(prev => {
       const updated = [...prev];
       updated[index].streetName = value;
 
-      // Auto-fill opposite approach if it's empty (only for 4 approaches)
-      if (numApproaches === 4) {
-        const oppositeIndex = (index + 2) % 4;
-        if (!updated[oppositeIndex].streetName && value) {
-          updated[oppositeIndex].streetName = value;
-        }
+      // Auto-fill opposite approach if it's empty
+      const oppositeIndex = findOppositeApproachIndex(index, updated);
+      if (oppositeIndex !== null && !updated[oppositeIndex].streetName && value) {
+        updated[oppositeIndex].streetName = value;
       }
 
       return updated;
     });
   };
 
-  // Handle speed change
+  // Handle speed change with auto-fill for opposite approach
   const handleSpeedChange = (index: number, value: string) => {
     const speed = value ? parseInt(value) : null;
     setPendingApproaches(prev => {
       const updated = [...prev];
       updated[index].postedSpeed = speed;
+
+      // Auto-fill opposite approach if it's empty
+      const oppositeIndex = findOppositeApproachIndex(index, updated);
+      if (oppositeIndex !== null && updated[oppositeIndex].postedSpeed === null && speed !== null) {
+        updated[oppositeIndex].postedSpeed = speed;
+      }
+
       return updated;
     });
   };
@@ -359,7 +387,7 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId }: Bulk
           for (let i = 0; i < 4; i++) {
             const bearing = (i * angleStep) % 360;
             newApproaches.push({
-              approachId: String(i + 1),
+              approachId: `${selectedSignalId}-${i + 1}`,
               bearing: Math.round(bearing),
               streetName: "",
               postedSpeed: null,
