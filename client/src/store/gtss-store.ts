@@ -14,6 +14,10 @@ interface GTSSStore {
   currentView: 'main' | 'signal-details';
   currentSignalId: string | null; // null = new signal, string = edit existing
 
+  // Shared signal selection state (persists across tabs)
+  selectedSignalIdForTables: string;
+  setSelectedSignalIdForTables: (signalId: string) => void;
+
   setAgency: (agency: Agency | null) => void;
   setSignals: (signals: Signal[]) => void;
   addSignal: (signal: Signal) => void;
@@ -59,6 +63,10 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
   // Initial navigation state
   currentView: 'main',
   currentSignalId: null,
+
+  // Shared signal selection (empty string = auto-select first signal)
+  selectedSignalIdForTables: '',
+  setSelectedSignalIdForTables: (signalId) => set({ selectedSignalIdForTables: signalId }),
 
   setAgency: (agency) => set({ agency }),
 

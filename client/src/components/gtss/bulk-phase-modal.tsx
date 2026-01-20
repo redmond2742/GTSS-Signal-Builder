@@ -944,7 +944,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId }: BulkPha
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%]">
         {/* Header with title and signal selector */}
         <DialogHeader>
           <div className="flex items-center justify-between gap-4">

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronUp, ChevronDown, AlertTriangle, Trash2, MapPin, Download } from "lucide-react";
+import { ChevronUp, ChevronDown, AlertTriangle, Trash2, MapPin, Download, Plus } from "lucide-react";
 import SignalsMap from "@/components/ui/signals-map";
 import { Button } from "@/components/ui/button";
 import PhaseModal from "./phase-modal";
@@ -27,10 +27,13 @@ export default function PhasesTable({ triggerAdd, triggerBulk }: PhasesTableProp
   const [editingPhase, setEditingPhase] = useState<Phase | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
-  const [filterSignal, setFilterSignal] = useState<string>("");
   const [sortField, setSortField] = useState<SortField>('phase');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const { signals, phases, approaches } = useGTSSStore();
+  const { signals, phases, approaches, selectedSignalIdForTables, setSelectedSignalIdForTables } = useGTSSStore();
+
+  // Use shared signal selection from store
+  const filterSignal = selectedSignalIdForTables;
+  const setFilterSignal = setSelectedSignalIdForTables;
   const { toast } = useToast();
   const phaseHooks = usePhases();
   const svgRef = useRef<SVGSVGElement>(null);
@@ -226,18 +229,27 @@ export default function PhasesTable({ triggerAdd, triggerBulk }: PhasesTableProp
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              <Select value={filterSignal} onValueChange={setFilterSignal}>
-                <SelectTrigger className="w-full h-8 text-sm">
-                  <SelectValue placeholder="Select Signal" />
-                </SelectTrigger>
-                <SelectContent>
-                  {signals.map((signal) => (
-                    <SelectItem key={signal.signalId} value={signal.signalId}>
-                      {getSignalDisplayName(signal, approaches)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select value={filterSignal} onValueChange={setFilterSignal}>
+                  <SelectTrigger className="flex-1 h-8 text-sm">
+                    <SelectValue placeholder="Select Signal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {signals.map((signal) => (
+                      <SelectItem key={signal.signalId} value={signal.signalId}>
+                        {getSignalDisplayName(signal, approaches)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  onClick={() => setShowBulkModal(true)}
+                  className="h-8 px-3 text-xs bg-primary-600 hover:bg-primary-700 flex items-center gap-1 whitespace-nowrap"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Add Phases</span>
+                </Button>
+              </div>
               {filterSignal && (
                 <div className="flex items-stretch gap-3">
                   {filteredPhases.length > 0 && (() => {

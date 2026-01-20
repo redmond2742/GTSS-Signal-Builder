@@ -147,67 +147,38 @@ export default function AgencyForm() {
     return `${stateCode}_${cityCode}_001`;
   };
 
-  const handleLocationClick = async (lat: number, lon: number, isUserLocation = false) => {
-    try {
-      // Reverse geocode the selected location
-      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`);
-      const data = await response.json();
-      
-      const locationInfo = {
-        lat,
-        lon,
-        city: data.address?.city || data.address?.town || data.address?.village || "",
-        state: data.address?.state || "",
-        displayName: data.display_name || `${lat.toFixed(4)}, ${lon.toFixed(4)}`,
-      };
-      
-      setSelectedLocation(locationInfo);
-      
-      // Auto-populate agency name and ID for both map clicks and "Use My Location"
-      if (locationInfo.city && locationInfo.state) {
-        const agencyName = `${locationInfo.city} Department of Transportation`;
-        const agencyId = generateAgencyId(locationInfo.state, agencyName);
-        
-        form.setValue("agencyName", agencyName);
-        form.setValue("agencyId", agencyId);
-        
-        if (isUserLocation) {
-          toast({
-            title: "Location & Agency Updated",
-            description: `Set to ${locationInfo.city}, ${locationInfo.state}`,
-          });
-        }
-      }
-      
-      // Always save coordinates to form
-      form.setValue("latitude", lat);
-      form.setValue("longitude", lon);
-      
-      // Update store with coordinates for map centering
-      if (agency) {
-        setAgency({
-          ...agency,
-          latitude: lat,
-          longitude: lon,
-        });
-      }
-    } catch (error) {
-      console.error("Geocoding failed:", error);
-      // Always save coordinates to form even if geocoding fails
-      form.setValue("latitude", lat);
-      form.setValue("longitude", lon);
-      
-      setSelectedLocation({
-        lat,
-        lon,
-        displayName: `${lat.toFixed(4)}, ${lon.toFixed(4)}`,
+  const handleLocationClick = (lat: number, lon: number, isUserLocation = false) => {
+    // Save coordinates without geocoding
+    setSelectedLocation({
+      lat,
+      lon,
+      displayName: `${lat.toFixed(4)}, ${lon.toFixed(4)}`,
+    });
+
+    // Always save coordinates to form
+    form.setValue("latitude", lat);
+    form.setValue("longitude", lon);
+
+    // Update store with coordinates for map centering
+    if (agency) {
+      setAgency({
+        ...agency,
+        latitude: lat,
+        longitude: lon,
+      });
+    }
+
+    if (isUserLocation) {
+      toast({
+        title: "Location Updated",
+        description: `Coordinates set to ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
       });
     }
   };
 
   const handleGetUserLocation = () => {
     setIsGeocodingUserLocation(true);
-    
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -219,98 +190,24 @@ export default function AgencyForm() {
         },
         (error) => {
           console.error("Geolocation failed:", error);
+          toast({
+            title: "Location Error",
+            description: "Unable to get your location. Please click on the map to set coordinates.",
+            variant: "destructive",
+          });
           setIsGeocodingUserLocation(false);
-          // Try IP-based location as fallback
-          fetch('https://ipapi.co/json/')
-            .then(response => response.json())
-            .then(data => {
-              if (data.latitude && data.longitude) {
-                const lat = data.latitude;
-                const lon = data.longitude;
-                setMapCenter([lat, lon]);
-                handleLocationClick(lat, lon, true);
-              }
-            })
-            .catch(() => {
-              setIsGeocodingUserLocation(false);
-            });
         }
       );
     } else {
-      // Browser doesn't support geolocation, try IP-based location
-      fetch('https://ipapi.co/json/')
-        .then(response => response.json())
-        .then(data => {
-          if (data.latitude && data.longitude) {
-            const lat = data.latitude;
-            const lon = data.longitude;
-            setMapCenter([lat, lon]);
-            handleLocationClick(lat, lon, true);
-          }
-          setIsGeocodingUserLocation(false);
-        })
-        .catch(() => {
-          setIsGeocodingUserLocation(false);
-        });
+      toast({
+        title: "Not Supported",
+        description: "Geolocation is not supported by your browser. Please click on the map to set coordinates.",
+        variant: "destructive",
+      });
+      setIsGeocodingUserLocation(false);
     }
   };
 
-  // Function to geocode city name from agency information
-  const geocodeCityFromAgencyName = async (agencyName: string, forceUpdate = false) => {
-    if (!agencyName) {
-      return;
-    }
-
-    // If forceUpdate is false and we already have a location, don't geocode
-    if (!forceUpdate && selectedLocation) {
-      return;
-    }
-
-    // Extract potential city names from agency name
-    const cityKeywords = agencyName.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g);
-    if (!cityKeywords) return;
-
-    // Filter out common transportation department words
-    const commonWords = ['Department', 'Transportation', 'Traffic', 'City', 'County', 'State', 'Municipal', 'Metro', 'Authority', 'Commission'];
-    const potentialCities = cityKeywords.filter(word => !commonWords.includes(word));
-
-    if (potentialCities.length === 0) return;
-
-    try {
-      // Try geocoding the first potential city name
-      const cityName = potentialCities[0];
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cityName)}&limit=1&countrycodes=us`);
-
-      if (!response.ok) return;
-
-      const data = await response.json();
-
-      if (data && data.length > 0) {
-        const result = data[0];
-        const lat = parseFloat(result.lat);
-        const lon = parseFloat(result.lon);
-
-        setSelectedLocation({
-          lat,
-          lon,
-          city: cityName,
-          displayName: result.display_name,
-        });
-        setMapCenter([lat, lon]);
-
-        // Update form coordinates
-        form.setValue("latitude", lat);
-        form.setValue("longitude", lon);
-
-        toast({
-          title: "Location Updated",
-          description: `Map updated to ${cityName}`,
-        });
-      }
-    } catch {
-      // Fail silently - geocoding is optional
-    }
-  };
 
 
 
@@ -421,24 +318,10 @@ export default function AgencyForm() {
                             Agency Name <span className="text-red-500">*</span>
                           </FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="e.g., Los Angeles Department of Transportation" 
+                            <Input
+                              placeholder="e.g., Los Angeles Department of Transportation"
                               className="h-7 px-2 text-xs"
                               {...field}
-                              onChange={(e) => {
-                                field.onChange(e);
-                                // Trigger city geocoding on every change with force update
-                                if (e.target.value && e.target.value.length > 10) {
-                                  geocodeCityFromAgencyName(e.target.value, true);
-                                }
-                              }}
-                              onBlur={(e) => {
-                                field.onBlur();
-                                // Also trigger on blur as a fallback
-                                if (e.target.value) {
-                                  geocodeCityFromAgencyName(e.target.value, true);
-                                }
-                              }}
                             />
                           </FormControl>
                           <FormMessage />

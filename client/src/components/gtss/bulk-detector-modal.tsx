@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useDetectors } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
@@ -11,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Save, Trash2, Copy, Lock, Unlock, HelpCircle, AlertTriangle } from "lucide-react";
+import { Plus, Save, Trash2, Copy, Lock, Unlock, HelpCircle, AlertTriangle, Download } from "lucide-react";
 import { getSignalDisplayName } from "@/lib/utils";
+import DetectorDiagram from "./detector-diagram";
 
 // Detector purposes
 const purposeOptions = [
@@ -111,13 +112,15 @@ interface BulkDetectorModalProps {
 }
 
 export default function BulkDetectorModal({ onClose, preSelectedSignalId }: BulkDetectorModalProps) {
-  const { signals, approaches, phases } = useGTSSStore();
+  const { signals, approaches, phases, detectors: existingDetectorsFromStore } = useGTSSStore();
   const { toast } = useToast();
   const detectorHooks = useDetectors();
 
   const [selectedSignalId, setSelectedSignalId] = useState<string>(preSelectedSignalId || "");
   const [pendingDetectors, setPendingDetectors] = useState<PendingDetector[]>([]);
+  const [existingDetectors, setExistingDetectors] = useState<PendingDetector[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const detectorSvgRef = useRef<SVGSVGElement>(null);
 
   // Static field values (used when field is locked)
   const [staticValues, setStaticValues] = useState({
@@ -364,7 +367,36 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId }: Bulk
     setPendingDetectors(prev => [...prev, newDetector]);
   };
 
-  // Save all detectors
+  // Update existing detector field
+  const handleExistingDetectorChange = (index: number, field: keyof PendingDetector, value: any) => {
+    setExistingDetectors(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+
+      // Mark description as manual if user edited it
+      if (field === 'description') {
+        updated[index].isDescriptionManual = true;
+        updated[index].description = sanitizeDescription(value);
+      }
+
+      return updated;
+    });
+  };
+
+  // Delete existing detector
+  const handleDeleteExistingDetector = (index: number) => {
+    const detector = existingDetectors[index];
+    if (detector.id && confirm(`Delete detector ${detector.channel}?`)) {
+      detectorHooks.delete(detector.id);
+      setExistingDetectors(prev => prev.filter((_, i) => i !== index));
+      toast({
+        title: "Deleted",
+        description: `Detector ${detector.channel} deleted`,
+      });
+    }
+  };
+
+  // Save all detectors (new and updated existing)
   const handleSaveAll = async () => {
     if (!selectedSignalId) {
       toast({
@@ -377,16 +409,16 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId }: Bulk
 
     if (pendingDetectors.length === 0) {
       toast({
-        title: "No Detectors",
-        description: "Add at least one detector",
+        title: "No New Detectors",
+        description: "Add at least one new detector to save",
         variant: "destructive",
       });
       return;
     }
 
-    // Check for duplicate channels
-    const channels = pendingDetectors.map(d => d.channel);
-    const duplicates = channels.filter((c, i) => channels.indexOf(c) !== i);
+    // Check for duplicate channels across both existing and pending
+    const allChannels = [...existingDetectors.map(d => d.channel), ...pendingDetectors.map(d => d.channel)];
+    const duplicates = allChannels.filter((c, i) => allChannels.indexOf(c) !== i);
     if (duplicates.length > 0) {
       toast({
         title: "Duplicate Channels",
@@ -399,6 +431,25 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId }: Bulk
     setIsProcessing(true);
 
     try {
+      // Update existing detectors
+      for (const detector of existingDetectors) {
+        if (detector.id) {
+          detectorHooks.update(detector.id, {
+            signalId: selectedSignalId,
+            channel: detector.channel,
+            phase: detector.phase,
+            description: sanitizeDescription(detector.description),
+            purpose: detector.purpose,
+            vehicleType: detector.vehicleType,
+            lane: detector.lane,
+            technologyType: detector.technologyType,
+            length: detector.length,
+            stopbarSetbackDist: detector.stopbarSetbackDist,
+          });
+        }
+      }
+
+      // Save new detectors
       for (const detector of pendingDetectors) {
         detectorHooks.save({
           signalId: selectedSignalId,
@@ -431,7 +482,7 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId }: Bulk
     }
   };
 
-  // Reset when signal changes
+  // Load existing detectors and reset pending when signal changes
   useEffect(() => {
     setPendingDetectors([]);
     setStartingChannel("1");
@@ -439,11 +490,95 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId }: Bulk
     if (signalPhases.length > 0) {
       setSelectedPhaseForQuickAdd(signalPhases[0].phase);
     }
-  }, [selectedSignalId]);
+
+    // Load existing detectors for this signal
+    if (selectedSignalId) {
+      const signalDetectors = existingDetectorsFromStore
+        .filter(d => d.signalId === selectedSignalId)
+        .map(d => ({
+          id: d.id,
+          channel: d.channel,
+          phase: d.phase,
+          lane: d.lane || "1",
+          purpose: d.purpose || "Stop Bar",
+          technologyType: d.technologyType || "Inductance Loop",
+          vehicleType: d.vehicleType || "Vehicle",
+          length: d.length,
+          stopbarSetbackDist: d.stopbarSetbackDist,
+          description: d.description || "",
+          isDescriptionManual: true,
+        }));
+      setExistingDetectors(signalDetectors);
+
+      // Set starting channel to be after existing detectors
+      if (signalDetectors.length > 0) {
+        const maxChannel = Math.max(...signalDetectors.map(d => parseInt(d.channel) || 0));
+        setStartingChannel(String(maxChannel + 1));
+      }
+    } else {
+      setExistingDetectors([]);
+    }
+  }, [selectedSignalId, existingDetectorsFromStore]);
+
+  // Download detector diagram as JPG
+  const handleDownloadDiagram = () => {
+    if (!detectorSvgRef.current) return;
+
+    const svgElement = detectorSvgRef.current;
+
+    // Get the viewBox dimensions to capture the full SVG
+    const viewBox = svgElement.getAttribute('viewBox');
+    let svgWidth = 400;
+    let svgHeight = 440;
+
+    if (viewBox) {
+      const [, , width, height] = viewBox.split(' ').map(Number);
+      svgWidth = width;
+      svgHeight = height;
+    }
+
+    const svgData = new XMLSerializer().serializeToString(svgElement);
+    const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+    const svgUrl = URL.createObjectURL(svgBlob);
+
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const scale = 2; // Higher resolution
+      canvas.width = svgWidth * scale;
+      canvas.height = svgHeight * scale;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.scale(scale, scale);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, svgWidth, svgHeight);
+
+      const signal = signals.find(s => s.signalId === selectedSignalId);
+      const fileName = signal
+        ? `detector-layout-${signal.signalId}.jpg`
+        : "detector-layout.jpg";
+
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(url);
+      }, "image/jpeg", 0.95);
+
+      URL.revokeObjectURL(svgUrl);
+    };
+    img.src = svgUrl;
+  };
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] overflow-y-auto fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%]">
         <DialogHeader>
           <div className="flex items-center justify-between gap-4">
             <DialogTitle className="flex items-center gap-2">
@@ -482,6 +617,49 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId }: Bulk
             </div>
           ) : (
             <>
+              {/* Detector Diagram */}
+              <div className="border border-grey-200 rounded-lg p-3 bg-white">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-grey-700">Detection Layout Preview</span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="w-3 h-3 text-grey-400 cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>Visual representation of detector positions. Stop bar detectors appear near the intersection, advanced detectors further away. Colors indicate technology type.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  {(existingDetectors.length > 0 || pendingDetectors.length > 0) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDownloadDiagram}
+                      className="h-7 text-xs"
+                    >
+                      <Download className="w-3 h-3 mr-1" />
+                      Download
+                    </Button>
+                  )}
+                </div>
+                <div className="h-80 flex items-center justify-center">
+                  {existingDetectors.length === 0 && pendingDetectors.length === 0 ? (
+                    <div className="text-sm text-grey-400">Add detectors to see layout preview</div>
+                  ) : (
+                    <DetectorDiagram
+                      detectors={[...existingDetectors, ...pendingDetectors]}
+                      phases={signalPhases}
+                      approaches={signalApproaches}
+                      signal={signals.find(s => s.signalId === selectedSignalId)}
+                      svgRef={detectorSvgRef}
+                    />
+                  )}
+                </div>
+              </div>
+
               {/* Static Fields Configuration */}
               <div className="border border-grey-200 rounded-lg p-4 bg-grey-50">
                 <div className="flex items-center gap-2 mb-3">
@@ -684,8 +862,17 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId }: Bulk
                     />
                   </div>
 
+                  <Button
+                    onClick={handleQuickAdd}
+                    size="sm"
+                    className="h-8 bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Add Detectors
+                  </Button>
+
                   <div className="space-y-1">
-                    <Label className="text-xs">Count</Label>
+                    <Label className="text-xs">Quantity</Label>
                     <Input
                       type="number"
                       min="1"
@@ -695,15 +882,6 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId }: Bulk
                       className="h-8 w-16 text-xs"
                     />
                   </div>
-
-                  <Button
-                    onClick={handleQuickAdd}
-                    size="sm"
-                    className="h-8 bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Plus className="w-3 h-3 mr-1" />
-                    Add {quickAddCount} Detector{quickAddCount !== 1 ? 's' : ''}
-                  </Button>
                 </div>
               </div>
 
@@ -880,12 +1058,12 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId }: Bulk
                                 />
                               </TableCell>
                             )}
-                            <TableCell className="py-1.5">
+                            <TableCell className="py-1.5 max-w-[140px]">
                               <div className="flex items-center gap-1">
                                 <Input
                                   value={detector.description}
                                   onChange={(e) => handleDetectorChange(idx, 'description', e.target.value)}
-                                  className="h-7 text-xs flex-1"
+                                  className="h-7 text-xs w-28"
                                   placeholder="Auto-generated"
                                 />
                                 {detector.isDescriptionManual && (
@@ -936,7 +1114,19 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId }: Bulk
 
               {/* Available Phases Reference */}
               <div className="border border-grey-200 rounded-lg p-3">
-                <div className="text-xs font-medium text-grey-700 mb-2">Available Phases</div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-medium text-grey-700">Available Phases</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="w-3 h-3 text-grey-400 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>Click a phase to add a detector. Channel and lane numbers will auto-increment for the selected phase.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {signalPhases.map(phase => {
                     const direction = getPhaseDirection(phase.phase);
@@ -959,6 +1149,142 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId }: Bulk
                   })}
                 </div>
               </div>
+
+              {/* Existing Detectors Table */}
+              {existingDetectors.length > 0 && (
+                <div className="border border-green-200 rounded-lg overflow-hidden">
+                  <div className="p-2 bg-green-50 border-b border-green-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-green-700">Existing Detectors ({existingDetectors.length})</span>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3 h-3 text-green-400 cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p>These detectors are already saved for this signal. You can edit or delete them here.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-green-50">
+                          <TableHead className="w-20 text-xs py-2">Channel</TableHead>
+                          <TableHead className="w-24 text-xs py-2">Phase</TableHead>
+                          <TableHead className="w-16 text-xs py-2">Lane</TableHead>
+                          <TableHead className="text-xs py-2">Purpose</TableHead>
+                          <TableHead className="text-xs py-2">Technology</TableHead>
+                          <TableHead className="w-20 text-xs py-2">Setback</TableHead>
+                          <TableHead className="text-xs py-2 max-w-[120px]">Description</TableHead>
+                          <TableHead className="w-12 text-xs py-2"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {existingDetectors.map((detector, idx) => (
+                          <TableRow key={detector.id || idx} className="bg-green-50/30">
+                            <TableCell className="py-1.5">
+                              <Input
+                                value={detector.channel}
+                                onChange={(e) => handleExistingDetectorChange(idx, 'channel', e.target.value)}
+                                className="h-7 text-xs"
+                              />
+                            </TableCell>
+                            <TableCell className="py-1.5">
+                              <Select
+                                value={detector.phase.toString()}
+                                onValueChange={(v) => handleExistingDetectorChange(idx, 'phase', parseInt(v))}
+                              >
+                                <SelectTrigger className="h-7 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {signalPhases.map(phase => {
+                                    const direction = getPhaseDirection(phase.phase);
+                                    return (
+                                      <SelectItem key={phase.phase} value={phase.phase.toString()}>
+                                        {phase.phase} {direction && `(${direction})`}
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell className="py-1.5">
+                              <Input
+                                value={detector.lane}
+                                onChange={(e) => handleExistingDetectorChange(idx, 'lane', e.target.value)}
+                                className="h-7 w-14 text-xs"
+                              />
+                            </TableCell>
+                            <TableCell className="py-1.5">
+                              <Select
+                                value={detector.purpose}
+                                onValueChange={(v) => handleExistingDetectorChange(idx, 'purpose', v)}
+                              >
+                                <SelectTrigger className="h-7 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {purposeOptions.map(opt => (
+                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell className="py-1.5">
+                              <Select
+                                value={detector.technologyType}
+                                onValueChange={(v) => handleExistingDetectorChange(idx, 'technologyType', v)}
+                              >
+                                <SelectTrigger className="h-7 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {technologyOptions.map(opt => (
+                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell className="py-1.5">
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                value={detector.stopbarSetbackDist ?? ""}
+                                onChange={(e) => handleExistingDetectorChange(idx, 'stopbarSetbackDist', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                className="h-7 w-16 text-xs"
+                                placeholder="0"
+                              />
+                            </TableCell>
+                            <TableCell className="py-1.5 max-w-[120px]">
+                              <Input
+                                value={detector.description}
+                                onChange={(e) => handleExistingDetectorChange(idx, 'description', e.target.value)}
+                                className="h-7 text-xs w-24"
+                              />
+                            </TableCell>
+                            <TableCell className="py-1.5">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteExistingDetector(idx)}
+                                className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
             </>
           )}
 

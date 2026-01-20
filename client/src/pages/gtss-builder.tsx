@@ -161,7 +161,7 @@ export default function GTSSBuilder() {
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         {/* Header */}
-        <div className="p-3 border-b border-grey-200">
+        <div className="flex-shrink-0 p-3 border-b border-grey-200">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
               <TrafficCone className="text-white" size={16} />
@@ -173,7 +173,7 @@ export default function GTSSBuilder() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-2 overflow-y-auto">
+        <nav className="flex-1 p-2 overflow-y-auto min-h-0">
           <div className="space-y-1">
             {tabs.map((tab) => {
               const Icon = tab.icon;
@@ -223,8 +223,8 @@ export default function GTSSBuilder() {
           </div>
         </nav>
 
-        {/* Footer Actions */}
-        <div className="p-2 border-t border-grey-200">
+        {/* Footer Actions - Always visible at bottom */}
+        <div className="flex-shrink-0 p-2 border-t border-grey-200">
           {/* About GTSS section */}
           <div className="mb-4 pb-3 border-b border-grey-200">
             <p className="text-xs font-medium text-grey-600 mb-2 px-2">About GTSS</p>
@@ -355,51 +355,13 @@ export default function GTSSBuilder() {
             </div>
             {!showExportPanel && !showImportPanel && activeTab === "signals" && (
               <div className="flex space-x-1">
-                <Button onClick={handleAddMultiple} variant="outline" className="h-7 px-2 text-xs border-primary-200 text-primary-700 hover:bg-primary-50 hidden sm:flex">
-                  <Navigation className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Add Multiple</span>
+                <Button onClick={handleAddMultiple} variant="outline" className="h-7 px-2 text-xs border-primary-200 text-primary-700 hover:bg-primary-50 flex items-center gap-1">
+                  <Navigation className="w-3 h-3" />
+                  <span>Add Multiple</span>
                 </Button>
-                <Button onClick={handleAddSignal} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
-                  <Plus className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Add Signal</span>
-                </Button>
-              </div>
-            )}
-            {!showExportPanel && !showImportPanel && activeTab === "approaches" && (
-              <div className="flex space-x-1">
-                <Button
-                  onClick={() => setTriggerBulkApproach(prev => prev + 1)}
-                  className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
-                >
-                  <Plus className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Add Approaches</span>
-                </Button>
-              </div>
-            )}
-            {!showExportPanel && !showImportPanel && activeTab === "phases" && (
-              <div className="flex space-x-1">
-                <Button
-                  onClick={() => setTriggerBulkPhase(prev => prev + 1)}
-                  className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700 text-white"
-                >
-                  <Plus className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Add Phases</span>
-                </Button>
-              </div>
-            )}
-            {!showExportPanel && !showImportPanel && activeTab === "basic-timings" && (
-              <div className="flex space-x-1">
-                <Button onClick={handleAddBasicTiming} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
-                  <Plus className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Add Timing</span>
-                </Button>
-              </div>
-            )}
-            {!showExportPanel && !showImportPanel && activeTab === "detectors" && (
-              <div className="flex space-x-1">
-                <Button onClick={() => setTriggerBulkDetector(prev => prev + 1)} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
-                  <Plus className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Add Detectors</span>
+                <Button onClick={handleAddSignal} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700 flex items-center gap-1">
+                  <Plus className="w-3 h-3" />
+                  <span>Add Signal</span>
                 </Button>
               </div>
             )}

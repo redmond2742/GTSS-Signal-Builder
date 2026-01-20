@@ -161,8 +161,8 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-screen overflow-hidden">
-        <DialogHeader>
+      <DialogContent className="w-[95vw] max-w-6xl h-[90vh] max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="flex-shrink-0 px-6 py-4 border-b">
           <DialogTitle className="flex items-center space-x-3">
             <span>Add Multiple Signal Locations Using the Map</span>
             <Badge variant="secondary" className="bg-blue-100 text-blue-700">
@@ -170,20 +170,20 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
             </Badge>
           </DialogTitle>
         </DialogHeader>
-        
-        <div className="flex flex-col h-[calc(100vh-12rem)]">
-          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+
+        <div className="flex-1 flex flex-col min-h-0 px-6 py-4 overflow-hidden">
+          <div className="flex-shrink-0 mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center space-x-2 mb-2">
               <MapPin className="w-4 h-4 text-blue-600" />
               <span className="text-sm font-medium text-blue-800">Instructions</span>
             </div>
             <p className="text-sm text-blue-700">
-              Click anywhere on the map to add signal locations. Street names will be auto-populated when possible. 
+              Click anywhere on the map to add signal locations. Street names will be auto-populated when possible.
               You can edit details later from the main signals table.
             </p>
           </div>
 
-          <div className="flex-1 relative">
+          <div className="flex-1 relative min-h-0">
             <MapContainer
               center={getMapCenter()}
               zoom={13}
@@ -193,9 +193,9 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              
+
               <MapClickHandler onLocationAdd={handleLocationAdd} />
-              
+
               {/* Existing signals in grey */}
               {signals.map((signal) => (
                 signal.latitude && signal.longitude && (
@@ -214,7 +214,7 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
                   />
                 )
               ))}
-              
+
               {/* New pending signals in blue */}
               {pendingSignals.map((signal) => (
                 <Marker
@@ -226,7 +226,7 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
           </div>
 
           {pendingSignals.length > 0 && (
-            <div className="mt-4 p-4 bg-grey-50 border border-grey-200 rounded-lg max-h-40 overflow-y-auto">
+            <div className="flex-shrink-0 mt-4 p-4 bg-grey-50 border border-grey-200 rounded-lg max-h-32 overflow-y-auto">
               <h4 className="text-sm font-medium mb-3">Pending Signals ({pendingSignals.length})</h4>
               <div className="space-y-2">
                 {pendingSignals.map((signal, index) => (
@@ -255,34 +255,34 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
               </div>
             </div>
           )}
+        </div>
 
-          <div className="flex items-center justify-between pt-4 border-t border-grey-200">
-            <div className="flex space-x-2">
-              {pendingSignals.length > 0 && (
-                <Button
-                  variant="outline"
-                  onClick={handleClearAll}
-                  disabled={isProcessing}
-                  className="text-grey-600"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Clear All
-                </Button>
-              )}
-            </div>
-            <div className="flex space-x-2">
-              <Button variant="outline" onClick={onClose} disabled={isProcessing}>
-                Cancel
-              </Button>
+        <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-t border-grey-200 bg-white">
+          <div className="flex space-x-2">
+            {pendingSignals.length > 0 && (
               <Button
-                onClick={handleSaveAll}
-                disabled={pendingSignals.length === 0 || isProcessing}
-                className="bg-primary-600 hover:bg-primary-700"
+                variant="outline"
+                onClick={handleClearAll}
+                disabled={isProcessing}
+                className="text-grey-600"
               >
-                <Save className="w-4 h-4 mr-2" />
-                {isProcessing ? "Creating..." : `Create ${pendingSignals.length} Signals`}
+                <Trash2 className="w-4 h-4 mr-2" />
+                Clear All
               </Button>
-            </div>
+            )}
+          </div>
+          <div className="flex space-x-2">
+            <Button variant="outline" onClick={onClose} disabled={isProcessing}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveAll}
+              disabled={pendingSignals.length === 0 || isProcessing}
+              className="bg-primary-600 hover:bg-primary-700"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {isProcessing ? "Creating..." : `Create ${pendingSignals.length} Signals`}
+            </Button>
           </div>
         </div>
       </DialogContent>
