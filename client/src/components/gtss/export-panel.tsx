@@ -10,23 +10,21 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Download, CheckCircle, AlertTriangle, XCircle, Info, TrendingUp, Settings2, Target, ChevronDown, ChevronRight, Eye } from "lucide-react";
+import { Download, CheckCircle, AlertTriangle, XCircle, Info, ChevronDown, ChevronRight, Eye } from "lucide-react";
 import { evaluateGTSSCompleteness } from "@/lib/gtssValidation";
 import GTSSFileViewer, { GTSSFilePreview } from "@/components/gtss/gtss-file-viewer";
 
 export default function ExportPanel() {
   const { agency, signals, approaches, phases, detectors, basicTimings, navigateToSignalDetails } = useGTSSStore();
-  
-  // Generate default package name with agency name and date
+
   const getDefaultPackageName = () => {
     const today = new Date();
-    const dateStr = today.toISOString().split('T')[0]; // yyyy-mm-dd format
+    const dateStr = today.toISOString().split('T')[0];
     const agencyName = agency?.agencyName ? agency.agencyName.replace(/\s+/g, '_') : 'Export';
     return `GTSS_${agencyName}_${dateStr}`;
   };
-  
+
   const [packageName, setPackageName] = useState(getDefaultPackageName());
   const [exportFormat, setExportFormat] = useState("zip");
   const [includeFiles, setIncludeFiles] = useState({
@@ -41,7 +39,6 @@ export default function ExportPanel() {
 
   const { exportAsZip, exportAsIndividualFiles } = useExport();
 
-  // Update package name when agency changes
   useEffect(() => {
     setPackageName(getDefaultPackageName());
   }, [agency?.agencyName]);
@@ -49,7 +46,6 @@ export default function ExportPanel() {
   const handleExport = async () => {
     try {
       if (exportFormat === "txt") {
-        // Export as individual TXT files
         await exportAsIndividualFiles(includeFiles);
         const fileCount = Object.values(includeFiles).filter(Boolean).length;
         toast({
@@ -57,7 +53,6 @@ export default function ExportPanel() {
           description: `${fileCount} TXT file${fileCount > 1 ? 's' : ''} downloaded successfully`,
         });
       } else if (exportFormat === "zip") {
-        // Export as ZIP file
         await exportAsZip(includeFiles);
         toast({
           title: "Success",
@@ -75,48 +70,44 @@ export default function ExportPanel() {
 
   const getValidationStatus = () => {
     const issues = [];
-    
+
     if (!agency) {
-      issues.push({ type: "error", section: "Agency Information", message: "Agency information is required" });
+      issues.push({ type: "error", message: "Agency information is required" });
     }
-    
+
     if (signals.length === 0) {
-      issues.push({ type: "warning", section: "Signal Locations", message: "No signals configured" });
+      issues.push({ type: "warning", message: "No signals configured" });
     }
-    
-    // Validation checks for required signal data
+
     signals.forEach(signal => {
       if (!signal.latitude || !signal.longitude) {
-        issues.push({ type: "error", section: "Signal Locations", message: `Missing coordinates for ${signal.signalId}` });
+        issues.push({ type: "error", message: `Missing coordinates for ${signal.signalId}` });
       }
       if (!signal.signalId) {
-        issues.push({ type: "error", section: "Signal Locations", message: `Missing signal ID for signal` });
-      }
-      if (!signal.streetName1 || !signal.streetName2) {
-        issues.push({ type: "warning", section: "Signal Locations", message: `Missing street names for ${signal.signalId}` });
+        issues.push({ type: "error", message: `Missing signal ID` });
       }
     });
-    
+
     const signalIds = signals.map(s => s.signalId);
 
     const orphanApproaches = approaches.filter(a => !signalIds.includes(a.signalId));
     if (orphanApproaches.length > 0) {
-      issues.push({ type: "error", section: "Approaches", message: `${orphanApproaches.length} approaches reference non-existent signals` });
+      issues.push({ type: "error", message: `${orphanApproaches.length} approaches reference non-existent signals` });
     }
 
     const orphanPhases = phases.filter(p => !signalIds.includes(p.signalId));
     if (orphanPhases.length > 0) {
-      issues.push({ type: "error", section: "Phases", message: `${orphanPhases.length} phases reference non-existent signals` });
+      issues.push({ type: "error", message: `${orphanPhases.length} phases reference non-existent signals` });
     }
 
     const orphanDetectors = detectors.filter(d => !signalIds.includes(d.signalId));
     if (orphanDetectors.length > 0) {
-      issues.push({ type: "error", section: "Detectors", message: `${orphanDetectors.length} detectors reference non-existent signals` });
+      issues.push({ type: "error", message: `${orphanDetectors.length} detectors reference non-existent signals` });
     }
 
     const orphanTimings = basicTimings.filter(t => !signalIds.includes(t.signalId));
     if (orphanTimings.length > 0) {
-      issues.push({ type: "error", section: "Basic Timings", message: `${orphanTimings.length} timing configurations reference non-existent signals` });
+      issues.push({ type: "error", message: `${orphanTimings.length} timing configs reference non-existent signals` });
     }
 
     return issues;
@@ -124,8 +115,7 @@ export default function ExportPanel() {
 
   const validationIssues = getValidationStatus();
   const hasErrors = validationIssues.some(issue => issue.type === "error");
-  
-  // Get GTSS completeness analysis
+
   const completenessAnalysis = evaluateGTSSCompleteness(signals, phases, detectors);
   const [isAnalysisExpanded, setIsAnalysisExpanded] = useState(false);
   const [showFilePreview, setShowFilePreview] = useState(false);
@@ -165,171 +155,128 @@ export default function ExportPanel() {
 
   return (
     <div className="max-w-6xl space-y-6">
-      {/* Validation Status */}
+      {/* Data Summary */}
       <Card>
-        <CardHeader className="bg-grey-50 border-b border-grey-200">
-          <CardTitle className="text-lg font-semibold text-grey-800">Validation Status</CardTitle>
-          <p className="text-sm text-grey-600">Review configuration before export</p>
+        <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-3">
+          <CardTitle className="text-base font-semibold text-grey-800">Data Summary</CardTitle>
         </CardHeader>
-        <CardContent className="p-6">
-          {/* Completeness Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <Card className="bg-primary-50 border-primary-200">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <TrendingUp className="w-5 h-5 text-primary-600" />
-                  <div>
-                    <p className="text-xs font-medium text-primary-700">Overall Completeness</p>
-                    <p className="text-lg font-bold text-primary-800">{completenessAnalysis.overallCompleteness}%</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-success-50 border-success-200">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <CheckCircle className="w-5 h-5 text-success-600" />
-                  <div>
-                    <p className="text-xs font-medium text-success-700">Complete Signals</p>
-                    <p className="text-lg font-bold text-success-800">{completenessAnalysis.completeSignals}/{completenessAnalysis.totalSignals}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-warning-50 border-warning-200">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <AlertTriangle className="w-5 h-5 text-warning-600" />
-                  <div>
-                    <p className="text-xs font-medium text-warning-700">Partial Signals</p>
-                    <p className="text-lg font-bold text-warning-800">{completenessAnalysis.partialSignals}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-red-50 border-red-200">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <XCircle className="w-5 h-5 text-red-600" />
-                  <div>
-                    <p className="text-xs font-medium text-red-700">Incomplete Signals</p>
-                    <p className="text-lg font-bold text-red-800">{completenessAnalysis.incompleteSignals}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        <CardContent className="p-4">
+          {/* Counts row */}
+          <div className="flex flex-wrap gap-3 mb-4">
+            <div className="flex items-center gap-1.5 text-sm">
+              <span className="font-medium text-grey-800">{signals.length}</span>
+              <span className="text-grey-500">signal{signals.length !== 1 ? 's' : ''}</span>
+            </div>
+            <span className="text-grey-300">|</span>
+            <div className="flex items-center gap-1.5 text-sm">
+              <span className="font-medium text-grey-800">{approaches.length}</span>
+              <span className="text-grey-500">approach{approaches.length !== 1 ? 'es' : ''}</span>
+            </div>
+            <span className="text-grey-300">|</span>
+            <div className="flex items-center gap-1.5 text-sm">
+              <span className="font-medium text-grey-800">{phases.length}</span>
+              <span className="text-grey-500">phase{phases.length !== 1 ? 's' : ''}</span>
+            </div>
+            <span className="text-grey-300">|</span>
+            <div className="flex items-center gap-1.5 text-sm">
+              <span className="font-medium text-grey-800">{detectors.length}</span>
+              <span className="text-grey-500">detector{detectors.length !== 1 ? 's' : ''}</span>
+            </div>
+            <span className="text-grey-300">|</span>
+            <div className="flex items-center gap-1.5 text-sm">
+              <span className="font-medium text-grey-800">{basicTimings.length}</span>
+              <span className="text-grey-500">timing{basicTimings.length !== 1 ? 's' : ''}</span>
+            </div>
           </div>
 
-          {/* Signal-by-Signal Analysis - Collapsible */}
+          {/* Configuration status badges */}
+          {signals.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {completenessAnalysis.completeSignals > 0 && (
+                <Badge variant="default" className="text-xs bg-green-100 text-green-800 hover:bg-green-100">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  {completenessAnalysis.completeSignals} complete
+                </Badge>
+              )}
+              {completenessAnalysis.partialSignals > 0 && (
+                <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800 hover:bg-amber-100">
+                  <AlertTriangle className="w-3 h-3 mr-1" />
+                  {completenessAnalysis.partialSignals} partial
+                </Badge>
+              )}
+              {completenessAnalysis.incompleteSignals > 0 && (
+                <Badge variant="secondary" className="text-xs bg-red-100 text-red-800 hover:bg-red-100">
+                  <XCircle className="w-3 h-3 mr-1" />
+                  {completenessAnalysis.incompleteSignals} incomplete
+                </Badge>
+              )}
+            </div>
+          )}
+
+          {/* Signal details - collapsible */}
           {completenessAnalysis.results.length > 0 && (
-            <Collapsible open={isAnalysisExpanded} onOpenChange={setIsAnalysisExpanded} className="mb-6">
+            <Collapsible open={isAnalysisExpanded} onOpenChange={setIsAnalysisExpanded}>
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="flex items-center space-x-2 p-0 h-auto text-left">
-                  {isAnalysisExpanded ? (
-                    <ChevronDown className="w-4 h-4" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4" />
-                  )}
-                  <h4 className="text-sm font-medium text-grey-700">Signal Completeness Analysis ({completenessAnalysis.results.length} signals)</h4>
+                <Button variant="ghost" className="flex items-center gap-1.5 p-0 h-auto text-xs text-grey-600 hover:text-grey-800">
+                  {isAnalysisExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                  Signal details
                 </Button>
               </CollapsibleTrigger>
-              <CollapsibleContent className="mt-3">
-                <div className="space-y-3">
+              <CollapsibleContent className="mt-2">
+                <div className="space-y-1">
                   {completenessAnalysis.results.map((result) => (
-                    <Card key={result.signalId} className="border-grey-200">
-                      <CardContent className="p-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3">
-                              <Badge 
-                                variant={result.status === 'complete' ? 'default' : result.status === 'partial' ? 'secondary' : 'destructive'}
-                                className="text-xs"
-                              >
-                                {result.status === 'complete' ? 'Complete' : result.status === 'partial' ? 'Partial' : 'Incomplete'}
-                              </Badge>
-                              <div>
-                                <p className="text-sm font-medium text-grey-800">{result.signalId}</p>
-                                <p className="text-xs text-grey-600">{result.street}</p>
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-3 gap-4 mt-3">
-                              <div className="flex items-center space-x-2">
-                                <Settings2 className="w-4 h-4 text-grey-500" />
-                                <div>
-                                  <p className="text-xs text-grey-500">Phases</p>
-                                  <p className="text-sm font-medium">{result.phaseCount}/8 ({result.phaseCompleteness})</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <Target className="w-4 h-4 text-grey-500" />
-                                <div>
-                                  <p className="text-xs text-grey-500">Detectors</p>
-                                  <p className="text-sm font-medium">{result.detectorCount}/4 ({result.detectorCompleteness})</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <TrendingUp className="w-4 h-4 text-grey-500" />
-                                <div>
-                                  <p className="text-xs text-grey-500">Overall</p>
-                                  <p className="text-sm font-medium">{result.overallScore}</p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigateToSignalDetails(result.signalId)}
-                            className="self-start sm:self-center"
-                          >
-                            Configure
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <div
+                      key={result.signalId}
+                      className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-grey-50 text-xs cursor-pointer"
+                      onClick={() => navigateToSignalDetails(result.signalId)}
+                    >
+                      <div className="flex items-center gap-2">
+                        {result.status === 'complete' ? (
+                          <CheckCircle className="w-3 h-3 text-green-500" />
+                        ) : result.status === 'partial' ? (
+                          <AlertTriangle className="w-3 h-3 text-amber-500" />
+                        ) : (
+                          <XCircle className="w-3 h-3 text-red-500" />
+                        )}
+                        <span className="font-medium">{result.signalId}</span>
+                        <span className="text-grey-400">{result.street}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-grey-500">
+                        <span>{result.phaseCount} phases</span>
+                        <span>{result.detectorCount} detectors</span>
+                        <span className="font-medium text-grey-700">{result.overallScore}</span>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </CollapsibleContent>
             </Collapsible>
           )}
 
-          {/* Basic Validation Issues */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {validationIssues.length === 0 ? (
-              <div className="md:col-span-2 flex items-center space-x-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <CheckCircle className="text-green-600 text-xl" />
-                <div>
-                  <p className="font-medium text-green-800">All Basic Validations Passed</p>
-                  <p className="text-sm text-green-600">No structural issues detected</p>
-                </div>
-              </div>
-            ) : (
-              validationIssues.map((issue, index) => (
-                <div key={index} className={`flex items-center space-x-3 p-4 rounded-lg border ${
-                  issue.type === "error" 
-                    ? "bg-red-50 border-red-200"
-                    : "bg-amber-50 border-amber-200"
-                }`}>
+          {/* Validation issues */}
+          {validationIssues.length > 0 && (
+            <div className="mt-4 pt-3 border-t border-grey-100 space-y-1.5">
+              {validationIssues.map((issue, index) => (
+                <div key={index} className="flex items-center gap-2 text-xs">
                   {issue.type === "error" ? (
-                    <XCircle className="text-red-600 text-xl" />
+                    <XCircle className="w-3 h-3 text-red-500 flex-shrink-0" />
                   ) : (
-                    <AlertTriangle className="text-amber-600 text-xl" />
+                    <AlertTriangle className="w-3 h-3 text-amber-500 flex-shrink-0" />
                   )}
-                  <div>
-                    <p className={`font-medium ${issue.type === "error" ? "text-red-800" : "text-amber-800"}`}>
-                      {issue.section}
-                    </p>
-                    <p className={`text-sm ${issue.type === "error" ? "text-red-600" : "text-amber-600"}`}>
-                      {issue.message}
-                    </p>
-                  </div>
+                  <span className={issue.type === "error" ? "text-red-700" : "text-amber-700"}>
+                    {issue.message}
+                  </span>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
+
+          {validationIssues.length === 0 && (
+            <div className="mt-4 pt-3 border-t border-grey-100 flex items-center gap-2 text-xs text-green-700">
+              <CheckCircle className="w-3 h-3" />
+              All validations passed
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -351,7 +298,7 @@ export default function ExportPanel() {
                   placeholder="Export package name"
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="exportFormat">Export Format</Label>
                 <Select value={exportFormat} onValueChange={setExportFormat}>
@@ -447,13 +394,13 @@ export default function ExportPanel() {
             <div className="flex items-center justify-between pt-4 border-t border-grey-200">
               <div className="flex items-center text-sm text-grey-600">
                 <Info className="text-primary-500 mr-2" size={16} />
-                {exportFormat === "zip" 
-                  ? "Export will create a ZIP file with selected TXT files" 
+                {exportFormat === "zip"
+                  ? "Export will create a ZIP file with selected TXT files"
                   : exportFormat === "txt"
                   ? "Export will download individual TXT files separately"
                   : "Export will create a package with selected files"}
               </div>
-              <Button 
+              <Button
                 onClick={handleExportValidated}
                 disabled={hasErrors || Object.values(includeFiles).every(v => !v)}
                 className="bg-primary-600 hover:bg-primary-700 text-lg px-8 py-3"

@@ -475,65 +475,67 @@ export default function BasicTimingsTable({ triggerAdd }: BasicTimingsTableProps
                 </Button>
               </div>
               {selectedSignalId && (
-                <div className="flex gap-3">
-                  {/* Timing Bar Chart */}
-                  <div className="flex-1 border border-grey-200 rounded-lg p-2 bg-white min-w-0">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-grey-500">Timing Parameters</span>
-                      {filteredTimings.length > 0 && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleDownloadChart}
-                          className="h-6 text-xs px-2"
-                        >
-                          <Download className="w-3 h-3 mr-1" />
-                          Download
-                        </Button>
-                      )}
-                    </div>
-                    <div className="h-56">
-                      <TimingBarChart
-                        timings={filteredTimings}
-                        svgRef={svgRef}
-                        intersectionName={intersectionName}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Phase Diagram */}
-                  <div className="w-64 border border-grey-200 rounded-lg p-2 bg-white flex-shrink-0">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-grey-500">Phase Diagram</span>
-                    </div>
-                    <div className="h-56">
-                      {filteredPhases.length > 0 ? (
-                        <PhaseDiagram
-                          phases={filteredPhases.map(p => ({
-                            phase: p.phase,
-                            approachId: p.approachId,
-                            movementType: p.movementType,
-                            isPedestrian: p.isPedestrian,
-                            numOfLanes: p.numOfLanes
-                          }))}
-                          approaches={filteredApproaches.map(a => ({
-                            approachId: a.approachId,
-                            compassBearing: a.compassBearing
-                          }))}
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-stretch gap-3">
+                    {/* Timing Bar Chart */}
+                    <div className="flex-1 border border-grey-200 rounded-lg p-2 bg-white min-w-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-grey-500">Timing Parameters</span>
+                        {filteredTimings.length > 0 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleDownloadChart}
+                            className="h-6 text-xs px-2"
+                          >
+                            <Download className="w-3 h-3 mr-1" />
+                            Download
+                          </Button>
+                        )}
+                      </div>
+                      <div className="h-56">
+                        <TimingBarChart
+                          timings={filteredTimings}
+                          svgRef={svgRef}
                           intersectionName={intersectionName}
-                          svgRef={phaseDiagramRef}
-                          compact={true}
                         />
-                      ) : (
-                        <div className="h-full flex items-center justify-center text-sm text-grey-400">
-                          Add phases to see diagram
-                        </div>
-                      )}
+                      </div>
+                    </div>
+
+                    {/* Phase Diagram */}
+                    <div className="w-64 border border-grey-200 rounded-lg p-2 bg-white flex-shrink-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-grey-500">Phase Diagram</span>
+                      </div>
+                      <div className="h-56">
+                        {filteredPhases.length > 0 ? (
+                          <PhaseDiagram
+                            phases={filteredPhases.map(p => ({
+                              phase: p.phase,
+                              approachId: p.approachId,
+                              movementType: p.movementType,
+                              isPedestrian: p.isPedestrian,
+                              numOfLanes: p.numOfLanes
+                            }))}
+                            approaches={filteredApproaches.map(a => ({
+                              approachId: a.approachId,
+                              compassBearing: a.compassBearing
+                            }))}
+                            intersectionName={intersectionName}
+                            svgRef={phaseDiagramRef}
+                            compact={true}
+                          />
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-sm text-grey-400">
+                            Add phases to see diagram
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Map */}
-                  <div className="w-64 h-72 flex-shrink-0">
+                  {/* Map - full width */}
+                  <div className="w-full h-72">
                     {(() => {
                       const selectedSignal = signals.find(s => s.signalId === selectedSignalId);
                       return selectedSignal && selectedSignal.latitude && selectedSignal.longitude ? (

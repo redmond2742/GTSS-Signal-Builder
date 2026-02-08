@@ -262,12 +262,12 @@ export default function DetectorsTable({ triggerAdd, triggerBulk }: DetectorsTab
                 </Button>
               </div>
               {selectedSignalId && (
-                <div className="flex items-stretch gap-3">
+                <div className="flex flex-col gap-2">
                   {filteredDetectors.length > 0 && (() => {
                     const selectedSignal = signals.find(s => s.signalId === selectedSignalId);
                     const signalName = selectedSignal ? getSignalDisplayName(selectedSignal, approaches) : selectedSignalId;
                     return (
-                      <div className="flex flex-col items-center flex-shrink-0">
+                      <div className="flex flex-col items-center">
                         <div className="text-sm font-semibold text-grey-700 mb-1 text-center">
                           {signalName}
                         </div>
@@ -295,7 +295,7 @@ export default function DetectorsTable({ triggerAdd, triggerBulk }: DetectorsTab
                   {(() => {
                     const selectedSignal = signals.find(s => s.signalId === selectedSignalId);
                     return (
-                      <div className="flex-1 h-72">
+                      <div className="w-full h-72">
                         {selectedSignal && selectedSignal.latitude && selectedSignal.longitude ? (
                           <div className="w-full h-full border border-grey-300 rounded-md overflow-hidden bg-white relative z-0">
                             <SignalsMap signals={[selectedSignal]} className="w-full h-full" />

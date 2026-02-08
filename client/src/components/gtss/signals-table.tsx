@@ -31,7 +31,7 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
   const [sortField, setSortField] = useState<SortField>('signalId');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-  const { signals, approaches, navigateToSignalDetails } = useGTSSStore();
+  const { agency, signals, approaches, navigateToSignalDetails } = useGTSSStore();
   const { toast } = useToast();
   const signalHooks = useSignals();
 
@@ -90,7 +90,14 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
   };
 
   const handleAdd = () => {
-    // Navigate to signal details view for creating a new signal
+    if (!agency?.agencyId) {
+      toast({
+        title: "Agency ID Required",
+        description: "Please fill in the Agency ID under Agency Info before adding signals.",
+        variant: "destructive",
+      });
+      return;
+    }
     navigateToSignalDetails(null);
   };
 

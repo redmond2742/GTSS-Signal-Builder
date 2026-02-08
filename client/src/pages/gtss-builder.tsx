@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useLoadFromStorage } from "@/lib/localStorageHooks";
-import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, FolderInput, Navigation, Plus, Coffee, Trash2, Menu, X, ExternalLink, Compass, Clock } from "lucide-react";
+import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, FolderInput, Navigation, Plus, Coffee, Trash2, Menu, X, ExternalLink, Compass, Clock, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import AgencyForm from "@/components/gtss/agency-form";
 import SignalsTable from "@/components/gtss/signals-table";
 import ApproachesTable from "@/components/gtss/approaches-table";
@@ -43,7 +44,7 @@ export default function GTSSBuilder() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showExportPanel, setShowExportPanel] = useState(false);
   const [showImportPanel, setShowImportPanel] = useState(false);
-  const { signals, approaches, phases, detectors, basicTimings, currentView, setAgency, setSignals, setApproaches, setPhases, setDetectors, setBasicTimings, navigateToSignalDetails } = useGTSSStore();
+  const { agency, signals, approaches, phases, detectors, basicTimings, currentView, setAgency, setSignals, setApproaches, setPhases, setDetectors, setBasicTimings, navigateToSignalDetails } = useGTSSStore();
   const { toast } = useToast();
 
   // Load data from localStorage on mount
@@ -99,11 +100,28 @@ export default function GTSSBuilder() {
   };
 
   const handleAddSignal = () => {
-    // Navigate to signal details view for new signal creation
+    if (!agency?.agencyId) {
+      toast({
+        title: "Agency ID Required",
+        description: "Please fill in the Agency ID under Agency Info before adding signals.",
+        variant: "destructive",
+      });
+      setActiveTab("agency");
+      return;
+    }
     navigateToSignalDetails(null);
   };
 
   const handleAddMultiple = () => {
+    if (!agency?.agencyId) {
+      toast({
+        title: "Agency ID Required",
+        description: "Please fill in the Agency ID under Agency Info before adding signals.",
+        variant: "destructive",
+      });
+      setActiveTab("agency");
+      return;
+    }
     setTriggerBulk(prev => prev + 1);
   };
 
@@ -166,9 +184,42 @@ export default function GTSSBuilder() {
             <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
               <TrafficCone className="text-white" size={16} />
             </div>
-            <div>
+            <div className="flex-1">
               <h1 className="text-lg font-bold text-grey-800">GTSS Builder</h1>
             </div>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-grey-400 hover:text-grey-600">
+                  <HelpCircle className="w-4 h-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="text-base">About GTSS Builder</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3 text-sm text-grey-700">
+                  <p>
+                    <strong>GTSS Builder</strong> is a tool for configuring traffic signal systems and exporting data in the
+                    {" "}<strong>GTSS (General Traffic Signal Specification)</strong> format &mdash; an open standard for describing
+                    traffic signal configurations including signal locations, phases, detection equipment, and timing parameters.
+                  </p>
+                  <p>
+                    All data is stored locally in your browser using localStorage. Nothing is sent to a server. Your work persists
+                    between sessions on the same browser.
+                  </p>
+                  <p>
+                    Use the <strong>Export</strong> feature to download your configuration as GTSS-formatted files, and
+                    {" "}<strong>Import</strong> to load previously exported data or migrate between browsers.
+                  </p>
+                  <p className="text-xs text-grey-500">
+                    Learn more about GTSS at{" "}
+                    <a href="https://gtss.dev" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                      gtss.dev
+                    </a>
+                  </p>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
