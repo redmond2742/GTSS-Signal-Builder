@@ -20,8 +20,12 @@ import { MapPin, Edit3, Plus, Trash2, Navigation, ArrowLeft, Settings, HelpCircl
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import PhaseModal from "@/components/gtss/phase-modal";
 import DetectorModal from "@/components/gtss/detector-modal";
+import BulkPhaseModal from "@/components/gtss/bulk-phase-modal";
+import BulkApproachModal from "@/components/gtss/bulk-approach-modal";
+import BulkDetectorModal from "@/components/gtss/bulk-detector-modal";
+import BasicTimingModal from "@/components/gtss/basic-timing-modal";
 import GTSSFileViewer, { GTSSFilePreview } from "@/components/gtss/gtss-file-viewer";
-import { generateAgencyCSV, generateSignalsCSV, generatePhasesCSV, generateDetectionCSV } from "@/lib/localStorage";
+import { generateAgencyCSV, generateSignalsCSV, generatePhasesCSV, generateDetectionCSV, generateApproachesCSV, generateBasicTimingsCSV } from "@/lib/localStorage";
 
 // Location picker component for interactive map editing
 function LocationPicker({ onLocationSelect }: { onLocationSelect: (lat: number, lon: number) => void }) {
@@ -52,6 +56,10 @@ export default function SignalDetails() {
   const [isEditingSignal, setIsEditingSignal] = useState(false);
   const [showPhaseModal, setShowPhaseModal] = useState(false);
   const [showDetectorModal, setShowDetectorModal] = useState(false);
+  const [showBulkPhaseModal, setShowBulkPhaseModal] = useState(false);
+  const [showBulkApproachModal, setShowBulkApproachModal] = useState(false);
+  const [showBulkDetectorModal, setShowBulkDetectorModal] = useState(false);
+  const [showBasicTimingModal, setShowBasicTimingModal] = useState(false);
   const [editingPhase, setEditingPhase] = useState<Phase | null>(null);
   const [editingDetector, setEditingDetector] = useState<Detector | null>(null);
   const [showGTSSOutput, setShowGTSSOutput] = useState(false);
@@ -91,10 +99,12 @@ export default function SignalDetails() {
     return [
       { id: "agency", label: "agency.txt", content: generateAgencyCSV(agency) },
       { id: "signals", label: "signals.txt", content: generateSignalsCSV([signal]) },
+      { id: "approaches", label: "approaches.txt", content: generateApproachesCSV(signalApproaches) },
       { id: "phases", label: "phases.txt", content: generatePhasesCSV(signalPhases) },
       { id: "detectors", label: "detectors.txt", content: generateDetectionCSV(signalDetectors) },
+      { id: "basic_timings", label: "basic_timings.txt", content: generateBasicTimingsCSV(signalTimings) },
     ] as GTSSFilePreview[];
-  }, [agency, signal, signalPhases, signalDetectors]);
+  }, [agency, signal, signalApproaches, signalPhases, signalDetectors, signalTimings]);
 
   // Derive street names from approaches
   const derivedStreetNames = useMemo(() => {
@@ -701,7 +711,27 @@ export default function SignalDetails() {
           {/* Map */}
           {signal && signal.latitude && signal.longitude && (
             <div className="mt-4">
-              <h4 className="text-sm font-medium text-grey-700 mb-2">Location</h4>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-medium text-grey-700">Location</h4>
+                <div className="flex items-center gap-3 text-xs">
+                  <a
+                    href={`https://www.google.com/maps?q=${signal.latitude},${signal.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    Google Maps
+                  </a>
+                  <a
+                    href={`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${signal.latitude},${signal.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    Street View
+                  </a>
+                </div>
+              </div>
               <div className="h-48 rounded-lg border overflow-hidden relative z-0">
                 <MapContainer
                   center={[signal.latitude, signal.longitude]}
@@ -721,6 +751,70 @@ export default function SignalDetails() {
         </CardContent>
       </Card>
 
+      {/* Approaches Section */}
+      <Card>
+        <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold text-grey-800 flex items-center space-x-2">
+              <Navigation className="w-4 h-4 text-primary-600" />
+              <span>Approaches ({signalApproaches.length})</span>
+            </CardTitle>
+            <Button
+              onClick={() => {
+                if (isNewSignal) {
+                  toast({
+                    title: "Save Signal First",
+                    description: "Please save the signal information before adding approaches",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                setShowBulkApproachModal(true);
+              }}
+              className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              Add Approaches
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isNewSignal ? (
+            <div className="p-6 text-center text-grey-500 text-sm">
+              Save the signal first to add approaches.
+            </div>
+          ) : signalApproaches.length === 0 ? (
+            <div className="p-6 text-center text-grey-500 text-sm">
+              <p>No approaches configured.</p>
+              <p className="text-xs text-grey-400 mt-1">Define approach directions and street names for this intersection.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-grey-50 border-b border-grey-200">
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Approach ID</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Street Name</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Bearing</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Posted Speed</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {signalApproaches.map((approach) => (
+                    <TableRow key={approach.id} className="hover:bg-grey-50">
+                      <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>{approach.approachId}</TableCell>
+                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.streetName || '-'}</TableCell>
+                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.compassBearing ? `${approach.compassBearing}°` : '-'}</TableCell>
+                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.postedSpeed ? `${approach.postedSpeed} mph` : '-'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Phases Section */}
       <Card>
         <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
@@ -731,19 +825,34 @@ export default function SignalDetails() {
             </CardTitle>
             <div className="flex space-x-1">
               <Button
-                onClick={handlePhaseAdd}
+                onClick={() => {
+                  if (isNewSignal) {
+                    toast({
+                      title: "Save Signal First",
+                      description: "Please save the signal information before adding phases",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  setShowBulkPhaseModal(true);
+                }}
                 className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
               >
                 <Plus className="w-3 h-3 mr-1" />
-                Add Phase
+                Add Phases
               </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {signalPhases.length === 0 ? (
-            <div className="p-8 text-center text-grey-500 text-sm">
-              No phases configured for this signal
+          {isNewSignal ? (
+            <div className="p-6 text-center text-grey-500 text-sm">
+              Save the signal first to add phases.
+            </div>
+          ) : signalPhases.length === 0 ? (
+            <div className="p-6 text-center text-grey-500 text-sm">
+              <p>No phases configured.</p>
+              <p className="text-xs text-grey-400 mt-1">Add approaches first, then define movement phases for each direction. Phases are required before adding detectors or timings.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -808,25 +917,40 @@ export default function SignalDetails() {
               <span>Detection Equipment ({signalDetectors.length})</span>
             </CardTitle>
             <Button
-              onClick={handleDetectorAdd}
+              onClick={() => {
+                if (isNewSignal) {
+                  toast({
+                    title: "Save Signal First",
+                    description: "Please save the signal information before adding detectors",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                setShowBulkDetectorModal(true);
+              }}
               className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
               disabled={signalPhases.length === 0}
             >
               <Plus className="w-3 h-3 mr-1" />
-              Add Detector
+              Add Detectors
             </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {signalPhases.length === 0 ? (
-            <div className="p-8 text-center">
+          {isNewSignal ? (
+            <div className="p-6 text-center text-grey-500 text-sm">
+              Save the signal first to add detectors.
+            </div>
+          ) : signalPhases.length === 0 ? (
+            <div className="p-6 text-center">
               <p className="text-sm text-warning-700 bg-warning-50 border border-warning-200 rounded-md p-3">
-                No phases configured. Please add phases before adding detectors.
+                Phases are required before adding detectors. Add phases above first.
               </p>
             </div>
           ) : signalDetectors.length === 0 ? (
-            <div className="p-8 text-center text-grey-500 text-sm">
-              No detectors configured for this signal
+            <div className="p-6 text-center text-grey-500 text-sm">
+              <p>No detectors configured.</p>
+              <p className="text-xs text-grey-400 mt-1">Define detection equipment (loops, video, radar) assigned to each phase.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -835,8 +959,8 @@ export default function SignalDetails() {
                   <TableRow className="bg-grey-50 border-b border-grey-200">
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Channel</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Phase</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Purpose</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Technology</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Setback</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -849,10 +973,8 @@ export default function SignalDetails() {
                     >
                       <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>{detector.channel}</TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{detector.phase}</TableCell>
+                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{detector.purpose || '-'}</TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{detector.technologyType}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>
-                        {detector.stopbarSetbackDist ? `${detector.stopbarSetbackDist}ft` : 'N/A'}
-                      </TableCell>
                       <TableCell className="py-1 px-1.5">
                         <Button
                           variant="ghost"
@@ -875,48 +997,6 @@ export default function SignalDetails() {
         </CardContent>
       </Card>
 
-      {/* Approaches Section */}
-      <Card>
-        <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold text-grey-800 flex items-center space-x-2">
-              <Navigation className="w-4 h-4 text-primary-600" />
-              <span>Approaches ({signalApproaches.length})</span>
-            </CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {signalApproaches.length === 0 ? (
-            <div className="p-8 text-center text-grey-500 text-sm">
-              No approaches configured for this signal
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-grey-50 border-b border-grey-200">
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Approach ID</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Street Name</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Bearing</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Posted Speed</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {signalApproaches.map((approach) => (
-                    <TableRow key={approach.id} className="hover:bg-grey-50">
-                      <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>{approach.approachId}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.streetName || '-'}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.compassBearing ? `${approach.compassBearing}°` : '-'}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.postedSpeed ? `${approach.postedSpeed} mph` : '-'}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Basic Timings Section */}
       <Card>
         <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
@@ -925,12 +1005,49 @@ export default function SignalDetails() {
               <Settings className="w-4 h-4 text-primary-600" />
               <span>Basic Timings ({signalTimings.length})</span>
             </CardTitle>
+            <Button
+              onClick={() => {
+                if (isNewSignal) {
+                  toast({
+                    title: "Save Signal First",
+                    description: "Please save the signal information before adding timings",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                if (signalPhases.length === 0) {
+                  toast({
+                    title: "Add Phases First",
+                    description: "Please add phases before configuring timings",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                setShowBasicTimingModal(true);
+              }}
+              className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
+              disabled={signalPhases.length === 0}
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              Add Timing
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {signalTimings.length === 0 ? (
-            <div className="p-8 text-center text-grey-500 text-sm">
-              No timing data configured for this signal
+          {isNewSignal ? (
+            <div className="p-6 text-center text-grey-500 text-sm">
+              Save the signal first to add timings.
+            </div>
+          ) : signalPhases.length === 0 ? (
+            <div className="p-6 text-center">
+              <p className="text-sm text-warning-700 bg-warning-50 border border-warning-200 rounded-md p-3">
+                Phases are required before adding timings. Add phases above first.
+              </p>
+            </div>
+          ) : signalTimings.length === 0 ? (
+            <div className="p-6 text-center text-grey-500 text-sm">
+              <p>No timing data configured.</p>
+              <p className="text-xs text-grey-400 mt-1">Set min/max green, yellow, all-red, walk, and pedestrian clearance for each phase.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -1191,6 +1308,58 @@ export default function SignalDetails() {
         <DetectorModal
           detector={editingDetector}
           onClose={handleDetectorModalClose}
+          preSelectedSignalId={signalId || ""}
+        />
+      )}
+
+      {/* Bulk Phase Modal */}
+      {showBulkPhaseModal && (
+        <BulkPhaseModal
+          onClose={() => {
+            setShowBulkPhaseModal(false);
+            // Refresh phases list
+            const updatedPhases = phases.filter(p => p.signalId === signalId);
+            setSignalPhases(updatedPhases);
+          }}
+          preSelectedSignalId={signalId || ""}
+        />
+      )}
+
+      {/* Bulk Approach Modal */}
+      {showBulkApproachModal && (
+        <BulkApproachModal
+          onClose={() => {
+            setShowBulkApproachModal(false);
+            // Refresh approaches list
+            const updatedApproaches = approaches.filter(a => a.signalId === signalId);
+            setSignalApproaches(updatedApproaches);
+          }}
+          preSelectedSignalId={signalId || ""}
+        />
+      )}
+
+      {/* Bulk Detector Modal */}
+      {showBulkDetectorModal && (
+        <BulkDetectorModal
+          onClose={() => {
+            setShowBulkDetectorModal(false);
+            // Refresh detectors list
+            const updatedDetectors = detectors.filter(d => d.signalId === signalId);
+            setSignalDetectors(updatedDetectors);
+          }}
+          preSelectedSignalId={signalId || ""}
+        />
+      )}
+
+      {/* Basic Timing Modal */}
+      {showBasicTimingModal && (
+        <BasicTimingModal
+          onClose={() => {
+            setShowBasicTimingModal(false);
+            // Refresh timings list
+            const updatedTimings = basicTimings.filter(t => t.signalId === signalId);
+            setSignalTimings(updatedTimings);
+          }}
           preSelectedSignalId={signalId || ""}
         />
       )}

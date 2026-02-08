@@ -31,7 +31,7 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
   const [sortField, setSortField] = useState<SortField>('signalId');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-  const { signals, approaches, navigateToSignalDetails } = useGTSSStore();
+  const { agency, signals, approaches, navigateToSignalDetails } = useGTSSStore();
   const { toast } = useToast();
   const signalHooks = useSignals();
 
@@ -90,7 +90,14 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
   };
 
   const handleAdd = () => {
-    // Navigate to signal details view for creating a new signal
+    if (!agency?.agencyId) {
+      toast({
+        title: "Agency ID Required",
+        description: "Please fill in the Agency ID under Agency Info before adding signals.",
+        variant: "destructive",
+      });
+      return;
+    }
     navigateToSignalDetails(null);
   };
 
@@ -205,7 +212,32 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
         </div>
       </div>
       <Card>
-
+        <CardHeader className="bg-grey-50 border-b border-grey-200 p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-grey-700">
+                {signals.length} signal{signals.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setShowBulkModal(true)}
+                variant="outline"
+                className="h-8 px-3 text-xs border-primary-200 text-primary-700 hover:bg-primary-50 flex items-center gap-1"
+              >
+                <Navigation className="w-3 h-3" />
+                <span>Add Multiple</span>
+              </Button>
+              <Button
+                onClick={handleAdd}
+                className="h-8 px-3 text-xs bg-primary-600 hover:bg-primary-700 flex items-center gap-1"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Add Signal</span>
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
         <CardContent className="p-0">
           <div className="w-full">
             {/* Signals Table */}

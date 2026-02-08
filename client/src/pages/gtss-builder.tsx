@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useLoadFromStorage } from "@/lib/localStorageHooks";
-import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, FolderInput, Navigation, Plus, Coffee, Trash2, Menu, X, ExternalLink, Compass, Clock } from "lucide-react";
+import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, FolderInput, Navigation, Plus, Coffee, Trash2, Menu, X, ExternalLink, Compass, Clock, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import AgencyForm from "@/components/gtss/agency-form";
 import SignalsTable from "@/components/gtss/signals-table";
 import ApproachesTable from "@/components/gtss/approaches-table";
@@ -24,8 +25,8 @@ const tabs = [
   { id: "signals", label: "Traffic Signals", icon: MapPin },
   { id: "approaches", label: "Approaches", icon: Compass },
   { id: "phases", label: "Phases", icon: ArrowUpDown },
-  { id: "basic-timings", label: "Basic Timings", icon: Clock },
   { id: "detectors", label: "Detectors", icon: Target },
+  { id: "basic-timings", label: "Basic Timings", icon: Clock },
   { id: "agency", label: "Agency Info", icon: Building },
 ];
 
@@ -43,7 +44,7 @@ export default function GTSSBuilder() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showExportPanel, setShowExportPanel] = useState(false);
   const [showImportPanel, setShowImportPanel] = useState(false);
-  const { signals, approaches, phases, detectors, basicTimings, currentView, setAgency, setSignals, setApproaches, setPhases, setDetectors, setBasicTimings, navigateToSignalDetails } = useGTSSStore();
+  const { agency, signals, approaches, phases, detectors, basicTimings, currentView, setAgency, setSignals, setApproaches, setPhases, setDetectors, setBasicTimings, navigateToSignalDetails } = useGTSSStore();
   const { toast } = useToast();
 
   // Load data from localStorage on mount
@@ -66,6 +67,7 @@ export default function GTSSBuilder() {
   const [triggerAddPhase, setTriggerAddPhase] = useState(0);
   const [triggerBulkPhase, setTriggerBulkPhase] = useState(0);
   const [triggerAddDetector, setTriggerAddDetector] = useState(0);
+  const [triggerBulkDetector, setTriggerBulkDetector] = useState(0);
   const [triggerAddBasicTiming, setTriggerAddBasicTiming] = useState(0);
 
   const renderTabContent = () => {
@@ -91,18 +93,35 @@ export default function GTSSBuilder() {
       case "basic-timings":
         return <BasicTimingsTable triggerAdd={triggerAddBasicTiming} />;
       case "detectors":
-        return <DetectorsTable triggerAdd={triggerAddDetector} />;
+        return <DetectorsTable triggerAdd={triggerAddDetector} triggerBulk={triggerBulkDetector} />;
       default:
         return <AgencyForm />;
     }
   };
 
   const handleAddSignal = () => {
-    // Navigate to signal details view for new signal creation
+    if (!agency?.agencyId) {
+      toast({
+        title: "Agency ID Required",
+        description: "Please fill in the Agency ID under Agency Info before adding signals.",
+        variant: "destructive",
+      });
+      setActiveTab("agency");
+      return;
+    }
     navigateToSignalDetails(null);
   };
 
   const handleAddMultiple = () => {
+    if (!agency?.agencyId) {
+      toast({
+        title: "Agency ID Required",
+        description: "Please fill in the Agency ID under Agency Info before adding signals.",
+        variant: "destructive",
+      });
+      setActiveTab("agency");
+      return;
+    }
     setTriggerBulk(prev => prev + 1);
   };
 
@@ -160,19 +179,52 @@ export default function GTSSBuilder() {
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         {/* Header */}
-        <div className="p-3 border-b border-grey-200">
+        <div className="flex-shrink-0 p-3 border-b border-grey-200">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
               <TrafficCone className="text-white" size={16} />
             </div>
-            <div>
+            <div className="flex-1">
               <h1 className="text-lg font-bold text-grey-800">GTSS Builder</h1>
             </div>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-grey-400 hover:text-grey-600">
+                  <HelpCircle className="w-4 h-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="text-base">About GTSS Builder</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3 text-sm text-grey-700">
+                  <p>
+                    <strong>GTSS Builder</strong> is a tool for configuring traffic signal systems and exporting data in the
+                    {" "}<strong>GTSS (General Traffic Signal Specification)</strong> format &mdash; an open standard for describing
+                    traffic signal configurations including signal locations, phases, detection equipment, and timing parameters.
+                  </p>
+                  <p>
+                    All data is stored locally in your browser using localStorage. Nothing is sent to a server. Your work persists
+                    between sessions on the same browser.
+                  </p>
+                  <p>
+                    Use the <strong>Export</strong> feature to download your configuration as GTSS-formatted files, and
+                    {" "}<strong>Import</strong> to load previously exported data or migrate between browsers.
+                  </p>
+                  <p className="text-xs text-grey-500">
+                    Learn more about GTSS at{" "}
+                    <a href="https://gtss.dev" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                      gtss.dev
+                    </a>
+                  </p>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-2 overflow-y-auto">
+        <nav className="flex-1 p-2 overflow-y-auto min-h-0">
           <div className="space-y-1">
             {tabs.map((tab) => {
               const Icon = tab.icon;
@@ -190,6 +242,7 @@ export default function GTSSBuilder() {
                     setTriggerAddPhase(0);
                     setTriggerBulkPhase(0);
                     setTriggerAddDetector(0);
+                    setTriggerBulkDetector(0);
                     setTriggerAddBasicTiming(0);
                     setActiveTab(tab.id as TabType);
                     setShowExportPanel(false);
@@ -221,8 +274,8 @@ export default function GTSSBuilder() {
           </div>
         </nav>
 
-        {/* Footer Actions */}
-        <div className="p-2 border-t border-grey-200">
+        {/* Footer Actions - Always visible at bottom */}
+        <div className="flex-shrink-0 p-2 border-t border-grey-200">
           {/* About GTSS section */}
           <div className="mb-4 pb-3 border-b border-grey-200">
             <p className="text-xs font-medium text-grey-600 mb-2 px-2">About GTSS</p>
@@ -353,61 +406,13 @@ export default function GTSSBuilder() {
             </div>
             {!showExportPanel && !showImportPanel && activeTab === "signals" && (
               <div className="flex space-x-1">
-                <Button onClick={handleAddMultiple} variant="outline" className="h-7 px-2 text-xs border-primary-200 text-primary-700 hover:bg-primary-50 hidden sm:flex">
-                  <Navigation className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Add Multiple</span>
+                <Button onClick={handleAddMultiple} variant="outline" className="h-7 px-2 text-xs border-primary-200 text-primary-700 hover:bg-primary-50 flex items-center gap-1">
+                  <Navigation className="w-3 h-3" />
+                  <span>Add Multiple</span>
                 </Button>
-                <Button onClick={handleAddSignal} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
-                  <Plus className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Add Signal</span>
-                </Button>
-              </div>
-            )}
-            {!showExportPanel && !showImportPanel && activeTab === "approaches" && (
-              <div className="flex space-x-1">
-                <Button
-                  variant="outline"
-                  onClick={() => setTriggerBulkApproach(prev => prev + 1)}
-                  className="h-7 px-2 text-xs"
-                >
-                  <Plus className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Add Multiple</span>
-                </Button>
-                <Button onClick={handleAddApproach} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
-                  <Plus className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Add Approach</span>
-                </Button>
-              </div>
-            )}
-            {!showExportPanel && !showImportPanel && activeTab === "phases" && (
-              <div className="flex space-x-1">
-                <Button
-                  variant="outline"
-                  onClick={() => setTriggerBulkPhase(prev => prev + 1)}
-                  className="h-7 px-2 text-xs"
-                >
-                  <Plus className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Add Multiple</span>
-                </Button>
-                <Button onClick={handleAddPhase} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700 text-white">
-                  <Plus className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Add Phase</span>
-                </Button>
-              </div>
-            )}
-            {!showExportPanel && !showImportPanel && activeTab === "basic-timings" && (
-              <div className="flex space-x-1">
-                <Button onClick={handleAddBasicTiming} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
-                  <Plus className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Add Timing</span>
-                </Button>
-              </div>
-            )}
-            {!showExportPanel && !showImportPanel && activeTab === "detectors" && (
-              <div className="flex space-x-1">
-                <Button onClick={handleAddDetector} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700">
-                  <Plus className="w-3 h-3 sm:mr-1" />
-                  <span className="hidden sm:inline">Add Detector</span>
+                <Button onClick={handleAddSignal} className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700 flex items-center gap-1">
+                  <Plus className="w-3 h-3" />
+                  <span>Add Signal</span>
                 </Button>
               </div>
             )}

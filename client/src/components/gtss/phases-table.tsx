@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Phase } from "@shared/schema";
 import { usePhases } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronUp, ChevronDown, AlertTriangle, Trash2, MapPin } from "lucide-react";
+import { ChevronUp, ChevronDown, AlertTriangle, Trash2, MapPin, Download, Plus } from "lucide-react";
 import SignalsMap from "@/components/ui/signals-map";
 import { Button } from "@/components/ui/button";
 import PhaseModal from "./phase-modal";
@@ -27,12 +27,60 @@ export default function PhasesTable({ triggerAdd, triggerBulk }: PhasesTableProp
   const [editingPhase, setEditingPhase] = useState<Phase | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
-  const [filterSignal, setFilterSignal] = useState<string>("");
   const [sortField, setSortField] = useState<SortField>('phase');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const { signals, phases, approaches } = useGTSSStore();
+  const { signals, phases, approaches, selectedSignalIdForTables, setSelectedSignalIdForTables } = useGTSSStore();
+
+  // Use shared signal selection from store
+  const filterSignal = selectedSignalIdForTables;
+  const setFilterSignal = setSelectedSignalIdForTables;
   const { toast } = useToast();
   const phaseHooks = usePhases();
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  // Download diagram as JPG
+  const handleDownloadImage = () => {
+    if (!svgRef.current) return;
+
+    const svg = svgRef.current;
+    const svgClone = svg.cloneNode(true) as SVGSVGElement;
+    svgClone.setAttribute('width', '340');
+    svgClone.setAttribute('height', '360');
+
+    const svgData = new XMLSerializer().serializeToString(svgClone);
+    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const svgUrl = URL.createObjectURL(svgBlob);
+
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const scale = 2;
+      canvas.width = 340 * scale;
+      canvas.height = 360 * scale;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.scale(scale, scale);
+      ctx.drawImage(img, 0, 0, 340, 360);
+
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${filterSignal || 'phase-diagram'}.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 'image/jpeg', 0.95);
+
+      URL.revokeObjectURL(svgUrl);
+    };
+    img.src = svgUrl;
+  };
 
   // Handle triggers from parent component
   useEffect(() => {
@@ -181,29 +229,57 @@ export default function PhasesTable({ triggerAdd, triggerBulk }: PhasesTableProp
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              <Select value={filterSignal} onValueChange={setFilterSignal}>
-                <SelectTrigger className="w-full h-8 text-sm">
-                  <SelectValue placeholder="Select Signal" />
-                </SelectTrigger>
-                <SelectContent>
-                  {signals.map((signal) => (
-                    <SelectItem key={signal.signalId} value={signal.signalId}>
-                      {getSignalDisplayName(signal, approaches)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select value={filterSignal} onValueChange={setFilterSignal}>
+                  <SelectTrigger className="flex-1 h-8 text-sm">
+                    <SelectValue placeholder="Select Signal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {signals.map((signal) => (
+                      <SelectItem key={signal.signalId} value={signal.signalId}>
+                        {getSignalDisplayName(signal, approaches)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  onClick={() => setShowBulkModal(true)}
+                  className="h-8 px-3 text-xs bg-primary-600 hover:bg-primary-700 flex items-center gap-1 whitespace-nowrap"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Add Phases</span>
+                </Button>
+              </div>
               {filterSignal && (
                 <div className="flex items-stretch gap-3">
-                  {filteredPhases.length > 0 && (
-                    <div className="w-72 h-72 border border-grey-300 rounded-md overflow-hidden bg-white flex-shrink-0">
-                      <PhaseDiagram
-                        phases={filteredPhases}
-                        approaches={signalApproaches}
-                        compact
-                      />
-                    </div>
-                  )}
+                  {filteredPhases.length > 0 && (() => {
+                    const selectedSignal = signals.find(s => s.signalId === filterSignal);
+                    const signalName = selectedSignal ? getSignalDisplayName(selectedSignal, approaches) : filterSignal;
+                    return (
+                      <div className="flex flex-col items-center flex-shrink-0">
+                        <div className="text-sm font-semibold text-grey-700 mb-1 text-center">
+                          {signalName}
+                        </div>
+                        <div className="w-72 h-72 border border-grey-300 rounded-md overflow-hidden bg-white">
+                          <PhaseDiagram
+                            phases={filteredPhases}
+                            approaches={signalApproaches}
+                            svgRef={svgRef}
+                            compact
+                          />
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDownloadImage}
+                          className="mt-2 h-7 text-xs"
+                        >
+                          <Download className="w-3 h-3 mr-1" />
+                          Download JPG
+                        </Button>
+                      </div>
+                    );
+                  })()}
                   {(() => {
                     const selectedSignal = signals.find(s => s.signalId === filterSignal);
                     return (

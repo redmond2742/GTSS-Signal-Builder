@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Detector } from "@shared/schema";
 import { useDetectors } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
@@ -8,32 +8,40 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, ChevronUp, ChevronDown, MapPin } from "lucide-react";
+import { Plus, ChevronUp, ChevronDown, MapPin, Download } from "lucide-react";
 import SignalsMap from "@/components/ui/signals-map";
 import { getSignalDisplayName } from "@/lib/utils";
+import DetectorDiagram from "./detector-diagram";
 
 type SortField = 'signalId' | 'channel' | 'phase' | 'technologyType' | 'purpose';
 type SortDirection = 'asc' | 'desc';
 import DetectorModal from "./detector-modal";
+import BulkDetectorModal from "./bulk-detector-modal";
 
 interface DetectorsTableProps {
   triggerAdd?: number;
+  triggerBulk?: number;
 }
 
-export default function DetectorsTable({ triggerAdd }: DetectorsTableProps) {
+export default function DetectorsTable({ triggerAdd, triggerBulk }: DetectorsTableProps) {
   const [editingDetector, setEditingDetector] = useState<Detector | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [selectedSignalId, setSelectedSignalId] = useState<string>("");
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [sortField, setSortField] = useState<SortField>('signalId');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const { detectors, signals, approaches } = useGTSSStore();
-  
-  // Auto-select first signal on mount
+  const { detectors, signals, approaches, phases, selectedSignalIdForTables, setSelectedSignalIdForTables } = useGTSSStore();
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  // Use shared signal selection from store
+  const selectedSignalId = selectedSignalIdForTables;
+  const setSelectedSignalId = setSelectedSignalIdForTables;
+
+  // Auto-select first signal on mount if none selected
   useEffect(() => {
     if (signals.length > 0 && !selectedSignalId) {
       setSelectedSignalId(signals[0].signalId);
     }
-  }, [signals, selectedSignalId]);
+  }, [signals, selectedSignalId, setSelectedSignalId]);
   const { toast } = useToast();
   const detectorHooks = useDetectors();
 
@@ -44,10 +52,80 @@ export default function DetectorsTable({ triggerAdd }: DetectorsTableProps) {
     }
   }, [triggerAdd]);
 
+  // Handle bulk modal trigger
+  useEffect(() => {
+    if (triggerBulk && triggerBulk > 0) {
+      setShowBulkModal(true);
+    }
+  }, [triggerBulk]);
+
   // Filter detectors by selected signal
-  const filteredDetectors = selectedSignalId 
+  const filteredDetectors = selectedSignalId
     ? detectors.filter(detector => detector.signalId === selectedSignalId)
     : [];
+
+  // Get signal approaches and phases for diagram
+  const signalApproaches = selectedSignalId
+    ? approaches.filter(a => a.signalId === selectedSignalId)
+    : [];
+
+  const signalPhases = selectedSignalId
+    ? phases.filter(p => p.signalId === selectedSignalId)
+    : [];
+
+  // Download diagram as JPG
+  const handleDownloadDiagram = () => {
+    if (!svgRef.current) return;
+
+    const svgElement = svgRef.current;
+    const viewBox = svgElement.getAttribute('viewBox');
+    let svgWidth = 400;
+    let svgHeight = 440;
+
+    if (viewBox) {
+      const [, , width, height] = viewBox.split(' ').map(Number);
+      svgWidth = width;
+      svgHeight = height;
+    }
+
+    const svgData = new XMLSerializer().serializeToString(svgElement);
+    const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+    const svgUrl = URL.createObjectURL(svgBlob);
+
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const scale = 2;
+      canvas.width = svgWidth * scale;
+      canvas.height = svgHeight * scale;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.scale(scale, scale);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, svgWidth, svgHeight);
+
+      const signal = signals.find(s => s.signalId === selectedSignalId);
+      const fileName = signal
+        ? `detector-layout-${signal.signalId}.jpg`
+        : "detector-layout.jpg";
+
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(url);
+      }, "image/jpeg", 0.95);
+
+      URL.revokeObjectURL(svgUrl);
+    };
+    img.src = svgUrl;
+  };
 
   const handleEdit = (detector: Detector) => {
     setEditingDetector(detector);
@@ -153,19 +231,19 @@ export default function DetectorsTable({ triggerAdd }: DetectorsTableProps) {
   return (
     <div className="max-w-6xl">
       <Card>
-        <CardHeader className="bg-grey-50 border-b border-grey-200 flex flex-row items-center justify-start px-3 py-2">
-          <div className="flex space-x-2 items-center">
-            {signals.length === 0 ? (
-              <div className="p-2 bg-warning-50 border border-warning-200 rounded-md">
-                <p className="text-xs text-warning-700">
-                  No signals configured. Please add signals before creating detectors.
-                </p>
-              </div>
-            ) : (
-              <>
+        <CardHeader className="bg-grey-50 border-b border-grey-200 p-3">
+          {signals.length === 0 ? (
+            <div className="p-2 bg-warning-50 border border-warning-200 rounded-md">
+              <p className="text-xs text-warning-700">
+                No signals configured. Please add signals before creating detectors.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
                 <Select value={selectedSignalId} onValueChange={setSelectedSignalId}>
-                  <SelectTrigger className="w-80 h-7 text-xs">
-                    <SelectValue placeholder="Choose signal to view detectors" />
+                  <SelectTrigger className="flex-1 h-8 text-sm">
+                    <SelectValue placeholder="Select Signal" />
                   </SelectTrigger>
                   <SelectContent>
                     {signals.map((signal) => (
@@ -175,28 +253,65 @@ export default function DetectorsTable({ triggerAdd }: DetectorsTableProps) {
                     ))}
                   </SelectContent>
                 </Select>
-                {selectedSignalId && (
-                  <span className="text-xs text-grey-600">({filteredDetectors.length} detector(s))</span>
-                )}
-              </>
-            )}
-          </div>
-          {selectedSignalId && (() => {
-            const selectedSignal = signals.find(s => s.signalId === selectedSignalId);
-            return (
-              <div className="flex-1 ml-4 h-20">
-                {selectedSignal && selectedSignal.latitude && selectedSignal.longitude ? (
-                  <div className="w-full h-full border border-grey-300 rounded-md overflow-hidden bg-white relative z-0">
-                    <SignalsMap signals={[selectedSignal]} className="w-full h-full" />
-                  </div>
-                ) : (
-                  <div className="w-full h-full border border-grey-300 rounded-md bg-grey-100 flex items-center justify-center">
-                    <MapPin className="w-6 h-6 text-grey-400" />
-                  </div>
-                )}
+                <Button
+                  onClick={() => setShowBulkModal(true)}
+                  className="h-8 px-3 text-xs bg-primary-600 hover:bg-primary-700 flex items-center gap-1 whitespace-nowrap"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Add Detectors</span>
+                </Button>
               </div>
-            );
-          })()}
+              {selectedSignalId && (
+                <div className="flex flex-col gap-2">
+                  {filteredDetectors.length > 0 && (() => {
+                    const selectedSignal = signals.find(s => s.signalId === selectedSignalId);
+                    const signalName = selectedSignal ? getSignalDisplayName(selectedSignal, approaches) : selectedSignalId;
+                    return (
+                      <div className="flex flex-col items-center">
+                        <div className="text-sm font-semibold text-grey-700 mb-1 text-center">
+                          {signalName}
+                        </div>
+                        <div className="w-72 h-72 border border-grey-300 rounded-md overflow-hidden bg-white">
+                          <DetectorDiagram
+                            detectors={filteredDetectors}
+                            phases={signalPhases}
+                            approaches={signalApproaches}
+                            signal={selectedSignal}
+                            svgRef={svgRef}
+                          />
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDownloadDiagram}
+                          className="mt-2 h-7 text-xs"
+                        >
+                          <Download className="w-3 h-3 mr-1" />
+                          Download JPG
+                        </Button>
+                      </div>
+                    );
+                  })()}
+                  {(() => {
+                    const selectedSignal = signals.find(s => s.signalId === selectedSignalId);
+                    return (
+                      <div className="w-full h-72">
+                        {selectedSignal && selectedSignal.latitude && selectedSignal.longitude ? (
+                          <div className="w-full h-full border border-grey-300 rounded-md overflow-hidden bg-white relative z-0">
+                            <SignalsMap signals={[selectedSignal]} className="w-full h-full" />
+                          </div>
+                        ) : (
+                          <div className="w-full h-full border border-grey-300 rounded-md bg-grey-100 flex items-center justify-center">
+                            <MapPin className="w-6 h-6 text-grey-400" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          )}
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -253,6 +368,13 @@ export default function DetectorsTable({ triggerAdd }: DetectorsTableProps) {
           detector={editingDetector}
           onClose={handleModalClose}
           preSelectedSignalId={editingDetector ? undefined : selectedSignalId}
+        />
+      )}
+
+      {showBulkModal && (
+        <BulkDetectorModal
+          onClose={() => setShowBulkModal(false)}
+          preSelectedSignalId={selectedSignalId}
         />
       )}
     </div>

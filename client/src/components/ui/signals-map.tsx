@@ -218,10 +218,12 @@ export default function SignalsMap({ signals, approaches, onSignalSelect, onSign
         {approaches && signals.filter(signal => signal.latitude && signal.longitude).map((signal) => {
           const signalApproaches = approaches.filter(a => a.signalId === signal.signalId && a.compassBearing !== null);
           return signalApproaches.map((approach, idx) => {
+            // Approach bearing indicates where traffic comes FROM, so add 180 to point the line toward the intersection
+            const lineDirection = (approach.compassBearing! + 180) % 360;
             const endpoint = getApproachEndpoint(
               signal.latitude,
               signal.longitude,
-              approach.compassBearing!,
+              lineDirection,
               60 // distance in meters
             );
             const color = approachColors[idx % approachColors.length];

@@ -46,13 +46,13 @@ interface GridTimingRow {
 
 const createEmptyGridRow = (phase: number): GridTimingRow => ({
   phase,
-  minGreen: "",
-  maxGreen: "",
-  yellow: "",
-  allRed: "",
-  pedWalk: "",
-  pedClearance: "",
-  lpi: "",
+  minGreen: "0",
+  maxGreen: "0",
+  yellow: "0",
+  allRed: "0",
+  pedWalk: "0",
+  pedClearance: "0",
+  lpi: "0",
   vehRecall: "None",
   pedRecall: false,
 });
@@ -164,13 +164,13 @@ export default function BasicTimingModal({ timing, onClose, preSelectedSignalId 
     defaultValues: {
       phase: 2,
       signalId: preSelectedSignalId || "",
-      pedWalk: undefined,
-      pedClearance: undefined,
-      leadingPedInterval: undefined,
-      minGreen: undefined,
-      maxGreen: undefined,
-      yellow: undefined,
-      allRed: undefined,
+      pedWalk: 0,
+      pedClearance: 0,
+      leadingPedInterval: 0,
+      minGreen: 0,
+      maxGreen: 0,
+      yellow: 0,
+      allRed: 0,
       vehRecallType: "None",
       pedRecall: false,
     },
@@ -510,7 +510,7 @@ export default function BasicTimingModal({ timing, onClose, preSelectedSignalId 
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-screen overflow-auto">
+      <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] overflow-auto fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Clock className="w-5 h-5" />

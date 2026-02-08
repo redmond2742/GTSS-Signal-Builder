@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Save, Trash2, Download } from "lucide-react";
+import { Plus, Save, Trash2, Download, ChevronUp, ChevronDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getSignalDisplayName } from "@/lib/utils";
 
@@ -585,6 +585,73 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId }: BulkPha
   const [isProcessing, setIsProcessing] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
+  // Sorting state
+  type SortField = 'phase' | 'approachId' | 'movementType' | 'numOfLanes' | 'isOverlap' | 'isPedestrian';
+  const [sortField, setSortField] = useState<SortField>('phase');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  // Handle sort
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Get sorted phases
+  const getSortedPhases = () => {
+    return [...pendingPhases].sort((a, b) => {
+      let comparison = 0;
+
+      switch (sortField) {
+        case 'phase':
+          comparison = a.phase - b.phase;
+          break;
+        case 'approachId':
+          comparison = (a.approachId || '').localeCompare(b.approachId || '');
+          break;
+        case 'movementType':
+          comparison = a.movementType.localeCompare(b.movementType);
+          break;
+        case 'numOfLanes':
+          comparison = a.numOfLanes - b.numOfLanes;
+          break;
+        case 'isOverlap':
+          comparison = (a.isOverlap ? 1 : 0) - (b.isOverlap ? 1 : 0);
+          break;
+        case 'isPedestrian':
+          comparison = (a.isPedestrian ? 1 : 0) - (b.isPedestrian ? 1 : 0);
+          break;
+        default:
+          comparison = a.phase - b.phase;
+      }
+
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  };
+
+  // Sortable header component
+  const SortableHeader = ({ field, children, className = "" }: { field: SortField; children: React.ReactNode; className?: string }) => (
+    <TableHead
+      className={`text-xs py-2 cursor-pointer hover:bg-grey-100 transition-colors ${className}`}
+      onClick={() => handleSort(field)}
+    >
+      <div className="flex items-center justify-between">
+        {children}
+        <div className="flex flex-col ml-1">
+          <ChevronUp
+            className={`w-3 h-3 ${sortField === field && sortDirection === 'asc' ? 'text-primary-600' : 'text-grey-300'}`}
+          />
+          <ChevronDown
+            className={`w-3 h-3 -mt-1 ${sortField === field && sortDirection === 'desc' ? 'text-primary-600' : 'text-grey-300'}`}
+          />
+        </div>
+      </div>
+    </TableHead>
+  );
+
   // Get approaches for selected signal
   const signalApproaches = useMemo(() => {
     return allApproaches.filter(a => a.signalId === selectedSignalId);
@@ -877,7 +944,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId }: BulkPha
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%]">
         {/* Header with title and signal selector */}
         <DialogHeader>
           <div className="flex items-center justify-between gap-4">
@@ -967,17 +1034,19 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId }: BulkPha
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-grey-50">
-                          <TableHead className="w-24 text-xs py-2">Phase</TableHead>
-                          <TableHead className="text-xs py-2">Approach</TableHead>
-                          <TableHead className="text-xs py-2">Movement</TableHead>
-                          <TableHead className="w-16 text-xs py-2">Lanes</TableHead>
-                          <TableHead className="w-20 text-xs py-2 text-center">Overlap</TableHead>
-                          <TableHead className="w-20 text-xs py-2 text-center">Ped</TableHead>
+                          <SortableHeader field="phase" className="w-24">Phase</SortableHeader>
+                          <SortableHeader field="approachId">Approach</SortableHeader>
+                          <SortableHeader field="movementType">Movement</SortableHeader>
+                          <SortableHeader field="numOfLanes" className="w-16">Lanes</SortableHeader>
+                          <SortableHeader field="isOverlap" className="w-20 text-center">Overlap</SortableHeader>
+                          <SortableHeader field="isPedestrian" className="w-20 text-center">Ped</SortableHeader>
                           <TableHead className="w-12 text-xs py-2"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {pendingPhases.map((phase, idx) => (
+                        {getSortedPhases().map((phase) => {
+                          const idx = pendingPhases.findIndex(p => p.id === phase.id && p.phase === phase.phase && p.approachId === phase.approachId);
+                          return (
                           <TableRow key={idx}>
                             <TableCell className="py-1.5">
                               <div className="flex items-center gap-2">
@@ -1063,7 +1132,8 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId }: BulkPha
                               </Button>
                             </TableCell>
                           </TableRow>
-                        ))}
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>

@@ -3,10 +3,11 @@ import { Approach } from "@shared/schema";
 import { useApproaches } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronUp, ChevronDown, MapPin } from "lucide-react";
+import { ChevronUp, ChevronDown, MapPin, Plus } from "lucide-react";
 import SignalsMap, { approachColors } from "@/components/ui/signals-map";
 import ApproachModal from "./approach-modal";
 import BulkApproachModal from "./bulk-approach-modal";
@@ -24,17 +25,20 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
   const [editingApproach, setEditingApproach] = useState<Approach | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
-  const [selectedSignalId, setSelectedSignalId] = useState<string>("");
   const [sortField, setSortField] = useState<SortField>('approachId');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const { approaches, signals } = useGTSSStore();
+  const { approaches, signals, selectedSignalIdForTables, setSelectedSignalIdForTables } = useGTSSStore();
 
-  // Auto-select first signal on mount
+  // Use shared signal selection from store
+  const selectedSignalId = selectedSignalIdForTables;
+  const setSelectedSignalId = setSelectedSignalIdForTables;
+
+  // Auto-select first signal on mount if none selected
   useEffect(() => {
     if (signals.length > 0 && !selectedSignalId) {
       setSelectedSignalId(signals[0].signalId);
     }
-  }, [signals, selectedSignalId]);
+  }, [signals, selectedSignalId, setSelectedSignalId]);
 
   const approachHooks = useApproaches();
 
@@ -195,6 +199,13 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
                 {selectedSignalId && (
                   <span className="text-xs text-grey-600 whitespace-nowrap">({filteredApproaches.length} approach{filteredApproaches.length !== 1 ? 'es' : ''})</span>
                 )}
+                <Button
+                  onClick={() => setShowBulkModal(true)}
+                  className="h-8 px-3 text-xs bg-primary-600 hover:bg-primary-700 flex items-center gap-1 whitespace-nowrap"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Add Approaches</span>
+                </Button>
               </div>
               {selectedSignalId && (() => {
                 const selectedSignal = signals.find(s => s.signalId === selectedSignalId);
@@ -244,34 +255,45 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
                     </TableCell>
                   </TableRow>
                 ) : (
-                  getSortedApproaches().map((approach) => (
-                    <TableRow
-                      key={approach.id}
-                      className="cursor-pointer hover:bg-gray-50 transition-colors"
-                      onClick={() => handleRowClick(approach)}
-                    >
-                      <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">{approach.approachId}</TableCell>
-                      <TableCell className="text-grey-600 text-xs py-1.5 px-2">{approach.streetName}</TableCell>
-                      <TableCell className="py-1.5 px-2">
-                        {approach.compassBearing !== null ? (
-                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs py-0 px-1.5 h-4">
-                            {approach.compassBearing}° {getBearingDirection(approach.compassBearing)}
-                          </Badge>
-                        ) : (
-                          <span className="text-grey-400 text-xs">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-1.5 px-2">
-                        {approach.postedSpeed !== null ? (
-                          <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs py-0 px-1.5 h-4">
-                            {approach.postedSpeed} mph
-                          </Badge>
-                        ) : (
-                          <span className="text-grey-400 text-xs">-</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  (() => {
+                    const approachesWithBearing = filteredApproaches.filter(a => a.compassBearing !== null);
+                    return getSortedApproaches().map((approach) => {
+                      const colorIndex = approachesWithBearing.findIndex(a => a.id === approach.id);
+                      const color = colorIndex >= 0 ? approachColors[colorIndex % approachColors.length] : undefined;
+                      return (
+                        <TableRow
+                          key={approach.id}
+                          className="cursor-pointer hover:bg-gray-50 transition-colors"
+                          onClick={() => handleRowClick(approach)}
+                        >
+                          <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">{approach.approachId}</TableCell>
+                          <TableCell className="text-grey-600 text-xs py-1.5 px-2">{approach.streetName}</TableCell>
+                          <TableCell className="py-1.5 px-2">
+                            {approach.compassBearing !== null && color ? (
+                              <Badge
+                                variant="secondary"
+                                className="text-xs py-0 px-1.5 h-4 text-white"
+                                style={{ backgroundColor: color }}
+                              >
+                                {approach.compassBearing}° {getBearingDirection(approach.compassBearing)}
+                              </Badge>
+                            ) : (
+                              <span className="text-grey-400 text-xs">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-1.5 px-2">
+                            {approach.postedSpeed !== null ? (
+                              <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs py-0 px-1.5 h-4">
+                                {approach.postedSpeed} mph
+                              </Badge>
+                            ) : (
+                              <span className="text-grey-400 text-xs">-</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    });
+                  })()
                 )}
               </TableBody>
             </Table>
