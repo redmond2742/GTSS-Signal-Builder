@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLoadFromStorage } from "@/lib/localStorageHooks";
-import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, FolderInput, Navigation, Plus, Coffee, Trash2, Menu, X, ExternalLink, Compass, Clock, HelpCircle } from "lucide-react";
+import { TrafficCone, Building, MapPin, ArrowUpDown, Target, FolderOutput, FolderInput, Navigation, Plus, Coffee, Trash2, Menu, X, ExternalLink, Compass, Clock, HelpCircle, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -13,6 +13,7 @@ import DetectorsTable from "@/components/gtss/detectors-table";
 import BasicTimingsTable from "@/components/gtss/basic-timings-table";
 import ExportPanel from "@/components/gtss/export-panel";
 import { ImportPanel } from "@/components/gtss/import-panel";
+import AgencyDefaultsSettings from "@/components/gtss/agency-defaults-settings";
 import SignalDetails from "@/pages/signal-details";
 import { useGTSSStore } from "@/store/gtss-store";
 import { useToast } from "@/hooks/use-toast";
@@ -44,6 +45,7 @@ export default function GTSSBuilder() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showExportPanel, setShowExportPanel] = useState(false);
   const [showImportPanel, setShowImportPanel] = useState(false);
+  const [showAgencyDefaults, setShowAgencyDefaults] = useState(false);
   const { agency, signals, approaches, phases, detectors, basicTimings, currentView, setAgency, setSignals, setApproaches, setPhases, setDetectors, setBasicTimings, navigateToSignalDetails } = useGTSSStore();
   const { toast } = useToast();
 
@@ -79,6 +81,11 @@ export default function GTSSBuilder() {
     // If import panel is shown, render it regardless of active tab
     if (showImportPanel) {
       return <ImportPanel onImportComplete={() => window.location.reload()} />;
+    }
+
+    // Agency defaults settings panel
+    if (showAgencyDefaults) {
+      return <AgencyDefaultsSettings />;
     }
 
     switch (activeTab) {
@@ -247,6 +254,7 @@ export default function GTSSBuilder() {
                     setActiveTab(tab.id as TabType);
                     setShowExportPanel(false);
                     setShowImportPanel(false);
+                    setShowAgencyDefaults(false);
                     setIsMobileMenuOpen(false);
                   }}
                   className={cn(
@@ -303,6 +311,30 @@ export default function GTSSBuilder() {
             </Button>
           </div>
 
+          {/* Settings section */}
+          <div className="mb-4 pb-3 border-b border-grey-200">
+            <p className="text-xs font-medium text-grey-600 mb-2 px-2">Settings</p>
+            <Button
+              variant="outline"
+              className={cn(
+                "w-full h-7 text-xs",
+                showAgencyDefaults
+                  ? "bg-primary-100 text-primary-700 border-primary-200"
+                  : "bg-grey-100 text-grey-700 hover:bg-grey-200"
+              )}
+              onClick={() => {
+                setShowAgencyDefaults(true);
+                setShowImportPanel(false);
+                setShowExportPanel(false);
+                setIsMobileMenuOpen(false);
+              }}
+              data-testid="button-agency-defaults"
+            >
+              <SlidersHorizontal className="w-3 h-3 mr-1" />
+              Agency Defaults
+            </Button>
+          </div>
+
           {/* Import/Export section */}
           <div className="mb-4 pb-3 border-b border-grey-200">
             <p className="text-xs font-medium text-grey-600 mb-2 px-2">Data Management</p>
@@ -318,6 +350,7 @@ export default function GTSSBuilder() {
                 onClick={() => {
                   setShowImportPanel(true);
                   setShowExportPanel(false);
+                  setShowAgencyDefaults(false);
                   setIsMobileMenuOpen(false);
                 }}
                 data-testid="button-import"
@@ -336,6 +369,7 @@ export default function GTSSBuilder() {
                 onClick={() => {
                   setShowExportPanel(true);
                   setShowImportPanel(false);
+                  setShowAgencyDefaults(false);
                   setIsMobileMenuOpen(false);
                 }}
                 data-testid="button-export"
@@ -397,10 +431,10 @@ export default function GTSSBuilder() {
               </Button>
               <div>
                 <h2 className="text-base lg:text-lg font-bold text-grey-800">
-                  {showExportPanel ? "Export Data" : showImportPanel ? "Import Data" : tabTitles[activeTab].title}
+                  {showExportPanel ? "Export Data" : showImportPanel ? "Import Data" : showAgencyDefaults ? "Agency Defaults" : tabTitles[activeTab].title}
                 </h2>
                 <p className="text-xs text-grey-500 hidden sm:block">
-                  {showExportPanel ? "Export your traffic signal data to files" : showImportPanel ? "Import traffic signal data from files or paste" : tabTitles[activeTab].desc}
+                  {showExportPanel ? "Export your traffic signal data to files" : showImportPanel ? "Import traffic signal data from files or paste" : showAgencyDefaults ? "Configure default phase-to-direction standards for your agency" : tabTitles[activeTab].desc}
                 </p>
               </div>
             </div>

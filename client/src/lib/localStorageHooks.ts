@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useGTSSStore } from '@/store/gtss-store';
 import {
   agencyStorage,
+  agencyDefaultsStorage,
   signalStorage,
   approachStorage,
   phaseStorage,
@@ -18,8 +19,30 @@ import {
   InsertDetector,
   InsertBasicTiming
 } from '@shared/schema';
+import { AgencyDefaults } from './agencyDefaults';
 
 // Custom hooks to replace TanStack Query for localStorage operations
+
+export const useAgencyDefaults = () => {
+  const { agencyDefaults, setAgencyDefaults } = useGTSSStore();
+
+  const saveAgencyDefaults = (defaults: AgencyDefaults) => {
+    const saved = agencyDefaultsStorage.save(defaults);
+    setAgencyDefaults(saved);
+    return saved;
+  };
+
+  const clearAgencyDefaults = () => {
+    agencyDefaultsStorage.clear();
+    setAgencyDefaults(null);
+  };
+
+  return {
+    data: agencyDefaults,
+    save: saveAgencyDefaults,
+    clear: clearAgencyDefaults,
+  };
+};
 
 export const useAgency = () => {
   const { agency, setAgency } = useGTSSStore();

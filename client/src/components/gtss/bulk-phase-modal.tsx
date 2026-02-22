@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Save, Trash2, Download, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Save, Trash2, Download, ChevronUp, ChevronDown, Wand2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getSignalDisplayName } from "@/lib/utils";
+import { guessPhaseDirectionMapping, isTypicallyThroughPhase } from "@/lib/agencyDefaults";
 
 interface PendingPhase {
   id?: string;
@@ -574,8 +575,10 @@ const PhaseDiagram = ({ phases, approaches, intersectionName, svgRef }: PhaseDia
   );
 };
 
+const PHASE_COUNT_OPTIONS = [2, 4, 6, 8] as const;
+
 export default function BulkPhaseModal({ onClose, preSelectedSignalId }: BulkPhaseModalProps) {
-  const { signals, approaches: allApproaches, phases: existingPhases } = useGTSSStore();
+  const { signals, approaches: allApproaches, phases: existingPhases, agencyDefaults } = useGTSSStore();
   const { toast } = useToast();
   const phaseHooks = usePhases();
   const svgRef = useRef<SVGSVGElement>(null);
@@ -584,6 +587,9 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId }: BulkPha
   const [pendingPhases, setPendingPhases] = useState<PendingPhase[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [targetPhaseCount, setTargetPhaseCount] = useState<number>(
+    agencyDefaults?.defaultPhaseCount ?? 8
+  );
 
   // Sorting state
   type SortField = 'phase' | 'approachId' | 'movementType' | 'numOfLanes' | 'isOverlap' | 'isPedestrian';
@@ -825,6 +831,99 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId }: BulkPha
     });
   };
 
+  /**
+   * Auto-assign approach IDs to phases using agency defaults.
+   * - Phases with no approachId get assigned from the guess mapping.
+   * - New phases needed by the mapping (not yet in pendingPhases) are created.
+   * - Existing phases not in the mapping are left untouched.
+   * @param overwrite - If true, overwrite even phases that already have an approachId.
+   */
+  const handleAutoAssign = (overwrite = false) => {
+    if (!selectedSignalId) {
+      toast({
+        title: "No Signal Selected",
+        description: "Please select a signal first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (signalApproaches.length === 0) {
+      toast({
+        title: "No Approaches",
+        description: "This signal has no approaches. Add approaches first in the Approaches tab.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Get guess mapping: phaseNumber → approachId
+    const mapping = guessPhaseDirectionMapping({
+      phaseCount: targetPhaseCount,
+      approaches: signalApproaches,
+      agencyDefaults,
+    });
+
+    if (Object.keys(mapping).length === 0) {
+      toast({
+        title: "No Mapping Available",
+        description: "Could not generate a mapping. Check that approaches have compass bearings set.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    let assignedCount = 0;
+    let createdCount = 0;
+
+    setPendingPhases((prev) => {
+      const updated = [...prev];
+
+      for (const [phaseNumStr, approachId] of Object.entries(mapping)) {
+        const phaseNum = Number(phaseNumStr);
+        const existingIndex = updated.findIndex((p) => p.phase === phaseNum);
+
+        if (existingIndex >= 0) {
+          // Phase exists: assign only if unassigned (or overwrite=true)
+          if (overwrite || !updated[existingIndex].approachId) {
+            updated[existingIndex] = { ...updated[existingIndex], approachId };
+            assignedCount++;
+          }
+        } else {
+          // Phase doesn't exist: create it
+          const isThrough = isTypicallyThroughPhase(phaseNum);
+          updated.push({
+            phase: phaseNum,
+            approachId,
+            movementType: isThrough ? "Through" : "Left Turn",
+            numOfLanes: 1,
+            isPedestrian: isThrough,
+            isOverlap: false,
+          });
+          createdCount++;
+        }
+      }
+
+      return updated;
+    });
+
+    const parts: string[] = [];
+    if (assignedCount > 0) parts.push(`Assigned ${assignedCount} approach${assignedCount !== 1 ? "es" : ""}`);
+    if (createdCount > 0) parts.push(`Created ${createdCount} phase${createdCount !== 1 ? "s" : ""}`);
+
+    if (parts.length > 0) {
+      toast({
+        title: "Auto-Assign Complete",
+        description: parts.join(", ") + " using agency defaults.",
+      });
+    } else {
+      toast({
+        title: "Nothing to Assign",
+        description: "All phases already have approaches. Use 'Re-assign All' to overwrite.",
+      });
+    }
+  };
+
   // Save all phases
   const handleSaveAll = async () => {
     if (!selectedSignalId) {
@@ -984,6 +1083,57 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId }: BulkPha
             </div>
           ) : (
             <>
+              {/* Phase count + auto-assign toolbar */}
+              <div className="flex flex-wrap items-center gap-3 p-3 bg-grey-50 border border-grey-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-grey-700 whitespace-nowrap">Phase count:</span>
+                  <div className="flex gap-1">
+                    {PHASE_COUNT_OPTIONS.map((count) => (
+                      <Button
+                        key={count}
+                        type="button"
+                        variant={targetPhaseCount === count ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setTargetPhaseCount(count)}
+                        className={`h-7 w-9 p-0 text-xs font-semibold ${
+                          targetPhaseCount === count
+                            ? "bg-primary-600 hover:bg-primary-700 text-white"
+                            : "border-grey-200 text-grey-700 hover:bg-grey-100"
+                        }`}
+                      >
+                        {count}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 ml-auto">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAutoAssign(false)}
+                    className="h-7 text-xs border-primary-200 text-primary-700 hover:bg-primary-50 flex items-center gap-1"
+                    disabled={signalApproaches.length === 0}
+                    title="Auto-assign approaches to unassigned phases using agency defaults"
+                  >
+                    <Wand2 className="w-3 h-3" />
+                    Auto-assign using Agency Defaults
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAutoAssign(true)}
+                    className="h-7 text-xs border-amber-200 text-amber-700 hover:bg-amber-50 flex items-center gap-1"
+                    disabled={signalApproaches.length === 0}
+                    title="Re-assign all phases (overwrites existing approach assignments)"
+                  >
+                    <Wand2 className="w-3 h-3" />
+                    Re-assign All
+                  </Button>
+                </div>
+              </div>
+
               {/* Phase Diagram - centered */}
               <div className="border border-grey-200 rounded-lg p-2">
                 <div className="flex items-center justify-between mb-2">

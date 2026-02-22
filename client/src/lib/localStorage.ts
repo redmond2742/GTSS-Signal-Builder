@@ -1,4 +1,5 @@
 import { Agency, Signal, Phase, Detector, Approach, BasicTiming, InsertAgency, InsertSignal, InsertPhase, InsertDetector, InsertApproach, InsertBasicTiming } from '@shared/schema';
+import { AgencyDefaults, NEMA_DEFAULTS } from './agencyDefaults';
 import { nanoid } from 'nanoid';
 
 // Storage keys
@@ -9,6 +10,7 @@ const STORAGE_KEYS = {
   DETECTORS: 'gtss_detectors',
   APPROACHES: 'gtss_approaches',
   BASIC_TIMINGS: 'gtss_basic_timings',
+  AGENCY_DEFAULTS: 'gtss_agency_defaults',
 };
 
 // Maximum localStorage size (5MB)
@@ -517,6 +519,26 @@ export const basicTimingStorage = {
   },
 };
 
+// Agency Defaults operations
+export const agencyDefaultsStorage = {
+  get: (): AgencyDefaults | null => {
+    return getFromStorage<AgencyDefaults | null>(STORAGE_KEYS.AGENCY_DEFAULTS, null);
+  },
+
+  save: (defaults: AgencyDefaults): AgencyDefaults => {
+    const updated: AgencyDefaults = {
+      ...defaults,
+      updatedAt: new Date().toISOString(),
+    };
+    saveToStorage(STORAGE_KEYS.AGENCY_DEFAULTS, updated);
+    return updated;
+  },
+
+  clear: (): void => {
+    localStorage.removeItem(STORAGE_KEYS.AGENCY_DEFAULTS);
+  },
+};
+
 // Clear all GTSS data
 export const clearAllData = (): void => {
   agencyStorage.clear();
@@ -525,6 +547,8 @@ export const clearAllData = (): void => {
   phaseStorage.clear();
   detectorStorage.clear();
   basicTimingStorage.clear();
+  // Note: agency defaults are intentionally NOT cleared with clearAllData,
+  // as they are a configuration preference, not signal data.
 };
 
 // Export all data

@@ -1,9 +1,11 @@
 import { create } from 'zustand';
 import { Agency, Signal, Phase, Detector, Approach, BasicTiming } from '@shared/schema';
-import { agencyStorage, signalStorage, phaseStorage, detectorStorage, approachStorage, basicTimingStorage } from '@/lib/localStorage';
+import { AgencyDefaults } from '@/lib/agencyDefaults';
+import { agencyStorage, signalStorage, phaseStorage, detectorStorage, approachStorage, basicTimingStorage, agencyDefaultsStorage } from '@/lib/localStorage';
 
 interface GTSSStore {
   agency: Agency | null;
+  agencyDefaults: AgencyDefaults | null;
   signals: Signal[];
   approaches: Approach[];
   phases: Phase[];
@@ -19,6 +21,7 @@ interface GTSSStore {
   setSelectedSignalIdForTables: (signalId: string) => void;
 
   setAgency: (agency: Agency | null) => void;
+  setAgencyDefaults: (defaults: AgencyDefaults | null) => void;
   setSignals: (signals: Signal[]) => void;
   addSignal: (signal: Signal) => void;
   updateSignal: (signalId: string, signal: Signal) => void;
@@ -54,6 +57,7 @@ interface GTSSStore {
 
 export const useGTSSStore = create<GTSSStore>((set) => ({
   agency: agencyStorage.get(),
+  agencyDefaults: agencyDefaultsStorage.get(),
   signals: signalStorage.getAll(),
   approaches: approachStorage.getAll(),
   phases: phaseStorage.getAll(),
@@ -69,6 +73,7 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
   setSelectedSignalIdForTables: (signalId) => set({ selectedSignalIdForTables: signalId }),
 
   setAgency: (agency) => set({ agency }),
+  setAgencyDefaults: (agencyDefaults) => set({ agencyDefaults }),
 
   setSignals: (signals) => set({ signals }),
   addSignal: (signal) => set((state) => ({ signals: [...state.signals, signal] })),
@@ -137,6 +142,7 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
 
   loadFromStorage: () => set({
     agency: agencyStorage.get(),
+    agencyDefaults: agencyDefaultsStorage.get(),
     signals: signalStorage.getAll(),
     approaches: approachStorage.getAll(),
     phases: phaseStorage.getAll(),
