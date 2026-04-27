@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from "react-leaflet";
+import { MapContainer, Marker, Popup, useMap, Polyline } from "react-leaflet";
 import L from "leaflet";
 import { Signal, Approach } from "@shared/schema";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Check, X, Edit } from "lucide-react";
 import { useGTSSStore } from "@/store/gtss-store";
 import "leaflet/dist/leaflet.css";
+import MapTileLayers from "./map-tile-layers";
 
 // Fix for default markers in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -191,10 +192,7 @@ export default function SignalsMap({ signals, approaches, onSignalSelect, onSign
         className="rounded-lg"
         key={`map-${signals.length}-${center[0]}-${center[1]}`}
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        <MapTileLayers />
         
         <MapBounds signals={signals} />
         

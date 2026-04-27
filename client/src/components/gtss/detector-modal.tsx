@@ -11,9 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, Marker, Popup } from "react-leaflet";
 import { X, MapPin, Target, Trash2 } from "lucide-react";
 import { getSignalDisplayName } from "@/lib/utils";
+import MapTileLayers from "@/components/ui/map-tile-layers";
 // Removed image import for simplified interface
 
 const compassDirections = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -555,10 +556,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                         zoom={18}
                         style={{ height: "100%", width: "100%" }}
                       >
-                        <TileLayer
-                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        />
+                        <MapTileLayers />
                         <Marker position={[selectedSignal.latitude || 0, selectedSignal.longitude || 0]}>
                           <Popup>
                             <div className="text-center">

@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Polyline, useMapEvents } from "react-leaflet";
+import { MapContainer, Marker, Polyline, useMapEvents } from "react-leaflet";
+import MapTileLayers from "@/components/ui/map-tile-layers";
 import L from "leaflet";
 import { useApproaches } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
@@ -210,10 +211,14 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId }: Bulk
       const updated = [...prev];
       updated[index].streetName = value;
 
-      // Auto-fill opposite approach if it's empty
       const oppositeIndex = findOppositeApproachIndex(index, updated);
-      if (oppositeIndex !== null && !updated[oppositeIndex].streetName && value) {
-        updated[oppositeIndex].streetName = value;
+      if (oppositeIndex !== null) {
+        const opp = updated[oppositeIndex].streetName;
+        // Fill if opposite is empty OR was auto-filled from a previous keystroke
+        // (its value is a prefix of what we're typing, so it should keep following)
+        if (!opp || value.startsWith(opp)) {
+          updated[oppositeIndex].streetName = value;
+        }
       }
 
       return updated;
@@ -505,10 +510,7 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId }: Bulk
                     zoom={17}
                     style={{ height: "100%", width: "100%" }}
                   >
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
+                    <MapTileLayers />
                     <MapClickHandler onMapClick={handleMapClick} />
 
                     {/* Signal marker */}

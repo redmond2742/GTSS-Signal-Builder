@@ -12,9 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { MapContainer, Marker, useMapEvents } from "react-leaflet";
 import { MapPin, Shuffle, Target, Crosshair } from "lucide-react";
 import L from "leaflet";
+import MapTileLayers from "@/components/ui/map-tile-layers";
 
 // Map picker component for location selection
 function LocationPicker({ onLocationSelect }: { onLocationSelect: (lat: number, lon: number) => void }) {
@@ -252,10 +253,7 @@ export default function AgencyForm() {
                     className="rounded-lg border"
                     key={`agency-map-${mapCenter[0]}-${mapCenter[1]}`}
                   >
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
+                    <MapTileLayers />
                     
                     <LocationPicker onLocationSelect={handleLocationClick} />
                     

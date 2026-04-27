@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { MapContainer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
+import MapTileLayers from "@/components/ui/map-tile-layers";
 import { insertSignalSchema, type InsertSignal, type Signal } from "@shared/schema";
 import { useSignals } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
@@ -189,10 +190,7 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
               zoom={13}
               style={{ height: "100%", width: "100%" }}
             >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
+              <MapTileLayers />
 
               <MapClickHandler onLocationAdd={handleLocationAdd} />
 

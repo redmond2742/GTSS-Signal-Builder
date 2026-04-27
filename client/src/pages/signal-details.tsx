@@ -15,7 +15,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { MapContainer, Marker, useMapEvents } from "react-leaflet";
+import MapTileLayers from "@/components/ui/map-tile-layers";
 import { MapPin, Edit3, Plus, Trash2, Navigation, ArrowLeft, Settings, HelpCircle, ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import PhaseModal from "@/components/gtss/phase-modal";
@@ -640,10 +641,7 @@ export default function SignalDetails() {
                       style={{ height: "100%", width: "100%", zIndex: 1 }}
                       key={`edit-map-${signalForm.watch("latitude")}-${signalForm.watch("longitude")}`}
                     >
-                      <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      />
+                      <MapTileLayers />
                       <LocationPicker 
                         onLocationSelect={(lat, lon) => {
                           signalForm.setValue("latitude", lat);
@@ -739,10 +737,7 @@ export default function SignalDetails() {
                   style={{ height: "100%", width: "100%", zIndex: 1 }}
                   key={`view-map-${signal.signalId}-${signal.latitude}-${signal.longitude}`}
                 >
-                  <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
+                  <MapTileLayers />
                   <Marker position={[signal.latitude, signal.longitude]} />
                 </MapContainer>
               </div>

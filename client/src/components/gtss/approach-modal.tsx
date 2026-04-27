@@ -10,9 +10,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents } from "react-leaflet";
+import { MapContainer, Marker, Popup, Polyline, useMapEvents } from "react-leaflet";
 import { Trash2, MapPin, Navigation } from "lucide-react";
 import { getSignalDisplayName } from "@/lib/utils";
+import MapTileLayers from "@/components/ui/map-tile-layers";
 
 interface ApproachModalProps {
   approach: Approach | null;
@@ -326,10 +327,7 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
                       zoom={17}
                       style={{ height: "100%", width: "100%", cursor: "crosshair" }}
                     >
-                      <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      />
+                      <MapTileLayers />
                       <MapClickHandler onMapClick={handleMapClick} />
                       <Marker position={[selectedSignal.latitude, selectedSignal.longitude]}>
                         <Popup>

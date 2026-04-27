@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { MapContainer, Marker, useMapEvents } from "react-leaflet";
+import MapTileLayers from "@/components/ui/map-tile-layers";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -160,10 +161,7 @@ export default function AgencyLocationPicker({ isOpen, onClose, onLocationSelect
               style={{ height: "100%", width: "100%" }}
               className="rounded-lg border"
             >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
+              <MapTileLayers />
               
               <LocationPicker onLocationSelect={handleLocationClick} />
               
