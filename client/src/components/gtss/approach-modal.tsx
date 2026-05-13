@@ -325,6 +325,7 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
                     <MapContainer
                       center={[selectedSignal.latitude, selectedSignal.longitude]}
                       zoom={17}
+                      scrollWheelZoom={false}
                       style={{ height: "100%", width: "100%", cursor: "crosshair" }}
                     >
                       <MapTileLayers />

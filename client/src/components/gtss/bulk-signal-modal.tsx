@@ -188,6 +188,7 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
             <MapContainer
               center={getMapCenter()}
               zoom={13}
+              scrollWheelZoom={false}
               style={{ height: "100%", width: "100%" }}
             >
               <MapTileLayers />

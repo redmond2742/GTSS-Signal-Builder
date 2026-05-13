@@ -52,6 +52,7 @@ export function MapPicker({ center, zoom = 13, onLocationSelect, selectedPositio
       <MapContainer
         center={center}
         zoom={zoom}
+        scrollWheelZoom={false}
         style={{ height: "400px", width: "100%" }}
         className="rounded-lg border border-grey-200"
       >

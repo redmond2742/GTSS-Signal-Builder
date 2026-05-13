@@ -37,6 +37,8 @@ interface PendingApproach {
 interface BulkApproachModalProps {
   onClose: () => void;
   preSelectedSignalId?: string;
+  /** When true, render in-place (no Dialog wrapper). Defaults to false. */
+  inline?: boolean;
 }
 
 // Map click handler component
@@ -70,7 +72,7 @@ const approachColors = [
   "#a855f7", "#10b981", "#f59e0b", "#64748b", // purple, emerald, amber, slate
 ];
 
-export default function BulkApproachModal({ onClose, preSelectedSignalId }: BulkApproachModalProps) {
+export default function BulkApproachModal({ onClose, preSelectedSignalId, inline = false }: BulkApproachModalProps) {
   const { signals, approaches: existingApproaches } = useGTSSStore();
   const { toast } = useToast();
   const approachHooks = useApproaches();
@@ -405,20 +407,15 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId }: Bulk
     }
   }, [selectedSignalId]);
 
-  return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <span>{isEditMode ? "Edit Approaches" : "Add Multiple Approaches"}</span>
-            {pendingApproaches.length > 0 && (
-              <Badge variant="secondary" className={isEditMode ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"}>
-                {pendingApproaches.length} approach{pendingApproaches.length !== 1 ? "es" : ""}
-              </Badge>
-            )}
-          </DialogTitle>
-        </DialogHeader>
+  const titleText = isEditMode ? "Edit Approaches" : "Add Multiple Approaches";
+  const titleBadge = pendingApproaches.length > 0 && (
+    <Badge variant="secondary" className={isEditMode ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"}>
+      {pendingApproaches.length} approach{pendingApproaches.length !== 1 ? "es" : ""}
+    </Badge>
+  );
 
+  const body = (
+    <>
         <div className="space-y-4">
           {/* Signal Selector */}
           <div>
@@ -508,6 +505,7 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId }: Bulk
                   <MapContainer
                     center={[selectedSignal.latitude, selectedSignal.longitude]}
                     zoom={17}
+                    scrollWheelZoom={false}
                     style={{ height: "100%", width: "100%" }}
                   >
                     <MapTileLayers />
@@ -644,6 +642,33 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId }: Bulk
             </Button>
           </div>
         </div>
+    </>
+  );
+
+  if (inline) {
+    return (
+      <div className="rounded-lg border border-grey-200 bg-white p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-semibold flex items-center gap-2">
+            <span>{titleText}</span>
+            {titleBadge}
+          </h2>
+        </div>
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span>{titleText}</span>
+            {titleBadge}
+          </DialogTitle>
+        </DialogHeader>
+        {body}
       </DialogContent>
     </Dialog>
   );

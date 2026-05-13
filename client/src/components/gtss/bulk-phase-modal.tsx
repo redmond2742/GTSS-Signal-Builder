@@ -27,6 +27,8 @@ interface PendingPhase {
 interface BulkPhaseModalProps {
   onClose: () => void;
   preSelectedSignalId?: string;
+  /** When true, render in-place (no Dialog wrapper). Defaults to false. */
+  inline?: boolean;
 }
 
 // Phase colors by phase number
@@ -577,7 +579,7 @@ const PhaseDiagram = ({ phases, approaches, intersectionName, svgRef }: PhaseDia
 
 const PHASE_COUNT_OPTIONS = [2, 4, 6, 8] as const;
 
-export default function BulkPhaseModal({ onClose, preSelectedSignalId }: BulkPhaseModalProps) {
+export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = false }: BulkPhaseModalProps) {
   const { signals, approaches: allApproaches, phases: existingPhases, agencyDefaults } = useGTSSStore();
   const { toast } = useToast();
   const phaseHooks = usePhases();
@@ -1041,35 +1043,29 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId }: BulkPha
     }
   }, [selectedSignalId, existingPhases]);
 
-  return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%]">
-        {/* Header with title and signal selector */}
-        <DialogHeader>
-          <div className="flex items-center justify-between gap-4">
-            <DialogTitle className="flex items-center gap-2">
-              <span>{isEditMode ? "Edit Phases" : "Add Multiple Phases"}</span>
-              {pendingPhases.length > 0 && (
-                <Badge variant="secondary" className={isEditMode ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"}>
-                  {pendingPhases.length} phase{pendingPhases.length !== 1 ? "s" : ""}
-                </Badge>
-              )}
-            </DialogTitle>
-            <Select value={selectedSignalId} onValueChange={setSelectedSignalId}>
-              <SelectTrigger className="w-72">
-                <SelectValue placeholder="Select a signal" />
-              </SelectTrigger>
-              <SelectContent>
-                {signals.map((signal) => (
-                  <SelectItem key={signal.signalId} value={signal.signalId}>
-                    {getSignalDisplayName(signal, allApproaches)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </DialogHeader>
+  const titleText = isEditMode ? "Edit Phases" : "Add Multiple Phases";
+  const titleBadge = pendingPhases.length > 0 && (
+    <Badge variant="secondary" className={isEditMode ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"}>
+      {pendingPhases.length} phase{pendingPhases.length !== 1 ? "s" : ""}
+    </Badge>
+  );
+  const signalSelector = (
+    <Select value={selectedSignalId} onValueChange={setSelectedSignalId}>
+      <SelectTrigger className="w-72">
+        <SelectValue placeholder="Select a signal" />
+      </SelectTrigger>
+      <SelectContent>
+        {signals.map((signal) => (
+          <SelectItem key={signal.signalId} value={signal.signalId}>
+            {getSignalDisplayName(signal, allApproaches)}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 
+  const body = (
+    <>
         <div className="space-y-4">
           {!selectedSignalId ? (
             <div className="p-8 text-center text-grey-500 text-sm">
@@ -1312,6 +1308,38 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId }: BulkPha
             </Button>
           </div>
         </div>
+    </>
+  );
+
+  if (inline) {
+    return (
+      <div className="rounded-lg border border-grey-200 bg-white p-4">
+        <div className="flex items-center justify-between gap-4 mb-3">
+          <h2 className="text-base font-semibold flex items-center gap-2">
+            <span>{titleText}</span>
+            {titleBadge}
+          </h2>
+          {signalSelector}
+        </div>
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%]">
+        {/* Header with title and signal selector */}
+        <DialogHeader>
+          <div className="flex items-center justify-between gap-4">
+            <DialogTitle className="flex items-center gap-2">
+              <span>{titleText}</span>
+              {titleBadge}
+            </DialogTitle>
+            {signalSelector}
+          </div>
+        </DialogHeader>
+        {body}
       </DialogContent>
     </Dialog>
   );

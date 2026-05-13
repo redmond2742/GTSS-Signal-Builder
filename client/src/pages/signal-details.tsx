@@ -15,9 +15,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { MapContainer, Marker, useMapEvents } from "react-leaflet";
+import { MapContainer, Marker, Polyline, useMap, useMapEvents } from "react-leaflet";
 import MapTileLayers from "@/components/ui/map-tile-layers";
-import { MapPin, Edit3, Plus, Trash2, Navigation, ArrowLeft, Settings, HelpCircle, ChevronLeft, ChevronRight, FileText } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MapPin, Edit3, Plus, Trash2, Navigation, ArrowLeft, Settings, HelpCircle, ChevronLeft, ChevronRight, FileText, Lock, Unlock } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import PhaseModal from "@/components/gtss/phase-modal";
 import DetectorModal from "@/components/gtss/detector-modal";
@@ -36,6 +37,74 @@ function LocationPicker({ onLocationSelect }: { onLocationSelect: (lat: number, 
     },
   });
   return null;
+}
+
+// Toggles Leaflet's scroll-wheel zoom on the parent <MapContainer>. When
+// `locked`, mouse-wheel events bubble out of the map and scroll the page
+// normally. Panning and the +/- buttons stay enabled in both states.
+function ScrollZoomToggle({ locked }: { locked: boolean }) {
+  const map = useMap();
+  useEffect(() => {
+    if (locked) map.scrollWheelZoom.disable();
+    else map.scrollWheelZoom.enable();
+  }, [locked, map]);
+  return null;
+}
+
+// Color palette for approach polylines (mirrors bulk-approach-modal.tsx)
+const approachColors = [
+  "#3b82f6", "#22c55e", "#ef4444", "#f97316",
+  "#8b5cf6", "#ec4899", "#14b8a6", "#eab308",
+  "#6366f1", "#84cc16", "#f43f5e", "#06b6d4",
+  "#a855f7", "#10b981", "#f59e0b", "#64748b",
+];
+
+// Compute endpoint for an approach polyline pointing in the direction
+// traffic comes FROM (opposite of bearing). ~200m at equator.
+function approachEndpoint(bearing: number, lat: number, lng: number): [number, number] {
+  const oppositeBearing = (bearing + 180) % 360;
+  const distance = 0.002;
+  const rad = (oppositeBearing * Math.PI) / 180;
+  const endLat = lat + distance * Math.cos(rad);
+  const endLng = lng + (distance * Math.sin(rad)) / Math.cos((lat * Math.PI) / 180);
+  return [endLat, endLng];
+}
+
+// Color palette for phase overlays (mirrors bulk-phase-modal phaseColors)
+const phaseColors: Record<number, string> = {
+  1: "#22c55e", 2: "#3b82f6", 3: "#f97316", 4: "#8b5cf6",
+  5: "#ef4444", 6: "#14b8a6", 7: "#eab308", 8: "#ec4899",
+};
+
+// Compute endpoint for a phase polyline along its approach bearing,
+// with a small lateral offset so multiple phases on the same approach
+// don't fully overlap. `lateralOffset` is in arbitrary "lanes" (-2..2);
+// positive shifts toward the LEFT of the approach travel direction.
+function phaseEndpoint(
+  bearing: number,
+  lat: number,
+  lng: number,
+  lateralOffset: number,
+): [number, number] {
+  const oppositeBearing = (bearing + 180) % 360; // direction traffic comes FROM
+  const distance = 0.0017; // ~170m
+  const rad = (oppositeBearing * Math.PI) / 180;
+  const perpRad = rad + Math.PI / 2; // perpendicular (left of opposite-bearing)
+  const offsetMag = 0.00012 * lateralOffset; // ~12m per "lane"
+  const baseLat = lat + distance * Math.cos(rad);
+  const baseLng = lng + (distance * Math.sin(rad)) / Math.cos((lat * Math.PI) / 180);
+  return [
+    baseLat + offsetMag * Math.cos(perpRad),
+    baseLng + (offsetMag * Math.sin(perpRad)) / Math.cos((lat * Math.PI) / 180),
+  ];
+}
+
+// Map a movement type to a lateral offset so left turns sit left of through, etc.
+function lateralOffsetForMovement(movementType: string): number {
+  if (movementType === "Left Turn" || movementType === "Flashing Yellow Arrow") return 1;
+  if (movementType === "Right Turn") return -1.6;
+  if (movementType === "Through-Right") return -0.8;
+  return 0; // Through, Left Through Shared, Permissive, U-Turn, Pedestrian
 }
 
 export default function SignalDetails() {
@@ -64,6 +133,37 @@ export default function SignalDetails() {
   const [editingPhase, setEditingPhase] = useState<Phase | null>(null);
   const [editingDetector, setEditingDetector] = useState<Detector | null>(null);
   const [showGTSSOutput, setShowGTSSOutput] = useState(false);
+  const [activeTab, setActiveTab] = useState<"approaches" | "phases" | "detection" | "timings">("approaches");
+  // When true, mouse-wheel over the persistent map scrolls the page instead of zooming.
+  const [mapZoomLocked, setMapZoomLocked] = useState(true);
+
+  // Quick-add Approach (rapid input below the map on Approaches tab)
+  const [qaApproachId, setQaApproachId] = useState("");
+  const [qaStreetName, setQaStreetName] = useState("");
+  const [qaBearing, setQaBearing] = useState<string>("");
+  const [qaSpeed, setQaSpeed] = useState<string>("");
+
+  // Quick-add Phase (rapid input below the map on Phases tab)
+  const [qpPhase, setQpPhase] = useState<string>("");
+  const [qpMovementType, setQpMovementType] = useState<string>("Through");
+  const [qpApproachId, setQpApproachId] = useState<string>("");
+  const [qpLanes, setQpLanes] = useState<string>("1");
+
+  // Auto-fill the next Approach ID and the next Phase # when prerequisites change
+  useEffect(() => {
+    if (!signalId) return;
+    if (!qaApproachId) {
+      setQaApproachId(`${signalId}-${signalApproaches.length + 1}`);
+    }
+  }, [signalId, signalApproaches.length, qaApproachId]);
+  useEffect(() => {
+    if (!qpPhase) {
+      const taken = new Set(signalPhases.map(p => p.phase));
+      for (let i = 1; i <= 8; i++) {
+        if (!taken.has(i)) { setQpPhase(String(i)); break; }
+      }
+    }
+  }, [signalPhases, qpPhase]);
 
   const signalForm = useForm<InsertSignal>({
     resolver: zodResolver(insertSignalSchema),
@@ -235,6 +335,87 @@ export default function SignalDetails() {
         description: isNewSignal ? "Failed to create signal" : "Failed to update signal",
         variant: "destructive",
       });
+    }
+  };
+
+  // Quick-Add: capture bearing from a click on the persistent map.
+  // Bearing is from the clicked point TOWARD the signal (so it represents
+  // the direction of travel of the approach entering the intersection).
+  const handleMapBearingClick = (clickLat: number, clickLng: number) => {
+    if (!signal?.latitude || !signal?.longitude) return;
+    const dLng = (signal.longitude - clickLng) * Math.PI / 180;
+    const lat1 = clickLat * Math.PI / 180;
+    const lat2 = signal.latitude * Math.PI / 180;
+    const y = Math.sin(dLng) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+    let bearing = Math.atan2(y, x) * 180 / Math.PI;
+    bearing = (bearing + 360) % 360;
+    setQaBearing(String(Math.round(bearing)));
+  };
+
+  const handleQuickAddApproach = () => {
+    if (isNewSignal || !signalId) {
+      toast({ title: "Save Signal First", description: "Save the signal before adding approaches.", variant: "destructive" });
+      return;
+    }
+    if (!qaApproachId.trim() || !qaStreetName.trim() || qaBearing === "") {
+      toast({ title: "Missing Fields", description: "Approach ID, street name, and bearing are required.", variant: "destructive" });
+      return;
+    }
+    try {
+      approachHooks.save({
+        signalId,
+        approachId: qaApproachId.trim(),
+        streetName: qaStreetName.trim(),
+        compassBearing: parseInt(qaBearing, 10) || 0,
+        postedSpeed: qaSpeed ? parseInt(qaSpeed, 10) : null,
+      });
+      const updated = approaches.filter(a => a.signalId === signalId);
+      setSignalApproaches(updated);
+      // Reset form (auto-fill next ID via effect)
+      setQaApproachId("");
+      setQaStreetName("");
+      setQaBearing("");
+      setQaSpeed("");
+      toast({ title: "Approach added", description: qaApproachId });
+    } catch {
+      toast({ title: "Error", description: "Failed to add approach.", variant: "destructive" });
+    }
+  };
+
+  const handleQuickAddPhase = () => {
+    if (isNewSignal || !signalId) {
+      toast({ title: "Save Signal First", description: "Save the signal before adding phases.", variant: "destructive" });
+      return;
+    }
+    const phaseNum = parseInt(qpPhase, 10);
+    if (!phaseNum || phaseNum < 1 || phaseNum > 8) {
+      toast({ title: "Invalid Phase", description: "Phase must be 1-8.", variant: "destructive" });
+      return;
+    }
+    if (signalPhases.some(p => p.phase === phaseNum)) {
+      toast({ title: "Phase Exists", description: `Phase ${phaseNum} already exists.`, variant: "destructive" });
+      return;
+    }
+    try {
+      phaseHooks.save({
+        signalId,
+        phase: phaseNum,
+        movementType: qpMovementType,
+        approachId: qpApproachId || null,
+        isPedestrian: qpMovementType === "Through",
+        numOfLanes: parseInt(qpLanes, 10) || 1,
+        isOverlap: false,
+      });
+      const updated = phases.filter(p => p.signalId === signalId);
+      setSignalPhases(updated);
+      setQpPhase("");
+      setQpMovementType("Through");
+      setQpApproachId("");
+      setQpLanes("1");
+      toast({ title: "Phase added", description: `Phase ${phaseNum}` });
+    } catch {
+      toast({ title: "Error", description: "Failed to add phase.", variant: "destructive" });
     }
   };
 
@@ -518,235 +699,213 @@ export default function SignalDetails() {
         )}
       </div>
 
-      {/* Signal Information */}
-      <Card>
-        <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold text-grey-800 flex items-center space-x-2">
-              <MapPin className="w-4 h-4 text-primary-600" />
-              <span>Signal Information</span>
-            </CardTitle>
-            {!isNewSignal && (
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsEditingSignal(!isEditingSignal)}
-                  className="h-7 px-2 text-xs"
-                >
-                  <Edit3 className="w-3 h-3 mr-1" />
-                  {isEditingSignal ? "Cancel" : "Edit"}
-                </Button>
-                {isEditingSignal && (
-                  <Button
-                    onClick={signalForm.handleSubmit(handleSignalSave)}
-                    className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
-                  >
-                    Save Changes
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="p-4">
-          {isEditingSignal ? (
-            <Form {...signalForm}>
-              <form onSubmit={signalForm.handleSubmit(handleSignalSave)} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={signalForm.control}
-                    name="signalId"
-                    render={({ field }) => (
-                      <FormItem className="space-y-1">
-                        <FormLabel className="text-xs font-medium">Signal ID</FormLabel>
-                        <FormControl>
-                          <Input {...field} className="h-7 px-2 text-xs" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={signalForm.control}
-                    name="agencyId"
-                    render={({ field }) => (
-                      <FormItem className="space-y-1">
-                        <FormLabel className="text-xs font-medium">Agency ID</FormLabel>
-                        <FormControl>
-                          <Input {...field} className="h-7 px-2 text-xs" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">Street Name 1</label>
-                    <div className="h-7 px-2 text-xs flex items-center bg-grey-50 border border-grey-200 rounded-md text-grey-600">
-                      {derivedStreetName1 || <span className="text-grey-400 italic">From approaches</span>}
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">Street Name 2</label>
-                    <div className="h-7 px-2 text-xs flex items-center bg-grey-50 border border-grey-200 rounded-md text-grey-600">
-                      {derivedStreetName2 || <span className="text-grey-400 italic">From approaches</span>}
-                    </div>
-                  </div>
-                  <FormField
-                    control={signalForm.control}
-                    name="latitude"
-                    render={({ field }) => (
-                      <FormItem className="space-y-1">
-                        <FormLabel className="text-xs font-medium">Latitude</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            type="number" 
-                            step="any"
-                            className="h-7 px-2 text-xs"
-                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={signalForm.control}
-                    name="longitude"
-                    render={({ field }) => (
-                      <FormItem className="space-y-1">
-                        <FormLabel className="text-xs font-medium">Longitude</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            type="number" 
-                            step="any"
-                            className="h-7 px-2 text-xs"
-                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                {/* Interactive Map for Location Selection */}
-                <div className="mt-4">
-                  <h4 className="text-sm font-medium text-grey-700 mb-2">Click map to update location</h4>
-                  <div className="h-48 rounded-lg border overflow-hidden relative z-0">
-                    <MapContainer
-                      center={[signalForm.watch("latitude") || signal?.latitude || 0, signalForm.watch("longitude") || signal?.longitude || 0]}
-                      zoom={16}
-                      style={{ height: "100%", width: "100%", zIndex: 1 }}
-                      key={`edit-map-${signalForm.watch("latitude")}-${signalForm.watch("longitude")}`}
-                    >
-                      <MapTileLayers />
-                      <LocationPicker 
-                        onLocationSelect={(lat, lon) => {
-                          signalForm.setValue("latitude", lat);
-                          signalForm.setValue("longitude", lon);
-                        }} 
-                      />
-                      <Marker position={[signalForm.watch("latitude") || signal?.latitude || 0, signalForm.watch("longitude") || signal?.longitude || 0]} />
-                    </MapContainer>
-                  </div>
-                  <p className="text-xs text-grey-500 mt-1">
-                    Current: {signalForm.watch("latitude")?.toFixed(6)}, {signalForm.watch("longitude")?.toFixed(6)}
-                  </p>
-                </div>
-                
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsEditingSignal(false)}
-                    className="h-7 px-3 text-xs"
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" className="h-7 px-3 text-xs bg-primary-600 hover:bg-primary-700">
-                    Save Changes
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          ) : signal ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
+      {/* Top section: signal info (left) + persistent map (right) */}
+      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-3">
+        {/* Left: signal info + counts */}
+        <Card>
+          <CardHeader className="bg-grey-50 border-b border-grey-200 px-3 py-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold text-grey-800 flex items-center space-x-2">
+                <MapPin className="w-4 h-4 text-primary-600" />
+                <span>Signal Info</span>
+              </CardTitle>
+              <Button
+                variant="outline"
+                onClick={() => setIsEditingSignal(true)}
+                className="h-6 px-2 text-xs"
+              >
+                <Edit3 className="w-3 h-3 mr-1" />
+                Edit
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-3 space-y-3">
+            {signal ? (
+              <>
                 <div>
-                  <p className="text-xs font-medium text-grey-500">Signal ID</p>
+                  <p className="text-[10px] uppercase tracking-wide font-medium text-grey-500">Signal ID</p>
                   <p className="text-sm font-mono">{signal.signalId}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-grey-500">Streets</p>
+                  <p className="text-[10px] uppercase tracking-wide font-medium text-grey-500">Streets</p>
                   <p className="text-sm">
                     {derivedStreetNames || (
-                      <span className="text-grey-400 italic">Add street names in Approaches</span>
+                      <span className="text-grey-400 italic text-xs">Add street names in Approaches</span>
                     )}
                   </p>
                 </div>
-              </div>
-              <div className="space-y-2">
                 <div>
-                  <p className="text-xs font-medium text-grey-500">Coordinates</p>
-                  <p className="text-sm font-mono">
+                  <p className="text-[10px] uppercase tracking-wide font-medium text-grey-500">Coordinates</p>
+                  <p className="text-xs font-mono">
                     {signal.latitude?.toFixed(6)}, {signal.longitude?.toFixed(6)}
                   </p>
+                  <div className="flex items-center gap-2 text-[11px] mt-1">
+                    <a
+                      href={`https://www.google.com/maps?q=${signal.latitude},${signal.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      Google Maps
+                    </a>
+                    <a
+                      href={`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${signal.latitude},${signal.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      Street View
+                    </a>
+                  </div>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-grey-500">Agency</p>
-                  <p className="text-sm">{signal.agencyId}</p>
+                  <p className="text-[10px] uppercase tracking-wide font-medium text-grey-500">Agency</p>
+                  <p className="text-xs">{signal.agencyId}</p>
                 </div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-4 text-grey-500">
-              No signal data available
-            </div>
-          )}
-          
-          {/* Map */}
-          {signal && signal.latitude && signal.longitude && (
-            <div className="mt-4">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-medium text-grey-700">Location</h4>
-                <div className="flex items-center gap-3 text-xs">
-                  <a
-                    href={`https://www.google.com/maps?q=${signal.latitude},${signal.longitude}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 hover:underline"
-                  >
-                    Google Maps
-                  </a>
-                  <a
-                    href={`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${signal.latitude},${signal.longitude}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 hover:underline"
-                  >
-                    Street View
-                  </a>
+                <div className="border-t border-grey-200 pt-2 space-y-1">
+                  <p className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Counts</p>
+                  <div className="flex justify-between text-xs"><span>Approaches</span><span className="font-mono">{signalApproaches.length}</span></div>
+                  <div className="flex justify-between text-xs"><span>Phases</span><span className="font-mono">{signalPhases.length}</span></div>
+                  <div className="flex justify-between text-xs"><span>Detectors</span><span className="font-mono">{signalDetectors.length}</span></div>
+                  <div className="flex justify-between text-xs"><span>Timings</span><span className="font-mono">{signalTimings.length}</span></div>
                 </div>
-              </div>
-              <div className="h-48 rounded-lg border overflow-hidden relative z-0">
-                <MapContainer
-                  center={[signal.latitude, signal.longitude]}
-                  zoom={16}
-                  style={{ height: "100%", width: "100%", zIndex: 1 }}
-                  key={`view-map-${signal.signalId}-${signal.latitude}-${signal.longitude}`}
-                >
-                  <MapTileLayers />
-                  <Marker position={[signal.latitude, signal.longitude]} />
-                </MapContainer>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </>
+            ) : (
+              <p className="text-xs text-grey-500 italic">
+                {isNewSignal ? "Click Edit to configure this new signal." : "No signal data available."}
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Approaches Section */}
+        {/* Right: persistent map */}
+        {signal && signal.latitude && signal.longitude ? (
+          <div className="h-[500px] rounded-lg border overflow-hidden relative z-0">
+            <MapContainer
+              center={[signal.latitude, signal.longitude]}
+              zoom={17}
+              maxZoom={22}
+              scrollWheelZoom={!mapZoomLocked}
+              style={{ height: "100%", width: "100%", zIndex: 1 }}
+            >
+              <MapTileLayers />
+              <ScrollZoomToggle locked={mapZoomLocked} />
+              <Marker position={[signal.latitude, signal.longitude]} />
+
+              {/* Capture map clicks on Approaches tab → fill the quick-add Bearing field */}
+              {activeTab === "approaches" && (
+                <LocationPicker onLocationSelect={handleMapBearingClick} />
+              )}
+
+              {/* Approach polylines — shown on every tab EXCEPT Phases */}
+              {activeTab !== "phases" && signalApproaches.map((a, i) => {
+                if (a.compassBearing == null || !signal.latitude || !signal.longitude) return null;
+                const endpoint = approachEndpoint(a.compassBearing, signal.latitude, signal.longitude);
+                return (
+                  <Polyline
+                    key={`approach-${a.id}`}
+                    positions={[[signal.latitude, signal.longitude], endpoint]}
+                    color={approachColors[i % approachColors.length]}
+                    weight={4}
+                    opacity={0.8}
+                  />
+                );
+              })}
+
+              {/* Phase polylines — shown only on the Phases tab */}
+              {activeTab === "phases" && signalPhases.map((p) => {
+                const approach = signalApproaches.find(a => a.approachId === p.approachId);
+                if (!approach || approach.compassBearing == null || !signal.latitude || !signal.longitude) return null;
+                const endpoint = phaseEndpoint(
+                  approach.compassBearing,
+                  signal.latitude,
+                  signal.longitude,
+                  lateralOffsetForMovement(p.movementType),
+                );
+                const color = phaseColors[p.phase] || "#6b7280";
+                const dashArray = p.movementType === "Pedestrian" ? "6,4" : undefined;
+                return (
+                  <Polyline
+                    key={`phase-${p.id}`}
+                    positions={[[signal.latitude, signal.longitude], endpoint]}
+                    color={color}
+                    weight={5}
+                    opacity={0.85}
+                    dashArray={dashArray}
+                  />
+                );
+              })}
+            </MapContainer>
+            {/* Scroll-wheel zoom lock toggle */}
+            <button
+              type="button"
+              onClick={() => setMapZoomLocked((v) => !v)}
+              className="absolute bottom-2 left-2 z-[1000] flex items-center gap-1 rounded-md border border-grey-300 bg-white px-2 py-1 text-xs shadow hover:bg-grey-50"
+              title={mapZoomLocked ? "Scroll-zoom locked — click to unlock" : "Scroll-zoom unlocked — click to lock"}
+              aria-pressed={mapZoomLocked}
+            >
+              {mapZoomLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+              <span>{mapZoomLocked ? "Zoom locked" : "Zoom"}</span>
+            </button>
+          </div>
+        ) : (
+          <div className="h-[500px] flex items-center justify-center bg-grey-50 rounded-lg border text-sm text-grey-400">
+            {isNewSignal ? "Click Edit to set this signal's location." : "No coordinates yet."}
+          </div>
+        )}
+      </div>
+
+      {/* Tabs: Approaches | Phases | Detection | Basic Timings */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="approaches">Approaches ({signalApproaches.length})</TabsTrigger>
+          <TabsTrigger value="phases">Phases ({signalPhases.length})</TabsTrigger>
+          <TabsTrigger value="detection">Detection ({signalDetectors.length})</TabsTrigger>
+          <TabsTrigger value="timings">Basic Timings ({signalTimings.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="approaches" className="mt-3 space-y-3">
+      {/* Quick-Add Approach — rapid input directly below the map */}
+      {!isNewSignal && !showBulkApproachModal && (
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex gap-2 items-end flex-wrap">
+              <div className="flex flex-col min-w-[120px]">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Approach ID</label>
+                <Input value={qaApproachId} onChange={(e) => setQaApproachId(e.target.value)} className="h-8 text-sm" />
+              </div>
+              <div className="flex flex-col flex-1 min-w-[160px]">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Street Name *</label>
+                <Input value={qaStreetName} onChange={(e) => setQaStreetName(e.target.value)} placeholder="e.g. Main St" className="h-8 text-sm" />
+              </div>
+              <div className="flex flex-col w-24">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Bearing *</label>
+                <Input type="number" min="0" max="360" value={qaBearing} onChange={(e) => setQaBearing(e.target.value)} placeholder="0-360" className="h-8 text-sm" />
+              </div>
+              <div className="flex flex-col w-20">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Speed</label>
+                <Input type="number" min="0" max="100" value={qaSpeed} onChange={(e) => setQaSpeed(e.target.value)} placeholder="35" className="h-8 text-sm" />
+              </div>
+              <Button onClick={handleQuickAddApproach} className="h-8 px-3 bg-primary-600 hover:bg-primary-700">
+                <Plus className="w-3 h-3 mr-1" />Add
+              </Button>
+            </div>
+            <p className="text-[11px] text-grey-500 mt-2">Tip: click the map above to fill <span className="font-medium">Bearing</span> from the click location.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {showBulkApproachModal ? (
+        <BulkApproachModal
+          inline
+          onClose={() => {
+            setShowBulkApproachModal(false);
+            const updatedApproaches = approaches.filter(a => a.signalId === signalId);
+            setSignalApproaches(updatedApproaches);
+          }}
+          preSelectedSignalId={signalId || ""}
+        />
+      ) : (
       <Card>
         <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
           <div className="flex items-center justify-between">
@@ -769,7 +928,7 @@ export default function SignalDetails() {
               className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
             >
               <Plus className="w-3 h-3 mr-1" />
-              Add Approaches
+              Bulk Add
             </Button>
           </div>
         </CardHeader>
@@ -809,8 +968,75 @@ export default function SignalDetails() {
           )}
         </CardContent>
       </Card>
+      )}
+        </TabsContent>
 
-      {/* Phases Section */}
+        <TabsContent value="phases" className="mt-3 space-y-3">
+      {/* Quick-Add Phase — rapid input directly below the map */}
+      {!isNewSignal && !showBulkPhaseModal && (
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex gap-2 items-end flex-wrap">
+              <div className="flex flex-col w-16">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Phase *</label>
+                <Input type="number" min="1" max="8" value={qpPhase} onChange={(e) => setQpPhase(e.target.value)} className="h-8 text-sm" />
+              </div>
+              <div className="flex flex-col flex-1 min-w-[160px]">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Movement *</label>
+                <Select value={qpMovementType} onValueChange={setQpMovementType}>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Through">Through (T)</SelectItem>
+                    <SelectItem value="Left Turn">Left Turn (L)</SelectItem>
+                    <SelectItem value="Right Turn">Right Turn (R)</SelectItem>
+                    <SelectItem value="Through-Right">Through-Right (TR)</SelectItem>
+                    <SelectItem value="Left Through Shared">Left Through Shared (LT)</SelectItem>
+                    <SelectItem value="Permissive Phase">Permissive (TL)</SelectItem>
+                    <SelectItem value="Flashing Yellow Arrow">Flashing Yellow Arrow</SelectItem>
+                    <SelectItem value="U-Turn">U-Turn</SelectItem>
+                    <SelectItem value="Pedestrian">Pedestrian</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col flex-1 min-w-[160px]">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Approach</label>
+                <Select value={qpApproachId} onValueChange={setQpApproachId}>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select approach" /></SelectTrigger>
+                  <SelectContent>
+                    {signalApproaches.map((a) => (
+                      <SelectItem key={a.approachId} value={a.approachId}>
+                        {a.approachId} — {a.streetName || "(no name)"} {a.compassBearing != null ? `(${a.compassBearing}°)` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col w-20">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Lanes</label>
+                <Input type="number" min="1" max="8" value={qpLanes} onChange={(e) => setQpLanes(e.target.value)} className="h-8 text-sm" />
+              </div>
+              <Button onClick={handleQuickAddPhase} className="h-8 px-3 bg-primary-600 hover:bg-primary-700" disabled={signalApproaches.length === 0}>
+                <Plus className="w-3 h-3 mr-1" />Add
+              </Button>
+            </div>
+            {signalApproaches.length === 0 && (
+              <p className="text-[11px] text-amber-700 mt-2">Add approaches first — phases need an approach to attach to.</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {showBulkPhaseModal ? (
+        <BulkPhaseModal
+          inline
+          onClose={() => {
+            setShowBulkPhaseModal(false);
+            const updatedPhases = phases.filter(p => p.signalId === signalId);
+            setSignalPhases(updatedPhases);
+          }}
+          preSelectedSignalId={signalId || ""}
+        />
+      ) : (
       <Card>
         <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
           <div className="flex items-center justify-between">
@@ -834,7 +1060,7 @@ export default function SignalDetails() {
                 className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
               >
                 <Plus className="w-3 h-3 mr-1" />
-                Add Phases
+                Bulk Add
               </Button>
             </div>
           </div>
@@ -902,8 +1128,21 @@ export default function SignalDetails() {
           )}
         </CardContent>
       </Card>
+      )}
+        </TabsContent>
 
-      {/* Detectors Section */}
+        <TabsContent value="detection" className="mt-3">
+      {showBulkDetectorModal ? (
+        <BulkDetectorModal
+          inline
+          onClose={() => {
+            setShowBulkDetectorModal(false);
+            const updatedDetectors = detectors.filter(d => d.signalId === signalId);
+            setSignalDetectors(updatedDetectors);
+          }}
+          preSelectedSignalId={signalId || ""}
+        />
+      ) : (
       <Card>
         <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
           <div className="flex items-center justify-between">
@@ -991,7 +1230,10 @@ export default function SignalDetails() {
           )}
         </CardContent>
       </Card>
+      )}
+        </TabsContent>
 
+        <TabsContent value="timings" className="mt-3">
       {/* Basic Timings Section */}
       <Card>
         <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
@@ -1081,6 +1323,9 @@ export default function SignalDetails() {
           )}
         </CardContent>
       </Card>
+
+        </TabsContent>
+      </Tabs>
 
       {/* GTSS Specification Output */}
       <Card>
@@ -1307,48 +1552,14 @@ export default function SignalDetails() {
         />
       )}
 
-      {/* Bulk Phase Modal */}
-      {showBulkPhaseModal && (
-        <BulkPhaseModal
-          onClose={() => {
-            setShowBulkPhaseModal(false);
-            // Refresh phases list
-            const updatedPhases = phases.filter(p => p.signalId === signalId);
-            setSignalPhases(updatedPhases);
-          }}
-          preSelectedSignalId={signalId || ""}
-        />
-      )}
-
-      {/* Bulk Approach Modal */}
-      {showBulkApproachModal && (
-        <BulkApproachModal
-          onClose={() => {
-            setShowBulkApproachModal(false);
-            // Refresh approaches list
-            const updatedApproaches = approaches.filter(a => a.signalId === signalId);
-            setSignalApproaches(updatedApproaches);
-          }}
-          preSelectedSignalId={signalId || ""}
-        />
-      )}
-
-      {/* Bulk Detector Modal */}
-      {showBulkDetectorModal && (
-        <BulkDetectorModal
-          onClose={() => {
-            setShowBulkDetectorModal(false);
-            // Refresh detectors list
-            const updatedDetectors = detectors.filter(d => d.signalId === signalId);
-            setSignalDetectors(updatedDetectors);
-          }}
-          preSelectedSignalId={signalId || ""}
-        />
-      )}
+      {/* Bulk Approach / Phase / Detector modals are rendered INLINE in their
+          respective tab bodies above (with `inline` prop) — no Dialog popup
+          on this page. */}
 
       {/* Basic Timing Modal */}
       {showBasicTimingModal && (
         <BasicTimingModal
+          timing={null}
           onClose={() => {
             setShowBasicTimingModal(false);
             // Refresh timings list
@@ -1358,6 +1569,140 @@ export default function SignalDetails() {
           preSelectedSignalId={signalId || ""}
         />
       )}
+
+      {/* Edit Signal Dialog (replaces inline edit form) */}
+      <Dialog open={isEditingSignal} onOpenChange={setIsEditingSignal}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{isNewSignal ? "New Signal" : "Edit Signal"}</DialogTitle>
+          </DialogHeader>
+          <Form {...signalForm}>
+            <form onSubmit={signalForm.handleSubmit(handleSignalSave)} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={signalForm.control}
+                  name="signalId"
+                  render={({ field }) => (
+                    <FormItem className="space-y-1">
+                      <FormLabel className="text-xs font-medium">Signal ID</FormLabel>
+                      <FormControl>
+                        <Input {...field} className="h-7 px-2 text-xs" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={signalForm.control}
+                  name="agencyId"
+                  render={({ field }) => (
+                    <FormItem className="space-y-1">
+                      <FormLabel className="text-xs font-medium">Agency ID</FormLabel>
+                      <FormControl>
+                        <Input {...field} className="h-7 px-2 text-xs" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">Street Name 1</label>
+                  <div className="h-7 px-2 text-xs flex items-center bg-grey-50 border border-grey-200 rounded-md text-grey-600">
+                    {derivedStreetName1 || <span className="text-grey-400 italic">From approaches</span>}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">Street Name 2</label>
+                  <div className="h-7 px-2 text-xs flex items-center bg-grey-50 border border-grey-200 rounded-md text-grey-600">
+                    {derivedStreetName2 || <span className="text-grey-400 italic">From approaches</span>}
+                  </div>
+                </div>
+                <FormField
+                  control={signalForm.control}
+                  name="latitude"
+                  render={({ field }) => (
+                    <FormItem className="space-y-1">
+                      <FormLabel className="text-xs font-medium">Latitude</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          step="any"
+                          className="h-7 px-2 text-xs"
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={signalForm.control}
+                  name="longitude"
+                  render={({ field }) => (
+                    <FormItem className="space-y-1">
+                      <FormLabel className="text-xs font-medium">Longitude</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          step="any"
+                          className="h-7 px-2 text-xs"
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Interactive map for location selection */}
+              <div>
+                <h4 className="text-sm font-medium text-grey-700 mb-2">Click map to update location</h4>
+                <div className="h-64 rounded-lg border overflow-hidden relative z-0">
+                  {isEditingSignal && (
+                    <MapContainer
+                      center={[signalForm.watch("latitude") || signal?.latitude || 0, signalForm.watch("longitude") || signal?.longitude || 0]}
+                      zoom={16}
+                      maxZoom={22}
+                      scrollWheelZoom={false}
+                      style={{ height: "100%", width: "100%", zIndex: 1 }}
+                      key={`edit-map-${signalForm.watch("latitude")}-${signalForm.watch("longitude")}`}
+                    >
+                      <MapTileLayers />
+                      <LocationPicker
+                        onLocationSelect={(lat, lon) => {
+                          signalForm.setValue("latitude", lat);
+                          signalForm.setValue("longitude", lon);
+                        }}
+                      />
+                      <Marker position={[signalForm.watch("latitude") || signal?.latitude || 0, signalForm.watch("longitude") || signal?.longitude || 0]} />
+                    </MapContainer>
+                  )}
+                </div>
+                <p className="text-xs text-grey-500 mt-1">
+                  Current: {signalForm.watch("latitude")?.toFixed(6)}, {signalForm.watch("longitude")?.toFixed(6)}
+                </p>
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditingSignal(false)}
+                  className="h-7 px-3 text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" className="h-7 px-3 text-xs bg-primary-600 hover:bg-primary-700">
+                  {isNewSignal ? "Create Signal" : "Save Changes"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Signal Section */}
       {!isNewSignal && signal && (

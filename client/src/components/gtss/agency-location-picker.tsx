@@ -158,6 +158,7 @@ export default function AgencyLocationPicker({ isOpen, onClose, onLocationSelect
             <MapContainer
               center={mapCenter}
               zoom={suggestedLocation ? 10 : 4}
+              scrollWheelZoom={false}
               style={{ height: "100%", width: "100%" }}
               className="rounded-lg border"
             >

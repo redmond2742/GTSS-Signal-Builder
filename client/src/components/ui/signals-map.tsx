@@ -188,6 +188,7 @@ export default function SignalsMap({ signals, approaches, onSignalSelect, onSign
       <MapContainer
         center={center}
         zoom={signals.length === 1 ? 15 : signals.length > 0 ? 13 : 4}
+        scrollWheelZoom={false}
         style={{ height: "100%", width: "100%", zIndex: 1 }}
         className="rounded-lg"
         key={`map-${signals.length}-${center[0]}-${center[1]}`}
