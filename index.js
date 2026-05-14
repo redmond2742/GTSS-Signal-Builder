@@ -1,5 +1,8 @@
 // server/index.ts
 import express2 from "express";
+import helmet from "helmet";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
 
 // server/routes.ts
 import { createServer } from "http";
@@ -97,6 +100,8 @@ var MemStorage = class {
       isPedestrian: phaseData.isPedestrian ?? false,
       isOverlap: phaseData.isOverlap ?? false,
       channelOutput: phaseData.channelOutput || null,
+      compassBearing: phaseData.compassBearing || null,
+      postedSpeedLimit: phaseData.postedSpeedLimit || null,
       vehicleDetectionIds: phaseData.vehicleDetectionIds || null,
       pedAudibleEnabled: phaseData.pedAudibleEnabled ?? false
     };
@@ -178,8 +183,18 @@ var signals = pgTable("signals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   signalId: text("signal_id").notNull().unique(),
   agencyId: text("agency_id").notNull(),
+  streetName1: text("street_name_1").notNull(),
+  streetName2: text("street_name_2").notNull(),
   latitude: real("latitude").notNull(),
   longitude: real("longitude").notNull()
+});
+var approaches = pgTable("approaches", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  approachId: text("approach_id").notNull(),
+  signalId: text("signal_id").notNull(),
+  streetName: text("street_name").notNull(),
+  compassBearing: integer("compass_bearing"),
+  postedSpeed: integer("posted_speed")
 });
 var phases = pgTable("phases", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -188,6 +203,7 @@ var phases = pgTable("phases", {
   movementType: text("movement_type").notNull(),
   isPedestrian: boolean("is_pedestrian").default(false),
   numOfLanes: integer("num_of_lanes").default(1),
+  approachId: text("approach_id"),
   isOverlap: boolean("is_overlap").default(false)
 });
 var detectors = pgTable("detectors", {
@@ -203,6 +219,20 @@ var detectors = pgTable("detectors", {
   length: real("length"),
   stopbarSetbackDist: real("stopbar_setback_dist")
 });
+var basicTimings = pgTable("basic_timings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  phase: integer("phase").notNull(),
+  signalId: text("signal_id").notNull(),
+  pedWalk: real("ped_walk"),
+  pedClearance: real("ped_clearance"),
+  leadingPedInterval: real("leading_ped_interval"),
+  minGreen: real("min_green"),
+  maxGreen: real("max_green"),
+  yellow: real("yellow"),
+  allRed: real("all_red"),
+  vehRecallType: text("veh_recall_type").default("None"),
+  pedRecall: boolean("ped_recall").default(false)
+});
 var insertAgencySchema = createInsertSchema(agencies).omit({
   id: true
 }).extend({
@@ -212,13 +242,22 @@ var insertSignalSchema = createInsertSchema(signals).omit({
   id: true
 }).extend({
   signalId: z.string().optional()
-  // Make signal ID optional when creating
+});
+var insertApproachSchema = createInsertSchema(approaches).omit({
+  id: true
+}).extend({
+  approachId: z.string().optional()
 });
 var insertPhaseSchema = createInsertSchema(phases).omit({
   id: true
 });
 var insertDetectorSchema = createInsertSchema(detectors).omit({
   id: true
+});
+var insertBasicTimingSchema = createInsertSchema(basicTimings).omit({
+  id: true
+}).extend({
+  vehRecallType: z.enum(["None", "Min", "Max", "Soft"]).optional()
 });
 
 // server/routes.ts
@@ -387,9 +426,9 @@ function generateAgencyCSV(agency) {
   return headers + row;
 }
 function generateSignalsCSV(signals2) {
-  const headers = "signal_id,agency_id,latitude,longitude\n";
+  const headers = "SignalID,AgencyID,Street_Name1,Street_Name2,Cnt_lat,Cnt_lon,Control_Type,Cabinet_Type,Cabinet_Lat,Cabinet_Lon,has_BatteryBackup,has_CCTV\n";
   const rows = signals2.map(
-    (s) => `${s.signalId},${s.agencyId},${s.latitude},${s.longitude}`
+    (s) => `${s.signalId},${s.agencyId},"${s.streetName1}","${s.streetName2}",${s.cntLat},${s.cntLon},"${s.controlType}","${s.cabinetType || ""}",${s.cabinetLat || ""},${s.cabinetLon || ""},${s.hasBatteryBackup},${s.hasCctv}`
   ).join("\n");
   return headers + (rows ? rows + "\n" : "");
 }
@@ -405,10 +444,10 @@ function generatePhasesCSV(phases2) {
     "Through-Right": "TR",
     "Pedestrian": "PED"
   };
-  const headers = "Phase,SignalID,Movement_Type,is_pedestrian,is_overlap,channel_output,vehicle_detection_ids,ped_audible_enabled\n";
+  const headers = "Phase,SignalID,Movement_Type,is_pedestrian,is_overlap,channel_output,Compass_Bearing,Posted_Speed_Limit,vehicle_detection_ids,ped_audible_enabled\n";
   const rows = phases2.map((p) => {
     const shorthandMovementType = movementTypeMap[p.movementType] || p.movementType;
-    return `${p.phase},${p.signalId},"${shorthandMovementType}",${p.isPedestrian},${p.isOverlap},"${p.channelOutput || ""}","${p.vehicleDetectionIds || ""}",${p.pedAudibleEnabled}`;
+    return `${p.phase},${p.signalId},"${shorthandMovementType}",${p.isPedestrian},${p.isOverlap},"${p.channelOutput || ""}",${p.compassBearing || ""},${p.postedSpeedLimit || ""},"${p.vehicleDetectionIds || ""}",${p.pedAudibleEnabled}`;
   }).join("\n");
   return headers + (rows ? rows + "\n" : "");
 }
@@ -449,6 +488,7 @@ var vite_config_default = defineConfig({
     }
   },
   root: path.resolve(import.meta.dirname, "client"),
+  envDir: path.resolve(import.meta.dirname),
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true
@@ -530,8 +570,46 @@ function serveStatic(app2) {
 
 // server/index.ts
 var app = express2();
-app.use(express2.json());
-app.use(express2.urlencoded({ extended: false }));
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      // Required for Vite HMR in dev
+      styleSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "https://nominatim.openstreetmap.org", "https://ipapi.co", "wss:", "ws:"],
+      fontSrc: ["'self'", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"]
+    }
+  },
+  crossOriginEmbedderPolicy: false,
+  // Required for map tiles
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+  // Required for external resources
+}));
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS?.split(",") || ["http://localhost:5000", "http://localhost:3000"],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+var apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1e3,
+  // 15 minutes
+  max: 100,
+  // Limit each IP to 100 requests per windowMs
+  message: { message: "Too many requests from this IP, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => !req.path.startsWith("/api")
+  // Only limit API routes
+});
+app.use(apiLimiter);
+app.use(express2.json({ limit: "1mb" }));
+app.use(express2.urlencoded({ extended: false, limit: "1mb" }));
 app.use((req, res, next) => {
   const start = Date.now();
   const path3 = req.path;
