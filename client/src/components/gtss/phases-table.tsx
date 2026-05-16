@@ -82,15 +82,19 @@ export default function PhasesTable({ triggerAdd, triggerBulk }: PhasesTableProp
     img.src = svgUrl;
   };
 
-  // Handle triggers from parent component
+  // Handle triggers from parent component. Capture initial values so the
+  // modal doesn't auto-open when the table re-mounts after navigation.
+  const initialTriggerAdd = useRef(triggerAdd);
+  const initialTriggerBulk = useRef(triggerBulk);
+
   useEffect(() => {
-    if (triggerAdd && triggerAdd > 0) {
+    if (triggerAdd !== initialTriggerAdd.current && triggerAdd && triggerAdd > 0) {
       handleAdd();
     }
   }, [triggerAdd]);
 
   useEffect(() => {
-    if (triggerBulk && triggerBulk > 0) {
+    if (triggerBulk !== initialTriggerBulk.current && triggerBulk && triggerBulk > 0) {
       setShowBulkModal(true);
     }
   }, [triggerBulk]);

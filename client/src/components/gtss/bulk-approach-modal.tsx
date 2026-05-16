@@ -227,17 +227,27 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
     });
   };
 
-  // Handle speed change with auto-fill for opposite approach
+  // Handle speed change with auto-fill for other approaches on the same street.
+  // Matches the street-name auto-fill pattern: target gets updated if it's empty
+  // or if it equals the source's previous speed (i.e. it was tracking us).
   const handleSpeedChange = (index: number, value: string) => {
-    const speed = value ? parseInt(value) : null;
+    const newSpeed = value ? parseInt(value) : null;
     setPendingApproaches(prev => {
       const updated = [...prev];
-      updated[index].postedSpeed = speed;
+      const prevSpeed = updated[index].postedSpeed;
+      updated[index].postedSpeed = newSpeed;
 
-      // Auto-fill opposite approach if it's empty
-      const oppositeIndex = findOppositeApproachIndex(index, updated);
-      if (oppositeIndex !== null && updated[oppositeIndex].postedSpeed === null && speed !== null) {
-        updated[oppositeIndex].postedSpeed = speed;
+      const myStreet = updated[index].streetName.trim();
+      if (!myStreet) return updated;
+
+      for (let i = 0; i < updated.length; i++) {
+        if (i === index) continue;
+        if (updated[i].streetName.trim() !== myStreet) continue;
+        const other = updated[i].postedSpeed;
+        // Fill empty rows, or keep already-in-sync rows in sync as we edit.
+        if (other === null || other === prevSpeed) {
+          updated[i].postedSpeed = newSpeed;
+        }
       }
 
       return updated;
@@ -545,10 +555,10 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
                     <TableHeader>
                       <TableRow className="bg-grey-50">
                         <TableHead className="w-12 text-xs"></TableHead>
-                        <TableHead className="w-24 text-xs">ID *</TableHead>
-                        <TableHead className="w-28 text-xs">Bearing</TableHead>
-                        <TableHead className="text-xs">Street Name *</TableHead>
-                        <TableHead className="w-24 text-xs">Speed (mph)</TableHead>
+                        <TableHead className="w-20 text-xs">ID *</TableHead>
+                        <TableHead className="w-60 text-xs">Angle</TableHead>
+                        <TableHead className="w-48 text-xs">Street Name *</TableHead>
+                        <TableHead className="w-20 text-xs">Speed (mph)</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -572,22 +582,33 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
                             />
                           </TableCell>
                           <TableCell className="py-2">
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-2">
                               <Input
                                 type="number"
+                                inputMode="numeric"
                                 value={approach.bearing}
                                 onChange={(e) => handleBearingChange(idx, e.target.value)}
-                                className="h-8 text-sm w-16"
+                                className="h-8 text-sm w-16 flex-shrink-0"
+                                title="Enter any number — values are normalized to 0–359° (e.g. 450 → 90, -10 → 350)."
                               />
-                              <span className="text-xs text-grey-500">°</span>
+                              <span className="text-xs text-grey-500 flex-shrink-0">°</span>
+                              <Slider
+                                value={[approach.bearing]}
+                                onValueChange={(v) => handleBearingChange(idx, String(v[0]))}
+                                min={0}
+                                max={359}
+                                step={1}
+                                className="flex-1 min-w-0"
+                                aria-label="Approach angle"
+                              />
                             </div>
                           </TableCell>
                           <TableCell className="py-2">
                             <Input
                               value={approach.streetName}
                               onChange={(e) => handleStreetNameChange(idx, e.target.value)}
-                              placeholder="Enter street name"
-                              className="h-8 text-sm"
+                              placeholder="Street"
+                              className="h-8 text-sm w-full"
                               list={`street-suggestions-${idx}`}
                             />
                             <datalist id={`street-suggestions-${idx}`}>

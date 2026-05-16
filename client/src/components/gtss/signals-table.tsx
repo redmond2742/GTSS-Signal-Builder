@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Signal } from "@shared/schema";
 import { useSignals } from "@/lib/localStorageHooks";
 import { useGTSSStore } from "@/store/gtss-store";
@@ -30,20 +30,30 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [sortField, setSortField] = useState<SortField>('signalId');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  // Track which row is being hovered so the matching marker on the map can
+  // be drawn with a distinct color.
+  const [hoveredSignalId, setHoveredSignalId] = useState<string | null>(null);
 
   const { agency, signals, approaches, navigateToSignalDetails } = useGTSSStore();
   const { toast } = useToast();
   const signalHooks = useSignals();
 
-  // Handle triggers from parent component
+  // Handle triggers from parent component. The trigger props are counters
+  // owned by gtss-builder.tsx and survive across navigation (e.g. visiting a
+  // signal-details page and coming back). To avoid the popup re-opening on
+  // re-mount, we capture the initial trigger value in a ref and only act on
+  // *new* increments.
+  const initialTriggerAdd = useRef(triggerAdd);
+  const initialTriggerBulk = useRef(triggerBulk);
+
   useEffect(() => {
-    if (triggerAdd && triggerAdd > 0) {
+    if (triggerAdd !== initialTriggerAdd.current && triggerAdd && triggerAdd > 0) {
       handleAdd();
     }
   }, [triggerAdd]);
 
   useEffect(() => {
-    if (triggerBulk && triggerBulk > 0) {
+    if (triggerBulk !== initialTriggerBulk.current && triggerBulk && triggerBulk > 0) {
       setShowBulkModal(true);
     }
   }, [triggerBulk]);
@@ -201,10 +211,11 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
             </div>
           ) : (
             <div className="w-full h-full relative z-0">
-              <SignalsMap 
-                signals={signals} 
+              <SignalsMap
+                signals={signals}
                 onSignalSelect={(signal) => navigateToSignalDetails(signal.signalId)}
                 onSignalUpdate={handleSignalUpdate}
+                highlightedSignalId={hoveredSignalId}
                 className="w-full h-full"
               />
             </div>
@@ -268,6 +279,8 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
                         key={signal.id}
                         className="hover:bg-grey-50 cursor-pointer transition-colors"
                         onClick={() => navigateToSignalDetails(signal.signalId)}
+                        onMouseEnter={() => setHoveredSignalId(signal.signalId)}
+                        onMouseLeave={() => setHoveredSignalId(prev => prev === signal.signalId ? null : prev)}
                         data-testid={`row-signal-${signal.signalId}`}
                       >
                         <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">{signal.signalId}</TableCell>

@@ -26,6 +26,7 @@ import BulkPhaseModal from "@/components/gtss/bulk-phase-modal";
 import BulkApproachModal from "@/components/gtss/bulk-approach-modal";
 import BulkDetectorModal from "@/components/gtss/bulk-detector-modal";
 import BasicTimingModal from "@/components/gtss/basic-timing-modal";
+import { PhaseDiagram } from "@/components/gtss/phase-diagram-svg";
 import GTSSFileViewer, { GTSSFilePreview } from "@/components/gtss/gtss-file-viewer";
 import { generateAgencyCSV, generateSignalsCSV, generatePhasesCSV, generateDetectionCSV, generateApproachesCSV, generateBasicTimingsCSV } from "@/lib/localStorage";
 
@@ -51,6 +52,18 @@ function ScrollZoomToggle({ locked }: { locked: boolean }) {
   return null;
 }
 
+// Re-centers the persistent map on the active signal whenever its
+// coordinates change. The <MapContainer>'s `center` prop is only an
+// initial value, so we have to call `map.setView` imperatively when the
+// user clicks the prev/next signal arrows.
+function MapRecenter({ lat, lng }: { lat: number; lng: number }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView([lat, lng], map.getZoom(), { animate: true });
+  }, [lat, lng, map]);
+  return null;
+}
+
 // Color palette for approach polylines (mirrors bulk-approach-modal.tsx)
 const approachColors = [
   "#3b82f6", "#22c55e", "#ef4444", "#f97316",
@@ -68,43 +81,6 @@ function approachEndpoint(bearing: number, lat: number, lng: number): [number, n
   const endLat = lat + distance * Math.cos(rad);
   const endLng = lng + (distance * Math.sin(rad)) / Math.cos((lat * Math.PI) / 180);
   return [endLat, endLng];
-}
-
-// Color palette for phase overlays (mirrors bulk-phase-modal phaseColors)
-const phaseColors: Record<number, string> = {
-  1: "#22c55e", 2: "#3b82f6", 3: "#f97316", 4: "#8b5cf6",
-  5: "#ef4444", 6: "#14b8a6", 7: "#eab308", 8: "#ec4899",
-};
-
-// Compute endpoint for a phase polyline along its approach bearing,
-// with a small lateral offset so multiple phases on the same approach
-// don't fully overlap. `lateralOffset` is in arbitrary "lanes" (-2..2);
-// positive shifts toward the LEFT of the approach travel direction.
-function phaseEndpoint(
-  bearing: number,
-  lat: number,
-  lng: number,
-  lateralOffset: number,
-): [number, number] {
-  const oppositeBearing = (bearing + 180) % 360; // direction traffic comes FROM
-  const distance = 0.0017; // ~170m
-  const rad = (oppositeBearing * Math.PI) / 180;
-  const perpRad = rad + Math.PI / 2; // perpendicular (left of opposite-bearing)
-  const offsetMag = 0.00012 * lateralOffset; // ~12m per "lane"
-  const baseLat = lat + distance * Math.cos(rad);
-  const baseLng = lng + (distance * Math.sin(rad)) / Math.cos((lat * Math.PI) / 180);
-  return [
-    baseLat + offsetMag * Math.cos(perpRad),
-    baseLng + (offsetMag * Math.sin(perpRad)) / Math.cos((lat * Math.PI) / 180),
-  ];
-}
-
-// Map a movement type to a lateral offset so left turns sit left of through, etc.
-function lateralOffsetForMovement(movementType: string): number {
-  if (movementType === "Left Turn" || movementType === "Flashing Yellow Arrow") return 1;
-  if (movementType === "Right Turn") return -1.6;
-  if (movementType === "Through-Right") return -0.8;
-  return 0; // Through, Left Through Shared, Permissive, U-Turn, Pedestrian
 }
 
 export default function SignalDetails() {
@@ -699,8 +675,8 @@ export default function SignalDetails() {
         )}
       </div>
 
-      {/* Top section: signal info (left) + persistent map (right) */}
-      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-3">
+      {/* Top section: signal info (left) + persistent map (middle) + phase diagram (right) */}
+      <div className="grid grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)_320px] gap-3">
         {/* Left: signal info + counts */}
         <Card>
           <CardHeader className="bg-grey-50 border-b border-grey-200 px-3 py-2">
@@ -709,18 +685,115 @@ export default function SignalDetails() {
                 <MapPin className="w-4 h-4 text-primary-600" />
                 <span>Signal Info</span>
               </CardTitle>
-              <Button
-                variant="outline"
-                onClick={() => setIsEditingSignal(true)}
-                className="h-6 px-2 text-xs"
-              >
-                <Edit3 className="w-3 h-3 mr-1" />
-                Edit
-              </Button>
+              {signal && !isNewSignal && (
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEditingSignal(v => !v)}
+                  className="h-6 px-2 text-xs"
+                >
+                  {isEditingSignal ? (
+                    <>Cancel</>
+                  ) : (
+                    <><Edit3 className="w-3 h-3 mr-1" />Edit</>
+                  )}
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent className="p-3 space-y-3">
-            {signal ? (
+            {signal && isEditingSignal && !isNewSignal ? (
+              // Inline edit form — replaces the popup Dialog for existing signals
+              <Form {...signalForm}>
+                <form
+                  onSubmit={signalForm.handleSubmit(handleSignalSave)}
+                  className="space-y-2"
+                >
+                  <FormField
+                    control={signalForm.control}
+                    name="signalId"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1">
+                        <FormLabel className="text-[10px] uppercase tracking-wide font-medium text-grey-500">Signal ID</FormLabel>
+                        <FormControl>
+                          <Input {...field} className="h-7 text-sm font-mono" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={signalForm.control}
+                    name="agencyId"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1">
+                        <FormLabel className="text-[10px] uppercase tracking-wide font-medium text-grey-500">Agency ID</FormLabel>
+                        <FormControl>
+                          <Input {...field} className="h-7 text-sm" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="space-y-1">
+                    <p className="text-[10px] uppercase tracking-wide font-medium text-grey-500">Coordinates</p>
+                    <div className="flex gap-1">
+                      <FormField
+                        control={signalForm.control}
+                        name="latitude"
+                        render={({ field }) => (
+                          <FormItem className="space-y-0 flex-1">
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="number"
+                                step="any"
+                                placeholder="Lat"
+                                className="h-7 text-xs font-mono"
+                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={signalForm.control}
+                        name="longitude"
+                        render={({ field }) => (
+                          <FormItem className="space-y-0 flex-1">
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="number"
+                                step="any"
+                                placeholder="Lng"
+                                className="h-7 text-xs font-mono"
+                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="h-7 w-full text-xs bg-primary-600 hover:bg-primary-700 mt-1"
+                  >
+                    Save Changes
+                  </Button>
+                  <div className="border-t border-grey-200 pt-2 space-y-1">
+                    <p className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Counts</p>
+                    <div className="flex justify-between text-xs"><span>Approaches</span><span className="font-mono">{signalApproaches.length}</span></div>
+                    <div className="flex justify-between text-xs"><span>Phases</span><span className="font-mono">{signalPhases.length}</span></div>
+                    <div className="flex justify-between text-xs"><span>Detectors</span><span className="font-mono">{signalDetectors.length}</span></div>
+                    <div className="flex justify-between text-xs"><span>Timings</span><span className="font-mono">{signalTimings.length}</span></div>
+                  </div>
+                </form>
+              </Form>
+            ) : signal ? (
               <>
                 <div>
                   <p className="text-[10px] uppercase tracking-wide font-medium text-grey-500">Signal ID</p>
@@ -772,7 +845,7 @@ export default function SignalDetails() {
               </>
             ) : (
               <p className="text-xs text-grey-500 italic">
-                {isNewSignal ? "Click Edit to configure this new signal." : "No signal data available."}
+                {isNewSignal ? "Fill in the signal info to configure this new signal." : "No signal data available."}
               </p>
             )}
           </CardContent>
@@ -790,6 +863,7 @@ export default function SignalDetails() {
             >
               <MapTileLayers />
               <ScrollZoomToggle locked={mapZoomLocked} />
+              <MapRecenter lat={signal.latitude} lng={signal.longitude} />
               <Marker position={[signal.latitude, signal.longitude]} />
 
               {/* Capture map clicks on Approaches tab → fill the quick-add Bearing field */}
@@ -797,8 +871,10 @@ export default function SignalDetails() {
                 <LocationPicker onLocationSelect={handleMapBearingClick} />
               )}
 
-              {/* Approach polylines — shown on every tab EXCEPT Phases */}
-              {activeTab !== "phases" && signalApproaches.map((a, i) => {
+              {/* Approach polylines — shown on every tab, including Phases.
+                  The phase diagram next to the map already conveys phase info,
+                  so the map stays as a clean approach reference. */}
+              {signalApproaches.map((a, i) => {
                 if (a.compassBearing == null || !signal.latitude || !signal.longitude) return null;
                 const endpoint = approachEndpoint(a.compassBearing, signal.latitude, signal.longitude);
                 return (
@@ -808,30 +884,6 @@ export default function SignalDetails() {
                     color={approachColors[i % approachColors.length]}
                     weight={4}
                     opacity={0.8}
-                  />
-                );
-              })}
-
-              {/* Phase polylines — shown only on the Phases tab */}
-              {activeTab === "phases" && signalPhases.map((p) => {
-                const approach = signalApproaches.find(a => a.approachId === p.approachId);
-                if (!approach || approach.compassBearing == null || !signal.latitude || !signal.longitude) return null;
-                const endpoint = phaseEndpoint(
-                  approach.compassBearing,
-                  signal.latitude,
-                  signal.longitude,
-                  lateralOffsetForMovement(p.movementType),
-                );
-                const color = phaseColors[p.phase] || "#6b7280";
-                const dashArray = p.movementType === "Pedestrian" ? "6,4" : undefined;
-                return (
-                  <Polyline
-                    key={`phase-${p.id}`}
-                    positions={[[signal.latitude, signal.longitude], endpoint]}
-                    color={color}
-                    weight={5}
-                    opacity={0.85}
-                    dashArray={dashArray}
                   />
                 );
               })}
@@ -853,6 +905,30 @@ export default function SignalDetails() {
             {isNewSignal ? "Click Edit to set this signal's location." : "No coordinates yet."}
           </div>
         )}
+
+        {/* Phase Diagram — always visible regardless of active tab */}
+        <Card className="h-[500px]">
+          <CardHeader className="bg-grey-50 border-b border-grey-200 px-3 py-2">
+            <CardTitle className="text-sm font-semibold text-grey-800 flex items-center space-x-2">
+              <Settings className="w-4 h-4 text-primary-600" />
+              <span>Phase Diagram</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-2 h-[calc(100%-2.75rem)]">
+            {signalPhases.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-xs text-grey-400 text-center px-3">
+                {signalApproaches.length === 0
+                  ? "Add approaches first, then add phases to see the diagram."
+                  : "No phases configured yet. Use the Phases tab to add some."}
+              </div>
+            ) : (
+              <PhaseDiagram
+                phases={signalPhases}
+                approaches={signalApproaches}
+              />
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Tabs: Approaches | Phases | Detection | Basic Timings */}
@@ -1570,8 +1646,11 @@ export default function SignalDetails() {
         />
       )}
 
-      {/* Edit Signal Dialog (replaces inline edit form) */}
-      <Dialog open={isEditingSignal} onOpenChange={setIsEditingSignal}>
+      {/* New-Signal Dialog — only used for creating a fresh signal because
+          the persistent main map isn't available until a signal exists, so
+          the user needs the modal's own location-picker map. Existing-signal
+          edits happen inline in the left panel instead. */}
+      <Dialog open={isEditingSignal && isNewSignal} onOpenChange={setIsEditingSignal}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{isNewSignal ? "New Signal" : "Edit Signal"}</DialogTitle>

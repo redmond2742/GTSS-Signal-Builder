@@ -24,8 +24,23 @@ interface SignalsMapProps {
   approaches?: Approach[];
   onSignalSelect?: (signal: Signal) => void;
   onSignalUpdate?: (signalId: string, updates: Partial<Signal>) => void;
+  /** Signal whose marker should be drawn in the highlight color (e.g. hovered row). */
+  highlightedSignalId?: string | null;
   className?: string;
 }
+
+// Distinct icon used when a signal is being hovered in the list — bright pink
+// dot with a white border and a soft halo so it pops against the default blue pins.
+const highlightedSignalIcon = L.divIcon({
+  className: "highlighted-signal-marker",
+  html:
+    '<div style="position:relative;width:22px;height:22px;">' +
+    '<div style="position:absolute;inset:0;border-radius:50%;background:#ec4899;opacity:0.35;animation:none;"></div>' +
+    '<div style="position:absolute;left:4px;top:4px;width:14px;height:14px;border-radius:50%;background:#ec4899;border:3px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.35);"></div>' +
+    "</div>",
+  iconSize: [22, 22],
+  iconAnchor: [11, 11],
+});
 
 // Calculate endpoint for approach arrow based on bearing and distance
 function getApproachEndpoint(
@@ -166,7 +181,7 @@ function QuickEditPopup({ signal, onUpdate, onSignalSelect }: {
   );
 }
 
-export default function SignalsMap({ signals, approaches, onSignalSelect, onSignalUpdate, className }: SignalsMapProps) {
+export default function SignalsMap({ signals, approaches, onSignalSelect, onSignalUpdate, highlightedSignalId, className }: SignalsMapProps) {
   const agency = useGTSSStore((state) => state.agency);
   
   // Use agency coordinates as starting point for map center
@@ -201,7 +216,8 @@ export default function SignalsMap({ signals, approaches, onSignalSelect, onSign
           <Marker
             key={signal.id}
             position={[signal.latitude, signal.longitude]}
-
+            icon={highlightedSignalId === signal.signalId ? highlightedSignalIcon : new L.Icon.Default()}
+            zIndexOffset={highlightedSignalId === signal.signalId ? 1000 : 0}
           >
             <Popup>
               <QuickEditPopup
