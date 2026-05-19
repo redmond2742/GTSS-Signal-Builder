@@ -251,9 +251,12 @@ export default function BasicTimingsTable({ triggerAdd }: BasicTimingsTableProps
 
   const timingHooks = useBasicTimings();
 
-  // Handle triggers from parent component
+  // Handle triggers from parent component. Capture initial value so the
+  // modal doesn't auto-open when the table re-mounts after navigation.
+  const initialTriggerAdd = useRef(triggerAdd);
+
   useEffect(() => {
-    if (triggerAdd && triggerAdd > 0) {
+    if (triggerAdd !== initialTriggerAdd.current && triggerAdd && triggerAdd > 0) {
       handleAdd();
     }
   }, [triggerAdd]);

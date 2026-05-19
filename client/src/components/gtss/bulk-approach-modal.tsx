@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Slider } from "@/components/ui/slider";
 import { Plus, Minus, Save, MapPin } from "lucide-react";
-import { getSignalDisplayName } from "@/lib/utils";
+import { getSignalDisplayName, suggestStreetNameForApproach } from "@/lib/utils";
 import "leaflet/dist/leaflet.css";
 
 // Fix Leaflet default markers
@@ -105,16 +105,35 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
   const generateApproaches = (base: number, count: number, offset: number, preserveData = true) => {
     const angleStep = 360 / count;
     const newApproaches: PendingApproach[] = [];
+    const canSuggest =
+      selectedSignal?.latitude != null && selectedSignal?.longitude != null;
 
     for (let i = 0; i < count; i++) {
       const bearing = (base + offset + (i * angleStep)) % 360;
       const normalizedBearing = ((bearing % 360) + 360) % 360;
 
+      const carriedStreet =
+        (preserveData && pendingApproaches[i]?.streetName) || "";
+      // If this row has no street name yet, try to suggest one from approaches
+      // at nearby signals that point along the same street.
+      let streetName = carriedStreet;
+      if (!streetName && canSuggest) {
+        const suggestion = suggestStreetNameForApproach({
+          bearing: Math.round(normalizedBearing),
+          signalLat: selectedSignal!.latitude!,
+          signalLng: selectedSignal!.longitude!,
+          currentSignalId: selectedSignalId,
+          signals,
+          approaches: existingApproaches,
+        });
+        if (suggestion) streetName = suggestion;
+      }
+
       newApproaches.push({
         id: preserveData ? pendingApproaches[i]?.id : undefined,
         approachId: preserveData && pendingApproaches[i]?.approachId || `${selectedSignalId}-${i + 1}`,
         bearing: Math.round(normalizedBearing),
-        streetName: preserveData && pendingApproaches[i]?.streetName || "",
+        streetName,
         postedSpeed: preserveData && pendingApproaches[i]?.postedSpeed || null,
         direction: getDirectionFromBearing(normalizedBearing),
       });
@@ -162,6 +181,24 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
       const updated = [...prev];
       updated[index].bearing = normalizedBearing;
       updated[index].direction = getDirectionFromBearing(normalizedBearing);
+
+      // Try to auto-suggest a street name from nearby signals' approaches,
+      // but only if this row's street name is still empty (so we never
+      // overwrite a manually entered name).
+      if (!updated[index].streetName.trim() && selectedSignal?.latitude != null && selectedSignal?.longitude != null) {
+        const suggestion = suggestStreetNameForApproach({
+          bearing: normalizedBearing,
+          signalLat: selectedSignal.latitude,
+          signalLng: selectedSignal.longitude,
+          currentSignalId: selectedSignalId,
+          signals,
+          approaches: existingApproaches,
+        });
+        if (suggestion) {
+          updated[index].streetName = suggestion;
+        }
+      }
+
       return updated;
     });
   };
@@ -400,13 +437,28 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
         // Generate after state updates
         setTimeout(() => {
           const angleStep = 360 / 4;
+          const canSuggest =
+            selectedSignal?.latitude != null && selectedSignal?.longitude != null;
           const newApproaches: PendingApproach[] = [];
           for (let i = 0; i < 4; i++) {
             const bearing = (i * angleStep) % 360;
+            // Try to auto-suggest a street name from nearby signals' approaches.
+            let streetName = "";
+            if (canSuggest) {
+              const suggestion = suggestStreetNameForApproach({
+                bearing: Math.round(bearing),
+                signalLat: selectedSignal!.latitude!,
+                signalLng: selectedSignal!.longitude!,
+                currentSignalId: selectedSignalId,
+                signals,
+                approaches: existingApproaches,
+              });
+              if (suggestion) streetName = suggestion;
+            }
             newApproaches.push({
               approachId: `${selectedSignalId}-${i + 1}`,
               bearing: Math.round(bearing),
-              streetName: "",
+              streetName,
               postedSpeed: null,
               direction: getDirectionFromBearing(bearing),
             });

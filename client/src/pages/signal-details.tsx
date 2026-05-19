@@ -29,6 +29,7 @@ import BasicTimingModal from "@/components/gtss/basic-timing-modal";
 import { PhaseDiagram } from "@/components/gtss/phase-diagram-svg";
 import GTSSFileViewer, { GTSSFilePreview } from "@/components/gtss/gtss-file-viewer";
 import { generateAgencyCSV, generateSignalsCSV, generatePhasesCSV, generateDetectionCSV, generateApproachesCSV, generateBasicTimingsCSV } from "@/lib/localStorage";
+import { suggestStreetNameForApproach } from "@/lib/utils";
 
 // Location picker component for interactive map editing
 function LocationPicker({ onLocationSelect }: { onLocationSelect: (lat: number, lon: number) => void }) {
@@ -314,6 +315,24 @@ export default function SignalDetails() {
     }
   };
 
+  // Apply a new quick-add bearing and try to auto-suggest a street name
+  // from nearby signals' approaches when the field is still empty.
+  const applyQuickAddBearing = (rawBearing: number) => {
+    const normalized = ((Math.round(rawBearing) % 360) + 360) % 360;
+    setQaBearing(String(normalized));
+    if (!qaStreetName.trim() && signal?.latitude != null && signal?.longitude != null) {
+      const suggestion = suggestStreetNameForApproach({
+        bearing: normalized,
+        signalLat: signal.latitude,
+        signalLng: signal.longitude,
+        currentSignalId: signal.signalId,
+        signals,
+        approaches,
+      });
+      if (suggestion) setQaStreetName(suggestion);
+    }
+  };
+
   // Quick-Add: capture bearing from a click on the persistent map.
   // Bearing is from the clicked point TOWARD the signal (so it represents
   // the direction of travel of the approach entering the intersection).
@@ -326,7 +345,7 @@ export default function SignalDetails() {
     const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
     let bearing = Math.atan2(y, x) * 180 / Math.PI;
     bearing = (bearing + 360) % 360;
-    setQaBearing(String(Math.round(bearing)));
+    applyQuickAddBearing(bearing);
   };
 
   const handleQuickAddApproach = () => {
@@ -956,7 +975,32 @@ export default function SignalDetails() {
               </div>
               <div className="flex flex-col w-24">
                 <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Bearing *</label>
-                <Input type="number" min="0" max="360" value={qaBearing} onChange={(e) => setQaBearing(e.target.value)} placeholder="0-360" className="h-8 text-sm" />
+                <Input
+                  type="number"
+                  min="0"
+                  max="360"
+                  value={qaBearing}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setQaBearing(raw);
+                    // Once the value parses to a real number, also try the
+                    // street-name suggestion so manual typing benefits too.
+                    const n = parseInt(raw, 10);
+                    if (!isNaN(n) && raw.trim() !== "" && !qaStreetName.trim() && signal?.latitude != null && signal?.longitude != null) {
+                      const suggestion = suggestStreetNameForApproach({
+                        bearing: ((n % 360) + 360) % 360,
+                        signalLat: signal.latitude,
+                        signalLng: signal.longitude,
+                        currentSignalId: signal.signalId,
+                        signals,
+                        approaches,
+                      });
+                      if (suggestion) setQaStreetName(suggestion);
+                    }
+                  }}
+                  placeholder="0-360"
+                  className="h-8 text-sm"
+                />
               </div>
               <div className="flex flex-col w-20">
                 <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Speed</label>
