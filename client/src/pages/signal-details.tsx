@@ -106,6 +106,10 @@ export default function SignalDetails() {
   const [showBulkPhaseModal, setShowBulkPhaseModal] = useState(false);
   const [showBulkApproachModal, setShowBulkApproachModal] = useState(false);
   const [showBulkDetectorModal, setShowBulkDetectorModal] = useState(false);
+  // Detection-tab paste workflow: paste a `Det\tCall Phase` table to bulk-create
+  // detectors with just channel + phase, leaving the rest for later edit.
+  const [showDetectorPaste, setShowDetectorPaste] = useState(false);
+  const [detectorPasteText, setDetectorPasteText] = useState("");
   const [showBasicTimingModal, setShowBasicTimingModal] = useState(false);
   const [editingPhase, setEditingPhase] = useState<Phase | null>(null);
   const [editingDetector, setEditingDetector] = useState<Detector | null>(null);
@@ -569,6 +573,74 @@ export default function SignalDetails() {
         });
       }
     }
+  };
+
+  // Parse a pasted "Det <name>\t<phase>" table. Skips the header row and
+  // any blank lines. Returns one entry per non-empty row, with phase taken
+  // as a number (0 means "unassigned" and will not be saved as a detector).
+  type PastedDetectorRow = { channel: string; phase: number; willSave: boolean };
+  const parseDetectorPaste = (text: string): PastedDetectorRow[] => {
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const rows: PastedDetectorRow[] = [];
+    for (const line of lines) {
+      // Skip header row(s) that contain "Call Phase" or just "Phase".
+      if (/^det\s*$/i.test(line) || /call\s*phase/i.test(line)) continue;
+      // Split on tab, comma, or 2+ spaces.
+      const parts = line.split(/\t|,|\s{2,}/).map(p => p.trim()).filter(Boolean);
+      if (parts.length < 2) continue;
+      const channel = parts[0];
+      const phaseRaw = parts[parts.length - 1];
+      const phase = parseInt(phaseRaw, 10);
+      if (isNaN(phase) || phase < 0 || phase > 99) continue;
+      rows.push({ channel, phase, willSave: phase >= 1 });
+    }
+    return rows;
+  };
+
+  const handleDetectorPasteSave = () => {
+    if (isNewSignal || !signalId) return;
+    const rows = parseDetectorPaste(detectorPasteText);
+    const phasesByNumber = new Set(signalPhases.map(p => p.phase));
+    const toSave = rows.filter(r => r.willSave);
+    if (toSave.length === 0) {
+      toast({
+        title: "Nothing to add",
+        description: "Paste rows in the format `Det 1<tab>1`. Rows with phase 0 are skipped.",
+        variant: "destructive",
+      });
+      return;
+    }
+    let created = 0;
+    let skippedMissingPhase = 0;
+    for (const r of toSave) {
+      // Only create if the signal actually has that phase configured.
+      if (!phasesByNumber.has(r.phase)) {
+        skippedMissingPhase++;
+        continue;
+      }
+      detectorHooks.save({
+        signalId,
+        channel: r.channel,
+        phase: r.phase,
+        purpose: "Vehicle",
+        technologyType: "Loop",
+        description: null,
+        vehicleType: null,
+        lane: null,
+        length: null,
+        stopbarSetbackDist: null,
+      });
+      created++;
+    }
+    const updated = detectors.filter(d => d.signalId === signalId);
+    setSignalDetectors(updated);
+    const messageParts = [`Added ${created} detector${created !== 1 ? "s" : ""}`];
+    if (skippedMissingPhase > 0) {
+      messageParts.push(`(skipped ${skippedMissingPhase} row${skippedMissingPhase !== 1 ? "s" : ""} whose phase is not configured)`);
+    }
+    toast({ title: "Detectors created", description: messageParts.join(" ") });
+    setDetectorPasteText("");
+    setShowDetectorPaste(false);
   };
 
   const handleSignalDelete = () => {
@@ -1262,6 +1334,105 @@ export default function SignalDetails() {
           }}
           preSelectedSignalId={signalId || ""}
         />
+      ) : showDetectorPaste ? (
+        <Card>
+          <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-grey-800 flex items-center space-x-2">
+                <Navigation className="w-4 h-4 text-primary-600" />
+                <span>Paste Detector → Phase Mapping</span>
+              </CardTitle>
+              <Button
+                variant="outline"
+                onClick={() => { setShowDetectorPaste(false); setDetectorPasteText(""); }}
+                className="h-7 px-2 text-xs"
+              >
+                Cancel
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3">
+            <div className="text-xs text-grey-600">
+              <p>Paste a two-column table where each row is <span className="font-mono">Det&nbsp;&lt;name&gt;</span> &lt;tab&gt; <span className="font-mono">&lt;phase&nbsp;number&gt;</span>. The header row is skipped, and rows with phase <span className="font-mono">0</span> (or whose phase isn&apos;t configured on this signal) are skipped too. You can edit each detector after the import to fill in technology, purpose, lane, and other fields.</p>
+            </div>
+            <textarea
+              value={detectorPasteText}
+              onChange={(e) => setDetectorPasteText(e.target.value)}
+              placeholder={"Det\tCall Phase\nDet 1\t1\nDet 2\t2\nDet 3\t3"}
+              className="w-full h-44 font-mono text-xs p-2 border border-grey-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              spellCheck={false}
+              aria-label="Paste detector-to-phase table here"
+            />
+            {detectorPasteText.trim() && (() => {
+              const parsed = parseDetectorPaste(detectorPasteText);
+              const phasesByNumber = new Set(signalPhases.map(p => p.phase));
+              const willSaveCount = parsed.filter(r => r.willSave && phasesByNumber.has(r.phase)).length;
+              const skipPhase0 = parsed.filter(r => !r.willSave).length;
+              const skipMissingPhase = parsed.filter(r => r.willSave && !phasesByNumber.has(r.phase)).length;
+              return (
+                <div className="border border-grey-200 rounded-md">
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-grey-50 border-b border-grey-200 text-xs">
+                    <span className="font-medium text-grey-700">Preview ({parsed.length} row{parsed.length !== 1 ? "s" : ""})</span>
+                    <span className="text-grey-600">
+                      <span className="text-primary-700 font-medium">{willSaveCount}</span> will be added
+                      {skipPhase0 > 0 && <span className="text-grey-500">, {skipPhase0} skipped (phase 0)</span>}
+                      {skipMissingPhase > 0 && <span className="text-amber-700">, {skipMissingPhase} skipped (phase not configured)</span>}
+                    </span>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-grey-50 border-b border-grey-200 sticky top-0">
+                          <TableHead className="font-medium py-1 px-2" style={{ fontSize: '11px' }}>Channel</TableHead>
+                          <TableHead className="font-medium py-1 px-2" style={{ fontSize: '11px' }}>Phase</TableHead>
+                          <TableHead className="font-medium py-1 px-2" style={{ fontSize: '11px' }}>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {parsed.map((r, idx) => {
+                          const phaseConfigured = phasesByNumber.has(r.phase);
+                          const willAdd = r.willSave && phaseConfigured;
+                          return (
+                            <TableRow key={idx} className={willAdd ? "" : "opacity-60"}>
+                              <TableCell className="py-1 px-2 font-mono" style={{ fontSize: '11px' }}>{r.channel}</TableCell>
+                              <TableCell className="py-1 px-2 font-mono" style={{ fontSize: '11px' }}>{r.phase}</TableCell>
+                              <TableCell className="py-1 px-2" style={{ fontSize: '11px' }}>
+                                {willAdd ? (
+                                  <span className="text-green-700">Will add</span>
+                                ) : !r.willSave ? (
+                                  <span className="text-grey-500">Skipped — phase 0</span>
+                                ) : (
+                                  <span className="text-amber-700">Skipped — phase {r.phase} not on this signal</span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              );
+            })()}
+            <div className="flex justify-end gap-2 pt-1">
+              <Button
+                variant="outline"
+                onClick={() => { setShowDetectorPaste(false); setDetectorPasteText(""); }}
+                className="h-8 px-3 text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDetectorPasteSave}
+                disabled={!detectorPasteText.trim()}
+                className="h-8 px-3 text-xs bg-primary-600 hover:bg-primary-700"
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                Add Detectors
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       ) : (
       <Card>
         <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
@@ -1270,24 +1441,46 @@ export default function SignalDetails() {
               <Navigation className="w-4 h-4 text-primary-600" />
               <span>Detection Equipment ({signalDetectors.length})</span>
             </CardTitle>
-            <Button
-              onClick={() => {
-                if (isNewSignal) {
-                  toast({
-                    title: "Save Signal First",
-                    description: "Please save the signal information before adding detectors",
-                    variant: "destructive",
-                  });
-                  return;
-                }
-                setShowBulkDetectorModal(true);
-              }}
-              className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
-              disabled={signalPhases.length === 0}
-            >
-              <Plus className="w-3 h-3 mr-1" />
-              Add Detectors
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                onClick={() => {
+                  if (isNewSignal) {
+                    toast({
+                      title: "Save Signal First",
+                      description: "Please save the signal information before adding detectors",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  setShowBulkDetectorModal(true);
+                }}
+                className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
+                disabled={signalPhases.length === 0}
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                Add Detectors
+              </Button>
+              <Button
+                onClick={() => {
+                  if (isNewSignal) {
+                    toast({
+                      title: "Save Signal First",
+                      description: "Please save the signal information before adding detectors",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  setShowDetectorPaste(true);
+                }}
+                variant="outline"
+                className="h-7 px-2 text-xs"
+                disabled={signalPhases.length === 0}
+                title="Paste a Detector → Phase table"
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                Bulk Add
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
