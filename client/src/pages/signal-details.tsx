@@ -53,6 +53,23 @@ function ScrollZoomToggle({ locked }: { locked: boolean }) {
   return null;
 }
 
+// Inline-edit option lists for the Detection table. Mirrored from
+// bulk-detector-modal.tsx so the dropdowns stay consistent across the app.
+const DETECTOR_PURPOSE_OPTIONS = [
+  "Stop Bar",
+  "Advanced Loop",
+  "Count Detector",
+  "Extension",
+  "Dilemma Zone",
+];
+const DETECTOR_TECHNOLOGY_OPTIONS = [
+  "Inductance Loop",
+  "Video",
+  "Radar",
+  "Microwave",
+  "Magnetic",
+];
+
 // Re-centers the persistent map on the active signal whenever its
 // coordinates change. The <MapContainer>'s `center` prop is only an
 // initial value, so we have to call `map.setView` imperatively when the
@@ -110,6 +127,11 @@ export default function SignalDetails() {
   // detectors with just channel + phase, leaving the rest for later edit.
   const [showDetectorPaste, setShowDetectorPaste] = useState(false);
   const [detectorPasteText, setDetectorPasteText] = useState("");
+  // Defaults applied to every detector created by the paste flow. The user
+  // can change these before pressing "Add Detectors" so they don't have to
+  // re-edit every row afterward.
+  const [pasteDefaultPurpose, setPasteDefaultPurpose] = useState<string>("Stop Bar");
+  const [pasteDefaultTechnology, setPasteDefaultTechnology] = useState<string>("Inductance Loop");
   const [showBasicTimingModal, setShowBasicTimingModal] = useState(false);
   const [editingPhase, setEditingPhase] = useState<Phase | null>(null);
   const [editingDetector, setEditingDetector] = useState<Detector | null>(null);
@@ -253,7 +275,18 @@ export default function SignalDetails() {
       setSignalPhases(filteredPhases);
 
       const filteredDetectors = detectors.filter(d => d.signalId === signalId);
-      setSignalDetectors(filteredDetectors);
+      // One-time migration: legacy detectors created before we stripped the
+      // "Det " prefix have channels like "Det 1". Normalize them so the table
+      // and GTSS output show just the number/identifier.
+      const normalizedDetectors = filteredDetectors.map(d => {
+        const stripped = d.channel.replace(/^det\s+/i, "");
+        if (stripped !== d.channel) {
+          try { detectorHooks.update(d.id, { channel: stripped }); } catch {}
+          return { ...d, channel: stripped };
+        }
+        return d;
+      });
+      setSignalDetectors(normalizedDetectors);
 
       const filteredApproaches = approaches.filter(a => a.signalId === signalId);
       setSignalApproaches(filteredApproaches);
@@ -555,6 +588,22 @@ export default function SignalDetails() {
     setSignalDetectors(updatedDetectors);
   };
 
+  // Inline-edit a single field on a detector row (used by the Purpose and
+  // Technology dropdowns in the Detection table).
+  const handleDetectorFieldChange = (
+    detectorId: string,
+    field: "technologyType" | "purpose",
+    value: string,
+  ) => {
+    try {
+      detectorHooks.update(detectorId, { [field]: value });
+      const updated = detectors.filter(d => d.signalId === signalId);
+      setSignalDetectors(updated);
+    } catch {
+      toast({ title: "Error", description: "Failed to update detector", variant: "destructive" });
+    }
+  };
+
   const handleDetectorDelete = (detector: Detector) => {
     if (confirm(`Delete Detector ${detector.channel}?`)) {
       try {
@@ -588,7 +637,9 @@ export default function SignalDetails() {
       // Split on tab, comma, or 2+ spaces.
       const parts = line.split(/\t|,|\s{2,}/).map(p => p.trim()).filter(Boolean);
       if (parts.length < 2) continue;
-      const channel = parts[0];
+      // Strip the "Det " prefix so the channel stores just the number/identifier
+      // (e.g. "Det 1" → "1"). Case-insensitive, also handles "DET" or "Det\t".
+      const channel = parts[0].replace(/^det\s+/i, "");
       const phaseRaw = parts[parts.length - 1];
       const phase = parseInt(phaseRaw, 10);
       if (isNaN(phase) || phase < 0 || phase > 99) continue;
@@ -622,8 +673,10 @@ export default function SignalDetails() {
         signalId,
         channel: r.channel,
         phase: r.phase,
-        purpose: "Vehicle",
-        technologyType: "Loop",
+        // Apply the user-selected defaults from the paste panel. They can
+        // still tweak per-row in the Detection table afterward.
+        purpose: pasteDefaultPurpose,
+        technologyType: pasteDefaultTechnology,
         description: null,
         vehicleType: null,
         lane: null,
@@ -1353,7 +1406,33 @@ export default function SignalDetails() {
           </CardHeader>
           <CardContent className="p-4 space-y-3">
             <div className="text-xs text-grey-600">
-              <p>Paste a two-column table where each row is <span className="font-mono">Det&nbsp;&lt;name&gt;</span> &lt;tab&gt; <span className="font-mono">&lt;phase&nbsp;number&gt;</span>. The header row is skipped, and rows with phase <span className="font-mono">0</span> (or whose phase isn&apos;t configured on this signal) are skipped too. You can edit each detector after the import to fill in technology, purpose, lane, and other fields.</p>
+              <p>Paste a two-column table where each row is <span className="font-mono">Det&nbsp;&lt;name&gt;</span> &lt;tab&gt; <span className="font-mono">&lt;phase&nbsp;number&gt;</span>. The header row is skipped, the <span className="font-mono">Det</span> prefix is stripped from the channel, and rows with phase <span className="font-mono">0</span> (or whose phase isn&apos;t configured on this signal) are skipped too. Set the defaults below and apply them to every detector created from this paste.</p>
+            </div>
+
+            {/* Defaults that get applied to every detector created here */}
+            <div className="grid grid-cols-2 gap-3 p-3 bg-grey-50 border border-grey-200 rounded-md">
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500">Default Purpose</label>
+                <Select value={pasteDefaultPurpose} onValueChange={setPasteDefaultPurpose}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {DETECTOR_PURPOSE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500">Default Technology</label>
+                <Select value={pasteDefaultTechnology} onValueChange={setPasteDefaultTechnology}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {DETECTOR_TECHNOLOGY_OPTIONS.map((opt) => (
+                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <textarea
               value={detectorPasteText}
@@ -1520,8 +1599,44 @@ export default function SignalDetails() {
                     >
                       <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>{detector.channel}</TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{detector.phase}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{detector.purpose || '-'}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{detector.technologyType}</TableCell>
+                      <TableCell
+                        className="py-1 px-1.5"
+                        style={{ fontSize: '12px' }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Select
+                          value={detector.purpose || ""}
+                          onValueChange={(v) => handleDetectorFieldChange(detector.id, "purpose", v)}
+                        >
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue placeholder="—" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DETECTOR_PURPOSE_OPTIONS.map((opt) => (
+                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell
+                        className="py-1 px-1.5"
+                        style={{ fontSize: '12px' }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Select
+                          value={detector.technologyType || ""}
+                          onValueChange={(v) => handleDetectorFieldChange(detector.id, "technologyType", v)}
+                        >
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue placeholder="—" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DETECTOR_TECHNOLOGY_OPTIONS.map((opt) => (
+                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
                       <TableCell className="py-1 px-1.5">
                         <Button
                           variant="ghost"
