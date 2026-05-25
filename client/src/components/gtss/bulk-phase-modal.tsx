@@ -176,7 +176,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
     // Clone the SVG and set explicit dimensions for export
     const svgClone = svg.cloneNode(true) as SVGSVGElement;
     svgClone.setAttribute('width', '340');
-    svgClone.setAttribute('height', '360');
+    svgClone.setAttribute('height', '384');
 
     const svgData = new XMLSerializer().serializeToString(svgClone);
     const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
@@ -186,9 +186,9 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
     img.onload = () => {
       const canvas = document.createElement('canvas');
       const scale = 2; // Higher resolution
-      // Match viewBox dimensions: -20 0 340 360 means width=340, height=360
+      // Match viewBox dimensions: -20 0 340 384 means width=340, height=384
       canvas.width = 340 * scale;
-      canvas.height = 360 * scale;
+      canvas.height = 384 * scale;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
@@ -198,7 +198,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
 
       // Draw SVG at scale
       ctx.scale(scale, scale);
-      ctx.drawImage(img, 0, 0, 340, 360);
+      ctx.drawImage(img, 0, 0, 340, 384);
 
       // Convert to JPG and download
       canvas.toBlob((blob) => {
@@ -442,13 +442,23 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
       return;
     }
 
-    // Check for duplicate phase numbers
-    const phaseNumbers = pendingPhases.map(p => p.phase);
-    const duplicates = phaseNumbers.filter((p, i) => phaseNumbers.indexOf(p) !== i);
-    if (duplicates.length > 0) {
+    // The same phase number is allowed on multiple approaches (e.g. a
+    // pedestrian phase serving several crossings, or a shared phase across
+    // different approach angles). We only block TRUE duplicates — identical
+    // phase number AND approach — since those would be redundant records.
+    const seen = new Set<string>();
+    const trueDuplicates: string[] = [];
+    for (const p of pendingPhases) {
+      const key = `${p.phase}::${p.approachId || ""}`;
+      if (seen.has(key)) {
+        trueDuplicates.push(`Phase ${p.phase}${p.approachId ? ` @ ${p.approachId}` : " (no approach)"}`);
+      }
+      seen.add(key);
+    }
+    if (trueDuplicates.length > 0) {
       toast({
-        title: "Duplicate Phase Numbers",
-        description: `Phase numbers must be unique. Duplicates: ${Array.from(new Set(duplicates)).join(", ")}`,
+        title: "Duplicate Phase + Approach",
+        description: `Each phase/approach pair must be unique. Duplicates: ${Array.from(new Set(trueDuplicates)).join(", ")}`,
         variant: "destructive",
       });
       return;
@@ -646,6 +656,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
                     phases={pendingPhases}
                     approaches={signalApproaches}
                     intersectionName={intersectionName}
+                    intersectionId={selectedSignalId}
                     svgRef={svgRef}
                   />
                 </div>

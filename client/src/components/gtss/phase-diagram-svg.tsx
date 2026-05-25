@@ -32,10 +32,41 @@ export interface PhaseDiagramProps {
   phases: PhaseDiagramPhase[];
   approaches: PhaseDiagramApproach[];
   intersectionName?: string;
+  /** Signal/intersection ID shown large in the center of the diagram. */
+  intersectionId?: string;
   svgRef?: React.RefObject<SVGSVGElement>;
 }
 
-export const PhaseDiagram = ({ phases, approaches, intersectionName, svgRef }: PhaseDiagramProps) => {
+// Fallback palette used only for streets that don't have any phase assigned
+// yet (so the legend still shows distinct colors before phases exist).
+const STREET_PALETTE = ["#0ea5e9", "#f59e0b", "#16a34a", "#db2777", "#7c3aed", "#0d9488"];
+
+export const PhaseDiagram = ({ phases, approaches, intersectionName, intersectionId, svgRef }: PhaseDiagramProps) => {
+  // Unique street names (in approach order).
+  const uniqueStreets = Array.from(
+    new Set(approaches.map(a => (a.streetName || "").trim()).filter(Boolean))
+  );
+
+  // Color each street to match the phase(s) running on it. A street can carry
+  // several phases, so we pick a representative: prefer a through movement,
+  // otherwise the lowest phase number. Streets with no phases yet fall back to
+  // the neutral palette so the legend still distinguishes them.
+  const colorForStreet = (street: string, fallbackIndex: number): string => {
+    const approachIds = approaches
+      .filter(a => (a.streetName || "").trim() === street)
+      .map(a => a.approachId);
+    const streetPhases = phases.filter(p => p.approachId != null && approachIds.includes(p.approachId));
+    if (streetPhases.length > 0) {
+      const through = streetPhases.filter(
+        p => p.movementType === "Through" || p.movementType === "Through-Right",
+      );
+      const pool = through.length > 0 ? through : streetPhases;
+      const rep = pool.reduce((min, p) => (p.phase < min.phase ? p : min), pool[0]);
+      return phaseColors[rep.phase] || STREET_PALETTE[fallbackIndex % STREET_PALETTE.length];
+    }
+    return STREET_PALETTE[fallbackIndex % STREET_PALETTE.length];
+  };
+
   const getApproachBearing = (approachId: string | null): number | null => {
     if (!approachId) return null;
     const approach = approaches.find(a => a.approachId === approachId);
@@ -84,10 +115,52 @@ export const PhaseDiagram = ({ phases, approaches, intersectionName, svgRef }: P
     return baseOffset;
   };
 
+  // Pedestrian-only (scramble) phase: a dashed diagonal kept WITHIN the central
+  // intersection circle (radius 42) so it represents the crossing without
+  // sprawling out toward the approaches. The phase number sits just outside
+  // the circle at the diagonal end. Multiple scramble phases alternate the
+  // diagonal direction ("\" then "/").
+  const CENTER_RADIUS = 42;
+  const renderScramble = (phase: PhaseDiagramPhase, scrambleIndex: number) => {
+    const color = phaseColors[phase.phase] || '#6b7280';
+    const dir = scrambleIndex % 2 === 0 ? 1 : -1; // "\" then "/"
+    // Endpoint distance per axis so the diagonal end lands on the central
+    // circle: (d, d) is at radius d*√2, set equal to CENTER_RADIUS.
+    const d = CENTER_RADIUS / Math.SQRT2;
+    const x1 = 150 - d * dir;
+    const y1 = 150 - d;
+    const x2 = 150 + d * dir;
+    const y2 = 150 + d;
+    // Phase-number position: a little beyond the top end, along the diagonal.
+    const labelD = d + 9;
+    const lx = 150 - labelD * dir;
+    const ly = 150 - labelD;
+    return (
+      <g key={`scramble-${phase.phase}-${scrambleIndex}`}>
+        <line
+          x1={x1}
+          y1={y1}
+          x2={x2}
+          y2={y2}
+          stroke={color}
+          strokeWidth="2.5"
+          strokeDasharray="5 4"
+          strokeLinecap="round"
+          opacity="0.85"
+        />
+        <text x={lx} y={ly} textAnchor="middle" fontSize="12" fontWeight="bold" fill={color}>
+          {phase.phase}
+        </text>
+      </g>
+    );
+  };
+
   const renderPedestrianLine = (phase: PhaseDiagramPhase, index: number) => {
     const bearing = getApproachBearing(phase.approachId);
     if (bearing === null) return null;
-    if (!phase.isPedestrian && phase.movementType !== 'Pedestrian') return null;
+    // Parallel crosswalk dashes are only for through-movement phases that allow
+    // pedestrians. Pedestrian-ONLY phases are drawn as a diagonal scramble.
+    if (!phase.isPedestrian || phase.movementType === 'Pedestrian') return null;
 
     const angleRad = (bearing - 90) * (Math.PI / 180);
     const perpAngle = angleRad + Math.PI / 2;
@@ -268,7 +341,7 @@ export const PhaseDiagram = ({ phases, approaches, intersectionName, svgRef }: P
   };
 
   return (
-    <svg ref={svgRef} viewBox="-20 0 340 360" className="w-full h-full">
+    <svg ref={svgRef} viewBox="-20 0 340 384" className="w-full h-full">
       <defs>
         {Object.entries(phaseColors).map(([phase, color]) => (
           <marker
@@ -296,12 +369,25 @@ export const PhaseDiagram = ({ phases, approaches, intersectionName, svgRef }: P
       </defs>
 
       {intersectionName && (
-        <text x="150" y="18" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#374151">
+        <text x="150" y="16" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#374151">
           {intersectionName}
         </text>
       )}
 
-      <g transform={intersectionName ? "translate(0, 20)" : ""}>
+      {/* Street names colored to match the phase(s) running on each street.
+          Rendered into the SVG so the colors are captured on image download. */}
+      {uniqueStreets.length > 0 && (
+        <text x="150" y="35" textAnchor="middle" fontSize="12" fontWeight="700">
+          {uniqueStreets.map((name, i) => (
+            <React.Fragment key={`street-${i}`}>
+              {i > 0 && <tspan fill="#9ca3af"> · </tspan>}
+              <tspan fill={colorForStreet(name, i)}>{name}</tspan>
+            </React.Fragment>
+          ))}
+        </text>
+      )}
+
+      <g transform="translate(0, 42)">
         <circle cx="150" cy="150" r="115" fill="none" stroke="#e5e7eb" strokeWidth="1" strokeDasharray="4 4" />
         <circle cx="150" cy="150" r="42" fill="#f3f4f6" stroke="#d1d5db" strokeWidth="2" />
 
@@ -323,9 +409,36 @@ export const PhaseDiagram = ({ phases, approaches, intersectionName, svgRef }: P
           );
         })}
 
-        {phases.filter(p => p.isPedestrian || p.movementType === 'Pedestrian').map((phase, idx) => renderPedestrianLine(phase, idx))}
+        {/* Through-movement crosswalk dashes (parallel to the approach) */}
+        {phases.map((phase, idx) => renderPedestrianLine(phase, idx))}
+        {/* Pedestrian-only scramble diagonals */}
+        {phases
+          .filter(p => p.movementType === 'Pedestrian')
+          .map((phase, idx) => renderScramble(phase, idx))}
         {phases.map((phase, idx) => renderArrow(phase, idx))}
-        {phases.map((phase, idx) => renderLabel(phase, idx))}
+
+        {/* Intersection ID, scaled to sit within the central crosswalk box */}
+        {intersectionId && (() => {
+          const maxWidth = 70; // stay within the central circle / crosswalk lines
+          const fontSize = Math.max(10, Math.min(38, maxWidth / (intersectionId.length * 0.62)));
+          return (
+            <text
+              x={150}
+              y={150 + fontSize * 0.34}
+              textAnchor="middle"
+              fontSize={fontSize}
+              fontWeight="bold"
+              fill="#6b7280"
+            >
+              {intersectionId}
+            </text>
+          );
+        })()}
+
+        {/* Outer phase-number labels (skip pedestrian-only — the scramble has its own) */}
+        {phases
+          .filter(p => p.movementType !== 'Pedestrian')
+          .map((phase, idx) => renderLabel(phase, idx))}
       </g>
     </svg>
   );

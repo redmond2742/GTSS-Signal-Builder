@@ -425,8 +425,14 @@ export default function SignalDetails() {
       toast({ title: "Invalid Phase", description: "Phase must be 1-8.", variant: "destructive" });
       return;
     }
-    if (signalPhases.some(p => p.phase === phaseNum)) {
-      toast({ title: "Phase Exists", description: `Phase ${phaseNum} already exists.`, variant: "destructive" });
+    // Same phase number is allowed on different approaches (e.g. a pedestrian
+    // phase serving multiple crossings). Only block an identical phase+approach pair.
+    if (signalPhases.some(p => p.phase === phaseNum && (p.approachId || "") === (qpApproachId || ""))) {
+      toast({
+        title: "Phase Exists",
+        description: `Phase ${phaseNum} is already assigned to ${qpApproachId || "no approach"}. Pick a different approach.`,
+        variant: "destructive",
+      });
       return;
     }
     try {
@@ -495,30 +501,26 @@ export default function SignalDetails() {
 
   const handlePhaseSave = (data: InsertPhase) => {
     try {
-      // Check for duplicate phase numbers (only for new phases)
-      if (!editingPhase) {
-        const existingPhase = signalPhases.find(p => p.phase === data.phase);
-        if (existingPhase) {
-          toast({
-            title: "Error",
-            description: `Phase ${data.phase} already exists for this signal. Please choose a different phase number.`,
-            variant: "destructive",
-          });
-          return;
-        }
+      // The same phase number may be assigned to multiple approaches (e.g. a
+      // pedestrian phase covering several crossings). Only block an identical
+      // phase+approach pair, excluding the row being edited.
+      const dataApproach = data.approachId || "";
+      const conflict = signalPhases.find(
+        p =>
+          p.phase === data.phase &&
+          (p.approachId || "") === dataApproach &&
+          (!editingPhase || p.id !== editingPhase.id),
+      );
+      if (conflict) {
+        toast({
+          title: "Error",
+          description: `Phase ${data.phase} is already assigned to ${dataApproach || "no approach"} for this signal. Pick a different approach.`,
+          variant: "destructive",
+        });
+        return;
       }
-      
+
       if (editingPhase) {
-        // Check for duplicate phase numbers when editing (exclude current phase)
-        const existingPhase = signalPhases.find(p => p.phase === data.phase && p.id !== editingPhase.id);
-        if (existingPhase) {
-          toast({
-            title: "Error",
-            description: `Phase ${data.phase} already exists for this signal. Please choose a different phase number.`,
-            variant: "destructive",
-          });
-          return;
-        }
         phaseHooks.update(editingPhase.id, data);
       } else {
         phaseHooks.save(data);
@@ -1069,6 +1071,7 @@ export default function SignalDetails() {
               <PhaseDiagram
                 phases={signalPhases}
                 approaches={signalApproaches}
+                intersectionId={signal?.signalId}
               />
             )}
           </CardContent>

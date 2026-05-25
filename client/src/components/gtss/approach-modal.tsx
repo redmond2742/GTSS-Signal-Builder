@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { MapContainer, Marker, Popup, Polyline, useMapEvents } from "react-leaflet";
 import { Trash2, MapPin, Navigation } from "lucide-react";
-import { getSignalDisplayName } from "@/lib/utils";
+import { getSignalDisplayName, suggestStreetNameForApproach } from "@/lib/utils";
 import MapTileLayers from "@/components/ui/map-tile-layers";
 
 interface ApproachModalProps {
@@ -75,6 +75,23 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
     return Array.from(names).sort();
   }, [approaches]);
 
+  // If this approach has no street name yet, suggest one from a nearby signal's
+  // approach that points along a similar angle. Never overwrites a typed name.
+  const maybeSuggestStreetName = (bearing: number) => {
+    if (!selectedSignal?.latitude || !selectedSignal?.longitude) return;
+    const current = form.getValues("streetName");
+    if (current && current.trim()) return;
+    const suggestion = suggestStreetNameForApproach({
+      bearing,
+      signalLat: selectedSignal.latitude,
+      signalLng: selectedSignal.longitude,
+      currentSignalId: selectedSignalId,
+      signals,
+      approaches,
+    });
+    if (suggestion) form.setValue("streetName", suggestion);
+  };
+
   // Calculate bearing for approach direction (direction vehicles travel TOWARD the intersection)
   // User clicks where traffic is coming FROM, we calculate the approach direction (opposite)
   const handleMapClick = (clickLat: number, clickLng: number) => {
@@ -94,7 +111,9 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
     let bearing = Math.atan2(y, x) * 180 / Math.PI;
     bearing = (bearing + 360) % 360;  // Normalize to 0-360
 
-    form.setValue('compassBearing', Math.round(bearing));
+    const rounded = Math.round(bearing);
+    form.setValue('compassBearing', rounded);
+    maybeSuggestStreetName(rounded);
   };
 
   // Calculate end point for bearing visualization line (shows where traffic comes FROM)
@@ -294,7 +313,11 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
                           {...field}
                           onChange={(e) => {
                             const value = e.target.value;
-                            field.onChange(value ? parseInt(value) : undefined);
+                            const parsed = value ? parseInt(value) : undefined;
+                            field.onChange(parsed);
+                            if (parsed !== undefined && !isNaN(parsed)) {
+                              maybeSuggestStreetName(((parsed % 360) + 360) % 360);
+                            }
                           }}
                           value={field.value || ""}
                         />

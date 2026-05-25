@@ -84,6 +84,9 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
   const [pendingApproaches, setPendingApproaches] = useState<PendingApproach[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  // Map click behavior: "rotateAll" sets Approach 1 and rotates the rest;
+  // "oneClick" snaps only the single nearest approach line to the clicked angle.
+  const [clickMode, setClickMode] = useState<"rotateAll" | "oneClick">("rotateAll");
 
   // Get selected signal
   const selectedSignal = useMemo(() => {
@@ -142,7 +145,9 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
     setPendingApproaches(newApproaches);
   };
 
-  // Handle map click to set base bearing
+  // Handle map click. Computes the bearing from the signal toward the clicked
+  // point, then either rotates all approaches (rotateAll) or snaps the single
+  // nearest approach line to that angle (oneClick).
   const handleMapClick = (clickLat: number, clickLng: number) => {
     if (!selectedSignal || !selectedSignal.latitude || !selectedSignal.longitude) return;
 
@@ -158,8 +163,29 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
     const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
     let bearing = Math.atan2(y, x) * 180 / Math.PI;
     bearing = (bearing + 360) % 360;
+    const rounded = Math.round(bearing);
 
-    setBaseBearing(Math.round(bearing));
+    if (clickMode === "oneClick") {
+      // Snap only the nearest approach line to the clicked angle.
+      if (pendingApproaches.length === 0) return;
+      const angDist = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
+      let nearestIdx = 0;
+      let best = Infinity;
+      pendingApproaches.forEach((a, i) => {
+        const dist = angDist(a.bearing, rounded);
+        if (dist < best) {
+          best = dist;
+          nearestIdx = i;
+        }
+      });
+      // Reuse handleBearingChange so the direction label + street-name
+      // suggestion update consistently for the snapped approach.
+      handleBearingChange(nearestIdx, String(rounded));
+      return;
+    }
+
+    // Default: set Approach 1 base bearing and rotate the rest.
+    setBaseBearing(rounded);
     generateApproaches(bearing, numApproaches, angleOffset, true);
   };
 
@@ -558,9 +584,35 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
               {/* Map */}
               <div className="border border-grey-200 rounded-lg overflow-hidden">
                 <div className="p-2 bg-blue-50 border-b border-blue-200">
-                  <div className="flex items-center gap-2 text-sm text-blue-700">
-                    <MapPin className="w-4 h-4" />
-                    <span>Click on the map to set the direction of Approach 1 (where traffic comes from)</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-sm text-blue-700">
+                      <MapPin className="w-4 h-4 flex-shrink-0" />
+                      <span>
+                        {clickMode === "oneClick"
+                          ? "1-Click: click the map to snap the nearest approach line to that angle"
+                          : "Click the map to set Approach 1 direction (rotates all approaches)"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={clickMode === "rotateAll" ? "default" : "outline"}
+                        onClick={() => setClickMode("rotateAll")}
+                        className="h-7 px-2 text-xs"
+                      >
+                        Rotate All
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={clickMode === "oneClick" ? "default" : "outline"}
+                        onClick={() => setClickMode("oneClick")}
+                        className="h-7 px-2 text-xs"
+                      >
+                        1-Click
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 <div className="h-64">
