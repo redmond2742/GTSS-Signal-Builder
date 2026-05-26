@@ -30,6 +30,7 @@ import { PhaseDiagram } from "@/components/gtss/phase-diagram-svg";
 import GTSSFileViewer, { GTSSFilePreview } from "@/components/gtss/gtss-file-viewer";
 import { generateAgencyCSV, generateSignalsCSV, generatePhasesCSV, generateDetectionCSV, generateApproachesCSV, generateBasicTimingsCSV } from "@/lib/localStorage";
 import { suggestStreetNameForApproach } from "@/lib/utils";
+import { StreetNameInput } from "@/components/gtss/street-name-input";
 
 // Location picker component for interactive map editing
 function LocationPicker({ onLocationSelect }: { onLocationSelect: (lat: number, lon: number) => void }) {
@@ -167,6 +168,16 @@ export default function SignalDetails() {
       }
     }
   }, [signalPhases, qpPhase]);
+
+  // All previously-saved street names across every signal, for the quick-add
+  // autocomplete so users can reuse names they've already entered.
+  const allStreetNames = useMemo(
+    () =>
+      Array.from(
+        new Set(approaches.map(a => (a.streetName || "").trim()).filter(Boolean))
+      ).sort(),
+    [approaches],
+  );
 
   const signalForm = useForm<InsertSignal>({
     resolver: zodResolver(insertSignalSchema),
@@ -1099,7 +1110,13 @@ export default function SignalDetails() {
               </div>
               <div className="flex flex-col flex-1 min-w-[160px]">
                 <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Street Name *</label>
-                <Input value={qaStreetName} onChange={(e) => setQaStreetName(e.target.value)} placeholder="e.g. Main St" className="h-8 text-sm" />
+                <StreetNameInput
+                  value={qaStreetName}
+                  onChange={setQaStreetName}
+                  suggestions={allStreetNames}
+                  placeholder="e.g. Main St"
+                  className="h-8 text-sm"
+                />
               </div>
               <div className="flex flex-col w-24">
                 <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Bearing *</label>

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { MapContainer, Marker, Popup, Polyline, useMapEvents } from "react-leaflet";
 import { Trash2, MapPin, Navigation } from "lucide-react";
 import { getSignalDisplayName, suggestStreetNameForApproach } from "@/lib/utils";
+import { StreetNameInput } from "./street-name-input";
 import MapTileLayers from "@/components/ui/map-tile-layers";
 
 interface ApproachModalProps {
@@ -244,19 +245,14 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
                   <FormItem>
                     <FormLabel>Street Name *</FormLabel>
                     <FormControl>
-                      <>
-                        <Input
-                          placeholder="e.g., Main Street NB"
-                          list="street-name-suggestions"
-                          autoComplete="off"
-                          {...field}
-                        />
-                        <datalist id="street-name-suggestions">
-                          {uniqueStreetNames.map((name) => (
-                            <option key={name} value={name} />
-                          ))}
-                        </datalist>
-                      </>
+                      <StreetNameInput
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        suggestions={uniqueStreetNames}
+                        placeholder="e.g., Main Street NB"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

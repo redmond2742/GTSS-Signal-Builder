@@ -1,9 +1,43 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import type { KeyboardEvent } from "react"
 import type { Signal, Approach } from "@shared/schema"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+/**
+ * Tab / Shift+Tab navigation that moves DOWN a column instead of across a row.
+ * Attach to a table (or wrapping container) via onKeyDown. Each focusable cell
+ * must carry `data-tab-col` and `data-tab-row` attributes. Focusable elements
+ * without those attributes are left to the browser's default tab behavior.
+ */
+export function handleColumnMajorTab(e: KeyboardEvent<HTMLElement>) {
+  if (e.key !== "Tab") return;
+  const target = e.target as HTMLElement;
+  if (target.dataset.tabCol == null || target.dataset.tabRow == null) return;
+
+  const cells = Array.from(
+    e.currentTarget.querySelectorAll<HTMLElement>("[data-tab-col][data-tab-row]")
+  ).filter(el => !(el as HTMLInputElement).disabled);
+
+  // Column-major order: all rows of column 0, then column 1, etc.
+  cells.sort((a, b) => {
+    const ca = Number(a.dataset.tabCol);
+    const cb = Number(b.dataset.tabCol);
+    if (ca !== cb) return ca - cb;
+    return Number(a.dataset.tabRow) - Number(b.dataset.tabRow);
+  });
+
+  const idx = cells.indexOf(target);
+  if (idx === -1) return;
+  const next = cells[e.shiftKey ? idx - 1 : idx + 1];
+  if (next) {
+    e.preventDefault();
+    next.focus();
+    if (next instanceof HTMLInputElement) next.select();
+  }
 }
 
 /**

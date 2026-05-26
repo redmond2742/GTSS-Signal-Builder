@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Save, Trash2, Download, ChevronUp, ChevronDown, Wand2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { getSignalDisplayName } from "@/lib/utils";
+import { getSignalDisplayName, handleColumnMajorTab } from "@/lib/utils";
 import { guessPhaseDirectionMapping, isTypicallyThroughPhase } from "@/lib/agencyDefaults";
 import { PhaseDiagram, phaseColors } from "./phase-diagram-svg";
 
@@ -684,7 +684,8 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
-                    <Table>
+                    {/* Tab / Shift+Tab moves down each column instead of across rows */}
+                    <Table onKeyDown={handleColumnMajorTab}>
                       <TableHeader>
                         <TableRow className="bg-grey-50">
                           <SortableHeader field="phase" className="w-24">Phase</SortableHeader>
@@ -697,7 +698,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {getSortedPhases().map((phase) => {
+                        {getSortedPhases().map((phase, visualRow) => {
                           const idx = pendingPhases.findIndex(p => p.id === phase.id && p.phase === phase.phase && p.approachId === phase.approachId);
                           return (
                           <TableRow key={idx}>
@@ -714,6 +715,8 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
                                   value={phase.phase}
                                   onChange={(e) => handlePhaseChange(idx, 'phase', parseInt(e.target.value) || 1)}
                                   className="h-7 w-14 text-sm"
+                                  data-tab-col={0}
+                                  data-tab-row={visualRow}
                                 />
                               </div>
                             </TableCell>
@@ -722,7 +725,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
                                 value={phase.approachId}
                                 onValueChange={(value) => handlePhaseChange(idx, 'approachId', value)}
                               >
-                                <SelectTrigger className="h-7 text-xs">
+                                <SelectTrigger className="h-7 text-xs" data-tab-col={1} data-tab-row={visualRow}>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -739,7 +742,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
                                 value={phase.movementType}
                                 onValueChange={(value) => handlePhaseChange(idx, 'movementType', value)}
                               >
-                                <SelectTrigger className="h-7 text-xs">
+                                <SelectTrigger className="h-7 text-xs" data-tab-col={2} data-tab-row={visualRow}>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -759,18 +762,24 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
                                 value={phase.numOfLanes}
                                 onChange={(e) => handlePhaseChange(idx, 'numOfLanes', parseInt(e.target.value) || 1)}
                                 className="h-7 w-12 text-sm"
+                                data-tab-col={3}
+                                data-tab-row={visualRow}
                               />
                             </TableCell>
                             <TableCell className="py-1.5 text-center">
                               <Checkbox
                                 checked={phase.isOverlap}
                                 onCheckedChange={(checked) => handlePhaseChange(idx, 'isOverlap', Boolean(checked))}
+                                data-tab-col={4}
+                                data-tab-row={visualRow}
                               />
                             </TableCell>
                             <TableCell className="py-1.5 text-center">
                               <Checkbox
                                 checked={phase.isPedestrian}
                                 onCheckedChange={(checked) => handlePhaseChange(idx, 'isPedestrian', Boolean(checked))}
+                                data-tab-col={5}
+                                data-tab-row={visualRow}
                               />
                             </TableCell>
                             <TableCell className="py-1.5">

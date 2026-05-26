@@ -14,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Slider } from "@/components/ui/slider";
 import { Plus, Minus, Save, MapPin } from "lucide-react";
-import { getSignalDisplayName, suggestStreetNameForApproach } from "@/lib/utils";
+import { getSignalDisplayName, suggestStreetNameForApproach, handleColumnMajorTab } from "@/lib/utils";
+import { StreetNameInput } from "./street-name-input";
 import "leaflet/dist/leaflet.css";
 
 // Fix Leaflet default markers
@@ -655,7 +656,8 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
               {/* Approach Details Table */}
               {pendingApproaches.length > 0 && (
                 <div className="border border-grey-200 rounded-lg overflow-hidden">
-                  <Table>
+                  {/* Tab / Shift+Tab moves down each column instead of across rows */}
+                  <Table onKeyDown={handleColumnMajorTab}>
                     <TableHeader>
                       <TableRow className="bg-grey-50">
                         <TableHead className="w-12 text-xs"></TableHead>
@@ -683,6 +685,8 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
                               onChange={(e) => handleApproachIdChange(idx, e.target.value)}
                               placeholder="ID"
                               className="h-8 text-sm w-20"
+                              data-tab-col={0}
+                              data-tab-row={idx}
                             />
                           </TableCell>
                           <TableCell className="py-2">
@@ -694,6 +698,8 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
                                 onChange={(e) => handleBearingChange(idx, e.target.value)}
                                 className="h-8 text-sm w-16 flex-shrink-0"
                                 title="Enter any number — values are normalized to 0–359° (e.g. 450 → 90, -10 → 350)."
+                                data-tab-col={1}
+                                data-tab-row={idx}
                               />
                               <span className="text-xs text-grey-500 flex-shrink-0">°</span>
                               <Slider
@@ -708,18 +714,15 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
                             </div>
                           </TableCell>
                           <TableCell className="py-2">
-                            <Input
+                            <StreetNameInput
                               value={approach.streetName}
-                              onChange={(e) => handleStreetNameChange(idx, e.target.value)}
+                              onChange={(v) => handleStreetNameChange(idx, v)}
+                              suggestions={uniqueStreetNames}
                               placeholder="Street"
                               className="h-8 text-sm w-full"
-                              list={`street-suggestions-${idx}`}
+                              data-tab-col={2}
+                              data-tab-row={idx}
                             />
-                            <datalist id={`street-suggestions-${idx}`}>
-                              {uniqueStreetNames.map((name) => (
-                                <option key={name} value={name} />
-                              ))}
-                            </datalist>
                           </TableCell>
                           <TableCell className="py-2">
                             <Input
@@ -730,6 +733,8 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
                               onChange={(e) => handleSpeedChange(idx, e.target.value)}
                               placeholder="35"
                               className="h-8 text-sm w-20"
+                              data-tab-col={3}
+                              data-tab-row={idx}
                             />
                           </TableCell>
                         </TableRow>
