@@ -16,7 +16,7 @@ import { getDerivedStreetNames } from "@/lib/utils";
 
 
 
-type SortField = 'signalId' | 'streetName1' | 'streetName2' | 'coordinates';
+type SortField = 'signalId' | 'streetName1' | 'streetName2' | 'completeness';
 type SortDirection = 'asc' | 'desc';
 
 interface SignalsTableProps {
@@ -34,7 +34,19 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
   // be drawn with a distinct color.
   const [hoveredSignalId, setHoveredSignalId] = useState<string | null>(null);
 
-  const { agency, signals, approaches, navigateToSignalDetails } = useGTSSStore();
+  const { agency, signals, approaches, phases, detectors, basicTimings, navigateToSignalDetails } = useGTSSStore();
+
+  // % complete: 25% for each of approaches, phases, detectors, timings that
+  // has at least one row for the signal.
+  const getCompletenessPct = (signalId: string): number => {
+    const has = (arr: { signalId: string }[]) => arr.some(x => x.signalId === signalId);
+    let n = 0;
+    if (has(approaches)) n++;
+    if (has(phases)) n++;
+    if (has(detectors)) n++;
+    if (has(basicTimings)) n++;
+    return n * 25;
+  };
   const { toast } = useToast();
   const signalHooks = useSignals();
 
@@ -162,8 +174,8 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
         case 'streetName2':
           comparison = a.streetName2.localeCompare(b.streetName2);
           break;
-        case 'coordinates':
-          comparison = `${a.latitude},${a.longitude}`.localeCompare(`${b.latitude},${b.longitude}`);
+        case 'completeness':
+          comparison = getCompletenessPct(a.signalId) - getCompletenessPct(b.signalId);
           break;
         default:
           comparison = naturalCompare(a.signalId, b.signalId);
@@ -259,7 +271,7 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
                     <SortableHeader field="signalId">Signal ID</SortableHeader>
                     <SortableHeader field="streetName1">Street 1</SortableHeader>
                     <SortableHeader field="streetName2">Street 2</SortableHeader>
-                    <SortableHeader field="coordinates">Coordinates</SortableHeader>
+                    <SortableHeader field="completeness">% Complete</SortableHeader>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -290,11 +302,32 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
                         <TableCell className="text-grey-600 text-xs py-1.5 px-2">
                           {getDerivedStreetNames(signal.signalId, approaches).streetName2 || signal.streetName2 || '-'}
                         </TableCell>
-                        <TableCell className="text-grey-600 text-xs py-1.5 px-2">
-                          {signal.latitude && signal.longitude
-                            ? `${signal.latitude.toFixed(4)}, ${signal.longitude.toFixed(4)}`
-                            : 'Not set'
-                          }
+                        <TableCell className="text-xs py-1.5 px-2">
+                          {(() => {
+                            const pct = getCompletenessPct(signal.signalId);
+                            const has = (arr: { signalId: string }[]) => arr.some(x => x.signalId === signal.signalId);
+                            const parts = [
+                              `${has(approaches) ? '✓' : '·'} approaches`,
+                              `${has(phases) ? '✓' : '·'} phases`,
+                              `${has(detectors) ? '✓' : '·'} detectors`,
+                              `${has(basicTimings) ? '✓' : '·'} timings`,
+                            ].join('\n');
+                            const barColor =
+                              pct === 100 ? 'bg-green-500'
+                              : pct >= 75 ? 'bg-blue-500'
+                              : pct >= 50 ? 'bg-amber-500'
+                              : pct >= 25 ? 'bg-orange-500'
+                              : 'bg-grey-300';
+                            const textColor = pct === 100 ? 'text-green-700' : 'text-grey-700';
+                            return (
+                              <div className="flex items-center gap-2" title={parts}>
+                                <div className="w-20 h-1.5 bg-grey-200 rounded-full overflow-hidden flex-shrink-0">
+                                  <div className={`h-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
+                                </div>
+                                <span className={`font-mono text-[11px] w-9 text-right ${textColor}`}>{pct}%</span>
+                              </div>
+                            );
+                          })()}
                         </TableCell>
                       </TableRow>
                     ))
