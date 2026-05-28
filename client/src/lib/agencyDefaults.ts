@@ -190,23 +190,89 @@ export function guessPhaseDirectionMapping({
     }
   }
 
-  // Sort: through phases first, then lefts; within each group, ascending phase number
-  candidates.sort((a, b) => {
-    if (a.isThrough !== b.isThrough) return a.isThrough ? -1 : 1;
-    return a.phaseNumber - b.phaseNumber;
-  });
+  // Bearing lookup + "are these two approaches roughly opposite (180° apart)?"
+  const bearingOf = (approachId: string): number | null => {
+    const a = approaches.find((ap) => ap.approachId === approachId);
+    return a?.compassBearing ?? null;
+  };
+  const isOpposite = (b1: number | null, b2: number | null): boolean => {
+    if (b1 == null || b2 == null) return false;
+    // Angular distance: 0 = same heading, 180 = exactly opposite.
+    const dist = Math.abs(((b1 - b2 + 540) % 360) - 180);
+    return dist >= 135; // within 45° of being 180° apart (i.e. opposite)
+  };
 
-  // Select up to phaseCount, no duplicate phase numbers
   const result: Record<number, string> = {};
   const usedPhaseNumbers = new Set<number>();
+  const tryAdd = (c: Candidate): boolean => {
+    if (Object.keys(result).length >= phaseCount) return false;
+    if (usedPhaseNumbers.has(c.phaseNumber)) return false;
+    result[c.phaseNumber] = c.approachId;
+    usedPhaseNumbers.add(c.phaseNumber);
+    return true;
+  };
 
-  for (const candidate of candidates) {
-    if (usedPhaseNumbers.size >= phaseCount) break;
-    if (!usedPhaseNumbers.has(candidate.phaseNumber)) {
-      result[candidate.phaseNumber] = candidate.approachId;
-      usedPhaseNumbers.add(candidate.phaseNumber);
+  // 1. Through phases first (ascending phase number).
+  const throughs = candidates
+    .filter((c) => c.isThrough)
+    .sort((a, b) => a.phaseNumber - b.phaseNumber);
+  for (const c of throughs) tryAdd(c);
+
+  // 2. Left turns, grouped into OPPOSING pairs so a partial phase count (e.g.
+  //    6) adds left turns that sit opposite each other on the same street
+  //    rather than two unrelated perpendicular lefts.
+  const uniqueLefts: Candidate[] = [];
+  const seenLeft = new Set<number>();
+  for (const c of candidates.filter((c) => !c.isThrough).sort((a, b) => a.phaseNumber - b.phaseNumber)) {
+    if (!seenLeft.has(c.phaseNumber)) {
+      seenLeft.add(c.phaseNumber);
+      uniqueLefts.push(c);
     }
   }
+
+  const leftPairs: [Candidate, Candidate][] = [];
+  const leftSingles: Candidate[] = [];
+  const paired = new Set<number>();
+  for (let i = 0; i < uniqueLefts.length; i++) {
+    if (paired.has(i)) continue;
+    const a = uniqueLefts[i];
+    let partner = -1;
+    for (let j = i + 1; j < uniqueLefts.length; j++) {
+      if (paired.has(j)) continue;
+      if (isOpposite(bearingOf(a.approachId), bearingOf(uniqueLefts[j].approachId))) {
+        partner = j;
+        break;
+      }
+    }
+    if (partner >= 0) {
+      leftPairs.push([a, uniqueLefts[partner]]);
+      paired.add(i);
+      paired.add(partner);
+    } else {
+      leftSingles.push(a);
+      paired.add(i);
+    }
+  }
+  // Prefer the pair with the lowest phase number (e.g. {1,5} before {3,7}).
+  leftPairs.sort(
+    (p, q) =>
+      Math.min(p[0].phaseNumber, p[1].phaseNumber) - Math.min(q[0].phaseNumber, q[1].phaseNumber),
+  );
+
+  // Add complete opposing pairs only when both fit, so we never add a lone
+  // left from a pair while a full opposing pair was available.
+  for (const [a, b] of leftPairs) {
+    if (Object.keys(result).length + 2 <= phaseCount) {
+      tryAdd(a);
+      tryAdd(b);
+    }
+  }
+  // If a single slot remains (odd count), fill it with any leftover left turns.
+  for (const [a, b] of leftPairs) {
+    tryAdd(a);
+    tryAdd(b);
+  }
+  for (const c of leftSingles) tryAdd(c);
 
   return result;
 }

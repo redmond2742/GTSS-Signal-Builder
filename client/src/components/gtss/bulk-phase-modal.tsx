@@ -371,39 +371,58 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
       return;
     }
 
+    const mappingEntries = Object.entries(mapping)
+      .map(([k, v]) => [Number(k), v] as [number, string])
+      .sort((a, b) => a[0] - b[0]);
+
+    const newPhaseFor = (phaseNum: number, approachId: string): PendingPhase => {
+      const isThrough = isTypicallyThroughPhase(phaseNum);
+      return {
+        phase: phaseNum,
+        approachId,
+        movementType: isThrough ? "Through" : "Left Turn",
+        numOfLanes: 1,
+        isPedestrian: isThrough,
+        isOverlap: false,
+      };
+    };
+
+    if (overwrite) {
+      // Re-assign All: rebuild the phase set to EXACTLY match the target count.
+      // Phases already present keep their movement type / lanes / flags but get
+      // the mapped approach; phases outside the mapping are removed; missing
+      // ones are created. This makes re-clicking after changing the count
+      // (e.g. 8 → 4) actually reduce the list.
+      const next = mappingEntries.map(([phaseNum, approachId]) => {
+        const existing = pendingPhases.find((p) => p.phase === phaseNum);
+        return existing ? { ...existing, approachId } : newPhaseFor(phaseNum, approachId);
+      });
+      setPendingPhases(next);
+      toast({
+        title: "Phases Re-assigned",
+        description: `Set ${next.length} phase${next.length !== 1 ? "s" : ""} to match the ${targetPhaseCount}-phase layout.`,
+      });
+      return;
+    }
+
+    // Auto-assign (non-destructive): fill unassigned phases + create missing
+    // mapping phases, never removing anything the user already has.
     let assignedCount = 0;
     let createdCount = 0;
-
-    setPendingPhases((prev) => {
-      const updated = [...prev];
-
-      for (const [phaseNumStr, approachId] of Object.entries(mapping)) {
-        const phaseNum = Number(phaseNumStr);
-        const existingIndex = updated.findIndex((p) => p.phase === phaseNum);
-
-        if (existingIndex >= 0) {
-          // Phase exists: assign only if unassigned (or overwrite=true)
-          if (overwrite || !updated[existingIndex].approachId) {
-            updated[existingIndex] = { ...updated[existingIndex], approachId };
-            assignedCount++;
-          }
-        } else {
-          // Phase doesn't exist: create it
-          const isThrough = isTypicallyThroughPhase(phaseNum);
-          updated.push({
-            phase: phaseNum,
-            approachId,
-            movementType: isThrough ? "Through" : "Left Turn",
-            numOfLanes: 1,
-            isPedestrian: isThrough,
-            isOverlap: false,
-          });
-          createdCount++;
+    const updated = [...pendingPhases];
+    for (const [phaseNum, approachId] of mappingEntries) {
+      const existingIndex = updated.findIndex((p) => p.phase === phaseNum);
+      if (existingIndex >= 0) {
+        if (!updated[existingIndex].approachId) {
+          updated[existingIndex] = { ...updated[existingIndex], approachId };
+          assignedCount++;
         }
+      } else {
+        updated.push(newPhaseFor(phaseNum, approachId));
+        createdCount++;
       }
-
-      return updated;
-    });
+    }
+    setPendingPhases(updated);
 
     const parts: string[] = [];
     if (assignedCount > 0) parts.push(`Assigned ${assignedCount} approach${assignedCount !== 1 ? "es" : ""}`);
@@ -417,7 +436,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
     } else {
       toast({
         title: "Nothing to Assign",
-        description: "All phases already have approaches. Use 'Re-assign All' to overwrite.",
+        description: "All mapped phases already have approaches. Use 'Re-assign All' to reset to the selected phase count.",
       });
     }
   };
