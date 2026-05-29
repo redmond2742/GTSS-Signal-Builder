@@ -27,6 +27,7 @@ import BulkApproachModal from "@/components/gtss/bulk-approach-modal";
 import BulkDetectorModal from "@/components/gtss/bulk-detector-modal";
 import BasicTimingModal from "@/components/gtss/basic-timing-modal";
 import { PhaseDiagram } from "@/components/gtss/phase-diagram-svg";
+import TimingBulkImport from "@/components/gtss/timing-bulk-import";
 import GTSSFileViewer, { GTSSFilePreview } from "@/components/gtss/gtss-file-viewer";
 import { generateAgencyCSV, generateSignalsCSV, generatePhasesCSV, generateDetectionCSV, generateApproachesCSV, generateBasicTimingsCSV } from "@/lib/localStorage";
 import { suggestStreetNameForApproach } from "@/lib/utils";
@@ -134,6 +135,7 @@ export default function SignalDetails() {
   const [pasteDefaultPurpose, setPasteDefaultPurpose] = useState<string>("Stop Bar");
   const [pasteDefaultTechnology, setPasteDefaultTechnology] = useState<string>("Inductance Loop");
   const [showBasicTimingModal, setShowBasicTimingModal] = useState(false);
+  const [showTimingImport, setShowTimingImport] = useState(false);
   const [editingPhase, setEditingPhase] = useState<Phase | null>(null);
   const [editingDetector, setEditingDetector] = useState<Detector | null>(null);
   const [showGTSSOutput, setShowGTSSOutput] = useState(false);
@@ -1681,7 +1683,19 @@ export default function SignalDetails() {
       )}
         </TabsContent>
 
-        <TabsContent value="timings" className="mt-3">
+        <TabsContent value="timings" className="mt-3 space-y-3">
+      {showTimingImport && !isNewSignal && signalPhases.length > 0 && (
+        <TimingBulkImport
+          signalId={signalId || ""}
+          signalPhases={signalPhases}
+          existingTimings={signalTimings}
+          onClose={() => setShowTimingImport(false)}
+          onImported={() => {
+            const updated = basicTimings.filter(t => t.signalId === signalId);
+            setSignalTimings(updated);
+          }}
+        />
+      )}
       {/* Basic Timings Section */}
       <Card>
         <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
@@ -1690,32 +1704,53 @@ export default function SignalDetails() {
               <Settings className="w-4 h-4 text-primary-600" />
               <span>Basic Timings ({signalTimings.length})</span>
             </CardTitle>
-            <Button
-              onClick={() => {
-                if (isNewSignal) {
-                  toast({
-                    title: "Save Signal First",
-                    description: "Please save the signal information before adding timings",
-                    variant: "destructive",
-                  });
-                  return;
-                }
-                if (signalPhases.length === 0) {
-                  toast({
-                    title: "Add Phases First",
-                    description: "Please add phases before configuring timings",
-                    variant: "destructive",
-                  });
-                  return;
-                }
-                setShowBasicTimingModal(true);
-              }}
-              className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
-              disabled={signalPhases.length === 0}
-            >
-              <Plus className="w-3 h-3 mr-1" />
-              Add Timing
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (isNewSignal) {
+                    toast({ title: "Save Signal First", description: "Please save the signal information before adding timings", variant: "destructive" });
+                    return;
+                  }
+                  if (signalPhases.length === 0) {
+                    toast({ title: "Add Phases First", description: "Please add phases before configuring timings", variant: "destructive" });
+                    return;
+                  }
+                  setShowTimingImport((v) => !v);
+                }}
+                className="h-7 px-2 text-xs"
+                disabled={signalPhases.length === 0}
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                Bulk Import
+              </Button>
+              <Button
+                onClick={() => {
+                  if (isNewSignal) {
+                    toast({
+                      title: "Save Signal First",
+                      description: "Please save the signal information before adding timings",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  if (signalPhases.length === 0) {
+                    toast({
+                      title: "Add Phases First",
+                      description: "Please add phases before configuring timings",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  setShowBasicTimingModal(true);
+                }}
+                className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
+                disabled={signalPhases.length === 0}
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                Add Timing
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -1860,19 +1895,67 @@ export default function SignalDetails() {
                           </TooltipContent>
                         </Tooltip>
                       </div>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
                           <SelectTrigger className="h-6" style={{ fontSize: '12px' }}>
                             <SelectValue />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Through">Through</SelectItem>
-                          <SelectItem value="Left">Left</SelectItem>
-                          <SelectItem value="Right">Right</SelectItem>
-                          <SelectItem value="U-Turn">U-Turn</SelectItem>
+                          <SelectItem value="Through">Through (T)</SelectItem>
+                          <SelectItem value="Left Turn">Left Turn (L)</SelectItem>
+                          <SelectItem value="Left Through Shared">Left Through Shared (LT)</SelectItem>
+                          <SelectItem value="Permissive Phase">Permissive Phase (TL)</SelectItem>
+                          <SelectItem value="Flashing Yellow Arrow">Flashing Yellow Arrow (FYA)</SelectItem>
+                          <SelectItem value="U-Turn">U-Turn (U)</SelectItem>
+                          <SelectItem value="Right Turn">Right Turn (R)</SelectItem>
+                          <SelectItem value="Through-Right">Through-Right (TR)</SelectItem>
+                          <SelectItem value="Pedestrian">Pedestrian (PED)</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={phaseForm.control}
+                  name="approachId"
+                  render={({ field }) => (
+                    <FormItem className="space-y-0.5 col-span-2">
+                      <div className="flex items-center space-x-1">
+                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Approach</FormLabel>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">The approach (direction of travel) this phase serves. Drives the phase diagram and detector associations.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <Select
+                        value={field.value || "__none__"}
+                        onValueChange={(v) => field.onChange(v === "__none__" ? null : v)}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="h-6" style={{ fontSize: '12px' }}>
+                            <SelectValue placeholder="Select approach" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="__none__">— Unassigned —</SelectItem>
+                          {signalApproaches.map((a) => (
+                            <SelectItem key={a.approachId} value={a.approachId}>
+                              {a.approachId}
+                              {a.streetName ? ` — ${a.streetName}` : ""}
+                              {a.compassBearing != null ? ` (${a.compassBearing}°)` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {signalApproaches.length === 0 && (
+                        <p className="text-[11px] text-amber-600">No approaches yet — add approaches first.</p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
