@@ -454,7 +454,10 @@ export default function SignalDetails() {
         phase: phaseNum,
         movementType: qpMovementType,
         approachId: qpApproachId || null,
-        isPedestrian: qpMovementType === "Through",
+        isPedestrian:
+          qpMovementType === "Through" ||
+          qpMovementType === "Through-Right" ||
+          qpMovementType === "Pedestrian",
         numOfLanes: parseInt(qpLanes, 10) || 1,
         isOverlap: false,
       });
@@ -507,8 +510,22 @@ export default function SignalDetails() {
   };
 
   useEffect(() => {
-    if (!editingPhase && !pedestrianDirty) {
-      phaseForm.setValue("isPedestrian", phaseMovementType === "Through");
+    if (editingPhase || pedestrianDirty) return;
+    // Auto-set the Pedestrian checkbox from the movement type:
+    //   • Through / Through-Right / Pedestrian → check
+    //   • Permissive Phase → leave the current value alone (so a previously
+    //     checked Pedestrian box stays checked)
+    //   • Anything else (left/right/etc.) → uncheck
+    if (
+      phaseMovementType === "Through" ||
+      phaseMovementType === "Through-Right" ||
+      phaseMovementType === "Pedestrian"
+    ) {
+      phaseForm.setValue("isPedestrian", true);
+    } else if (phaseMovementType === "Permissive Phase") {
+      // intentionally preserve
+    } else {
+      phaseForm.setValue("isPedestrian", false);
     }
   }, [editingPhase, pedestrianDirty, phaseMovementType, phaseForm]);
 

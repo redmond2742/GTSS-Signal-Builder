@@ -253,7 +253,17 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
 
       // Auto-set isPedestrian based on movement type
       if (field === 'movementType') {
-        updated[index].isPedestrian = value === 'Through' || value === 'Through-Right';
+        // Auto-set Pedestrian from movement type:
+        //  • Through / Through-Right / Pedestrian → check
+        //  • Permissive Phase → preserve current (don't uncheck a manually-checked box)
+        //  • Anything else → uncheck
+        if (value === 'Through' || value === 'Through-Right' || value === 'Pedestrian') {
+          updated[index].isPedestrian = true;
+        } else if (value === 'Permissive Phase') {
+          // leave updated[index].isPedestrian as-is
+        } else {
+          updated[index].isPedestrian = false;
+        }
       }
 
       return updated;

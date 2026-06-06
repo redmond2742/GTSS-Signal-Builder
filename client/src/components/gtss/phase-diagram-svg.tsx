@@ -55,7 +55,14 @@ export const PhaseDiagram = ({ phases, approaches, intersectionName, intersectio
     const approachIds = approaches
       .filter(a => (a.streetName || "").trim() === street)
       .map(a => a.approachId);
-    const streetPhases = phases.filter(p => p.approachId != null && approachIds.includes(p.approachId));
+    // Only vehicle phases name a street — pedestrian-only phases are excluded
+    // so a crosswalk-only phase can't drive the street's color/legend entry.
+    const streetPhases = phases.filter(
+      p =>
+        p.approachId != null &&
+        approachIds.includes(p.approachId) &&
+        p.movementType !== "Pedestrian",
+    );
     if (streetPhases.length > 0) {
       const through = streetPhases.filter(
         p => p.movementType === "Through" || p.movementType === "Through-Right",
