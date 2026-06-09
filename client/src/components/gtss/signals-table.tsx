@@ -225,8 +225,11 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
             <div className="w-full h-full relative z-0">
               <SignalsMap
                 signals={signals}
+                approaches={approaches}
+                phases={phases}
                 onSignalSelect={(signal) => navigateToSignalDetails(signal.signalId)}
                 onSignalUpdate={handleSignalUpdate}
+                getCompletenessPct={getCompletenessPct}
                 highlightedSignalId={hoveredSignalId}
                 className="w-full h-full"
               />

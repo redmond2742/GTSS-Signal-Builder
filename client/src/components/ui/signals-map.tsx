@@ -1,13 +1,13 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { MapContainer, Marker, Popup, useMap, Polyline } from "react-leaflet";
 import L from "leaflet";
-import { Signal, Approach } from "@shared/schema";
-import { Input } from "@/components/ui/input";
+import { Signal, Approach, Phase } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Check, X, Edit } from "lucide-react";
 import { useGTSSStore } from "@/store/gtss-store";
 import "leaflet/dist/leaflet.css";
 import MapTileLayers from "./map-tile-layers";
+import { PhaseDiagram } from "@/components/gtss/phase-diagram-svg";
+import { getDerivedStreetNames } from "@/lib/utils";
 
 // Fix for default markers in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -22,10 +22,13 @@ L.Icon.Default.mergeOptions({
 interface SignalsMapProps {
   signals: Signal[];
   approaches?: Approach[];
+  phases?: Phase[];
   onSignalSelect?: (signal: Signal) => void;
   onSignalUpdate?: (signalId: string, updates: Partial<Signal>) => void;
   /** Signal whose marker should be drawn in the highlight color (e.g. hovered row). */
   highlightedSignalId?: string | null;
+  /** Optional completeness lookup so the popup can show the same %-bar as the table. */
+  getCompletenessPct?: (signalId: string) => number;
   className?: string;
 }
 
@@ -105,83 +108,70 @@ function MapBounds({ signals }: { signals: Signal[] }) {
   return null;
 }
 
-function QuickEditPopup({ signal, onUpdate, onSignalSelect }: { 
-  signal: Signal; 
-  onUpdate?: (updates: Partial<Signal>) => void;
+// Compact map popup: street-name title, phase diagram with the intersection
+// number in the middle, optional completeness bar, and a Full Details button.
+function SignalPopup({
+  signal,
+  approaches,
+  phases,
+  getCompletenessPct,
+  onSignalSelect,
+}: {
+  signal: Signal;
+  approaches: Approach[];
+  phases: Phase[];
+  getCompletenessPct?: (signalId: string) => number;
   onSignalSelect?: (signal: Signal) => void;
 }) {
-  const [formData, setFormData] = useState({
-    signalId: signal.signalId,
-    streetName1: signal.streetName1,
-    streetName2: signal.streetName2,
-  });
-  const [hasChanges, setHasChanges] = useState(false);
+  const signalApproaches = approaches.filter((a) => a.signalId === signal.signalId);
+  const signalPhases = phases.filter((p) => p.signalId === signal.signalId);
+  const derived = getDerivedStreetNames(signal.signalId, approaches);
+  const s1 = derived.streetName1 || signal.streetName1;
+  const s2 = derived.streetName2 || signal.streetName2;
+  const title = s1 && s2 ? `${s1} & ${s2}` : s1 || s2 || signal.signalId;
 
-  const handleInputChange = (field: keyof typeof formData, value: string) => {
-    const newData = { ...formData, [field]: value };
-    setFormData(newData);
-    setHasChanges(true);
-  };
-
-  const handleSave = () => {
-    if (hasChanges) {
-      onUpdate?.(formData);
-      setHasChanges(false);
-    }
-  };
+  const pct = getCompletenessPct?.(signal.signalId);
+  const barColor =
+    pct === undefined ? ""
+      : pct === 100 ? "bg-green-500"
+      : pct >= 75 ? "bg-blue-500"
+      : pct >= 50 ? "bg-amber-500"
+      : pct >= 25 ? "bg-orange-500"
+      : "bg-grey-300";
+  const textColor = pct === 100 ? "text-green-700" : "text-grey-700";
 
   return (
-    <div className="p-2 min-w-48">
-      <h4 className="font-medium text-xs mb-2">Signal {signal.signalId}</h4>
-      <div className="space-y-2">
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Input
-              value={formData.signalId}
-              onChange={(e) => handleInputChange('signalId', e.target.value)}
-              className="text-xs h-6"
-              placeholder="Signal ID"
-            />
-          </div>
-          <div>
-            <Button 
-              onClick={handleSave} 
-              disabled={!hasChanges}
-              size="sm" 
-              className="text-xs h-6 w-full bg-primary-600 hover:bg-primary-700"
-            >
-              Save
-            </Button>
-          </div>
-        </div>
-        <div>
-          <Input
-            value={formData.streetName1}
-            onChange={(e) => handleInputChange('streetName1', e.target.value)}
-            className="text-xs h-6"
-            placeholder="Street 1"
-          />
-        </div>
-        <div>
-          <Input
-            value={formData.streetName2}
-            onChange={(e) => handleInputChange('streetName2', e.target.value)}
-            className="text-xs h-6"
-            placeholder="Street 2"
-          />
-        </div>
-        <div className="text-xs text-grey-500">
-          {signal.latitude?.toFixed(4)}, {signal.longitude?.toFixed(4)}
-        </div>
-        <Button onClick={() => onSignalSelect?.(signal)} variant="outline" size="sm" className="text-xs h-6 w-full">
-          Full Details
-        </Button>
+    <div className="p-1 w-[260px]">
+      <h3 className="text-sm font-semibold text-center text-grey-800 mb-1">{title}</h3>
+      <div className="w-full h-[240px]">
+        <PhaseDiagram
+          phases={signalPhases}
+          approaches={signalApproaches}
+          intersectionId={signal.signalId}
+        />
       </div>
+      {pct !== undefined && (
+        <div className="flex items-center gap-2 mt-1 mb-1 px-1">
+          <span className="text-[10px] uppercase tracking-wide font-medium text-grey-500 flex-shrink-0">Complete</span>
+          <div className="flex-1 h-1.5 bg-grey-200 rounded-full overflow-hidden">
+            <div className={`h-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
+          </div>
+          <span className={`font-mono text-[11px] w-9 text-right ${textColor}`}>{pct}%</span>
+        </div>
+      )}
+      <Button
+        onClick={() => onSignalSelect?.(signal)}
+        variant="outline"
+        size="sm"
+        className="text-xs h-7 w-full mt-1"
+      >
+        Full Details
+      </Button>
     </div>
   );
 }
 
-export default function SignalsMap({ signals, approaches, onSignalSelect, onSignalUpdate, highlightedSignalId, className }: SignalsMapProps) {
+export default function SignalsMap({ signals, approaches, phases, onSignalSelect, getCompletenessPct, highlightedSignalId, className }: SignalsMapProps) {
   const agency = useGTSSStore((state) => state.agency);
   
   // Use agency coordinates as starting point for map center
@@ -219,10 +209,12 @@ export default function SignalsMap({ signals, approaches, onSignalSelect, onSign
             icon={highlightedSignalId === signal.signalId ? highlightedSignalIcon : new L.Icon.Default()}
             zIndexOffset={highlightedSignalId === signal.signalId ? 1000 : 0}
           >
-            <Popup>
-              <QuickEditPopup
+            <Popup minWidth={272}>
+              <SignalPopup
                 signal={signal}
-                onUpdate={(updates) => onSignalUpdate?.(signal.signalId, updates)}
+                approaches={approaches || []}
+                phases={phases || []}
+                getCompletenessPct={getCompletenessPct}
                 onSignalSelect={onSignalSelect}
               />
             </Popup>
