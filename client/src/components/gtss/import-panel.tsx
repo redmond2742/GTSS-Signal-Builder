@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import JSZip from 'jszip';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -68,21 +69,54 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
     if (!files || files.length === 0) return;
 
     const fileDataArray: FileData[] = [];
-    
+    const errors: ValidationError[] = [];
+
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      if (file.name.endsWith('.txt')) {
+      const lower = file.name.toLowerCase();
+
+      if (lower.endsWith('.zip')) {
+        // Extract every .txt entry from the archive and treat each one as if
+        // it had been uploaded individually.
+        try {
+          const zip = await JSZip.loadAsync(await file.arrayBuffer());
+          let extracted = 0;
+          for (const path of Object.keys(zip.files)) {
+            const entry = zip.files[path];
+            if (entry.dir) continue;
+            if (!path.toLowerCase().endsWith('.txt')) continue;
+            const content = await entry.async('string');
+            const base = path.split('/').pop() || path;
+            fileDataArray.push({ name: base, content, type: detectFileType(base) });
+            extracted++;
+          }
+          if (extracted === 0) {
+            errors.push({ file: file.name, message: 'Zip contained no .txt GTSS files.' });
+          }
+        } catch (err) {
+          errors.push({
+            file: file.name,
+            message: err instanceof Error ? `Could not read zip: ${err.message}` : 'Could not read zip file.',
+          });
+        }
+      } else if (lower.endsWith('.txt')) {
         const content = await file.text();
         fileDataArray.push({
           name: file.name,
           content,
           type: detectFileType(file.name),
         });
+      } else {
+        errors.push({ file: file.name, message: 'Unsupported file type — upload .txt or .zip.' });
       }
     }
 
     setUploadedFiles(fileDataArray);
     parseFiles(fileDataArray);
+    if (errors.length > 0) {
+      // Surface zip-level errors alongside any per-file parse errors.
+      setValidationErrors((prev) => [...prev, ...errors]);
+    }
   };
 
   const parseFiles = (files: FileData[]) => {
@@ -233,7 +267,7 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
       <CardHeader>
         <CardTitle>Import GTSS Data</CardTitle>
         <CardDescription>
-          Upload TXT files to import traffic signal data. Supports agency.txt, signals.txt, approaches.txt, phases.txt, detectors.txt, and basic_timings.txt files.
+          Upload TXT files or a ZIP of GTSS files to import traffic signal data. Supports agency.txt, signals.txt, approaches.txt, phases.txt, detectors.txt, and basic_timings.txt files (the same files produced by Export).
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -265,12 +299,12 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
                 <Upload className="mx-auto h-12 w-12 text-gray-400 mb-3" />
                 <div className="space-y-2">
                   <p className="text-sm text-gray-600">
-                    Drag and drop TXT files here, or click to browse
+                    Drag and drop <span className="font-medium">.txt</span> or <span className="font-medium">.zip</span> files here, or click to browse
                   </p>
                   <input
                     type="file"
                     multiple
-                    accept=".txt"
+                    accept=".txt,.zip,application/zip,application/x-zip-compressed"
                     onChange={(e) => handleFileChange(e.target.files)}
                     className="hidden"
                     id="file-upload"
@@ -353,13 +387,13 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="replace" id="replace" data-testid="radio-replace" />
                 <Label htmlFor="replace" className="font-normal cursor-pointer">
-                  Replace All Data - Clear existing data and import new data
+                  <span className="font-semibold">Overwrite existing</span> — clear current data, then import what's in the file(s)
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="merge" id="merge" data-testid="radio-merge" />
                 <Label htmlFor="merge" className="font-normal cursor-pointer">
-                  Merge with Existing - Keep existing data and add new items (skip duplicates)
+                  <span className="font-semibold">Append to existing</span> — keep current data and add new items (skips duplicates)
                 </Label>
               </div>
             </RadioGroup>

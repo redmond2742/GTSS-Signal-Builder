@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Plus, Edit, Trash2, Map, List, Navigation, ChevronUp, ChevronDown, Eye, MapPin, Edit3 } from "lucide-react";
 import SignalModal from "./signal-modal";
 import BulkSignalModal from "./bulk-signal-modal";
@@ -211,9 +212,16 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
 
 
   return (
-    <div className="max-w-6xl">
-      <div className="mb-4 bg-white rounded-lg border border-grey-200 overflow-hidden">
-        <div className="h-48 sm:h-64 relative z-0">
+    <div className="max-w-6xl h-full flex flex-col">
+      {/* Vertical resizable split — drag the handle between the map and the
+          list to make either pane bigger. Layout preference persists across
+          re-renders via the auto-save id. */}
+      <ResizablePanelGroup
+        direction="vertical"
+        autoSaveId="traffic-signals-split"
+        className="flex-1 min-h-[480px] rounded-lg border border-grey-200 bg-white overflow-hidden"
+      >
+        <ResizablePanel defaultSize={35} minSize={12} className="relative z-0">
           {signals.length === 0 ? (
             <div className="w-full h-full bg-grey-50 flex items-center justify-center">
               <div className="text-center text-grey-500">
@@ -235,9 +243,13 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
               />
             </div>
           )}
-        </div>
-      </div>
-      <Card>
+        </ResizablePanel>
+        <ResizableHandle
+          withHandle
+          className="bg-grey-200 hover:bg-primary-300 transition-colors"
+        />
+        <ResizablePanel defaultSize={65} minSize={20} className="overflow-auto">
+      <Card className="rounded-none border-0">
         <CardHeader className="bg-grey-50 border-b border-grey-200 p-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -341,6 +353,8 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
           </div>
         </CardContent>
       </Card>
+        </ResizablePanel>
+      </ResizablePanelGroup>
 
       {showModal && (
         <SignalModal
