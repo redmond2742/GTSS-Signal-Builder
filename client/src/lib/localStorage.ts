@@ -298,9 +298,21 @@ export const approachStorage = {
 };
 
 // Phase operations - updated for GTSSv1.1
+// Coerce legacy boolean isPedestrian values to the new integer scheme:
+// false → 0, true → 1, undefined/null → 0, numbers pass through.
+function normalizePedestrian(value: unknown): number {
+  if (typeof value === "number") return value;
+  if (value === true) return 1;
+  return 0;
+}
+
 export const phaseStorage = {
   getAll: (): Phase[] => {
-    return getFromStorage<Phase[]>(STORAGE_KEYS.PHASES, []);
+    const raw = getFromStorage<Phase[]>(STORAGE_KEYS.PHASES, []);
+    return raw.map(p => ({
+      ...p,
+      isPedestrian: normalizePedestrian((p as { isPedestrian?: unknown }).isPedestrian),
+    }));
   },
 
   getBySignal: (signalId: string): Phase[] => {
@@ -310,12 +322,16 @@ export const phaseStorage = {
 
   save: (phase: InsertPhase): Phase => {
     const phases = phaseStorage.getAll();
+    const defaultPed = phase.movementType === "Through" ? 1 : 0;
     const newPhase: Phase = {
       id: nanoid(),
       signalId: phase.signalId,
       phase: phase.phase,
       movementType: phase.movementType,
-      isPedestrian: phase.isPedestrian ?? phase.movementType === "Through",
+      isPedestrian:
+        phase.isPedestrian == null
+          ? defaultPed
+          : normalizePedestrian(phase.isPedestrian),
       numOfLanes: phase.numOfLanes ?? 1,
       approachId: phase.approachId ?? null,
       isOverlap: phase.isOverlap ?? false,
@@ -338,10 +354,15 @@ export const phaseStorage = {
 
     if (index === -1) return null;
 
-    const updatedPhase = { ...phases[index], ...updates };
-    phases[index] = updatedPhase;
+    const merged = { ...phases[index], ...updates };
+    // Coerce isPedestrian to the integer scheme on every update so legacy
+    // callers passing booleans still produce valid data.
+    if ("isPedestrian" in updates) {
+      merged.isPedestrian = normalizePedestrian(merged.isPedestrian);
+    }
+    phases[index] = merged;
     saveToStorage(STORAGE_KEYS.PHASES, phases);
-    return updatedPhase;
+    return merged;
   },
 
   delete: (id: string): void => {
@@ -645,8 +666,13 @@ export function generatePhasesCSV(phases: Phase[]): string {
 
   const rows = sortedPhases.map(phase => {
     const encodedMovementType = MOVEMENT_TYPE_MAP[phase.movementType] || phase.movementType;
-    const isPedestrian = phase.isPedestrian ?? phase.movementType === "Through";
-    return `${sanitizeCSVField(phase.phase)},${sanitizeCSVField(phase.signalId)},${sanitizeCSVField(encodedMovementType)},${sanitizeCSVField(phase.numOfLanes || 1)},${sanitizeCSVField(phase.approachId)},${sanitizeCSVField(phase.isOverlap || false)},${sanitizeCSVField(isPedestrian)}`;
+    // Pedestrian mode is now an integer 0–4 (see schema). Default Through phases
+    // to 1 when the field is missing, so old exports stay readable.
+    const pedMode =
+      typeof phase.isPedestrian === "number"
+        ? phase.isPedestrian
+        : (phase.movementType === "Through" ? 1 : 0);
+    return `${sanitizeCSVField(phase.phase)},${sanitizeCSVField(phase.signalId)},${sanitizeCSVField(encodedMovementType)},${sanitizeCSVField(phase.numOfLanes || 1)},${sanitizeCSVField(phase.approachId)},${sanitizeCSVField(phase.isOverlap || false)},${sanitizeCSVField(pedMode)}`;
   });
 
   return [headers, ...rows].join('\n');
@@ -1046,14 +1072,23 @@ export function parsePhasesTXT(content: string): Phase[] {
       continue;
     }
 
-    let pedestrianPhaseEnabled = movementType === "Through";
+    // Pedestrian mode: integer 0–4. Accept legacy "true"/"false" too:
+    //   true  → 1 (crosswalk on assigned approach)
+    //   false → 0 (none)
+    let pedestrianMode = movementType === "Through" ? 1 : 0;
     if (values.length > 6 && values[6].trim() !== '') {
-      const pedestrianValue = values[6].toLowerCase();
-      if (pedestrianValue !== 'true' && pedestrianValue !== 'false') {
-        errors.push(`Row ${i + 1}: Pedestrian phase enabled must be "true" or "false", got "${values[6]}"`);
-        continue;
+      const raw = values[6].trim().toLowerCase();
+      if (raw === 'true') pedestrianMode = 1;
+      else if (raw === 'false') pedestrianMode = 0;
+      else {
+        const n = parseInt(raw, 10);
+        if (Number.isInteger(n) && n >= 0 && n <= 4) {
+          pedestrianMode = n;
+        } else {
+          errors.push(`Row ${i + 1}: Pedestrian mode must be 0–4 (or legacy "true"/"false"), got "${values[6]}"`);
+          continue;
+        }
       }
-      pedestrianPhaseEnabled = pedestrianValue === 'true';
     }
 
     phases.push({
@@ -1061,7 +1096,7 @@ export function parsePhasesTXT(content: string): Phase[] {
       phase: phaseNum,
       signalId: values[1],
       movementType: movementType,
-      isPedestrian: pedestrianPhaseEnabled,
+      isPedestrian: pedestrianMode,
       numOfLanes: numOfLanes,
       approachId,
       isOverlap: overlapValue === 'true',

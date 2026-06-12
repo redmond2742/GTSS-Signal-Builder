@@ -19,7 +19,11 @@ export interface PhaseDiagramPhase {
   phase: number;
   approachId: string | null;
   movementType: string;
-  isPedestrian?: boolean | null;
+  /** Pedestrian crossing mode:
+   *   0 = none, 1 = on assigned approach, 2 = on opposite approach,
+   *   3 = diagonal, 4 = diagonal shifted 90°.
+   * Legacy boolean values are coerced to 0/1 in callers. */
+  isPedestrian?: boolean | number | null;
 }
 
 export interface PhaseDiagramApproach {
@@ -162,36 +166,64 @@ export const PhaseDiagram = ({ phases, approaches, intersectionName, intersectio
     );
   };
 
+  // Coerce legacy boolean to the integer scheme.
+  const pedMode = (phase: PhaseDiagramPhase): number => {
+    if (typeof phase.isPedestrian === "number") return phase.isPedestrian;
+    return phase.isPedestrian ? 1 : 0;
+  };
+
   const renderPedestrianLine = (phase: PhaseDiagramPhase, index: number) => {
+    // Pedestrian-ONLY phases (movementType "Pedestrian") are drawn by
+    // renderScramble as the full diagonal-X scramble. This function handles
+    // pedestrian INDICATORS attached to vehicle phases via the integer mode.
+    if (phase.movementType === 'Pedestrian') return null;
+    const mode = pedMode(phase);
+    if (mode === 0) return null;
     const bearing = getApproachBearing(phase.approachId);
     if (bearing === null) return null;
-    // Parallel crosswalk dashes are only for through-movement phases that allow
-    // pedestrians. Pedestrian-ONLY phases are drawn as a diagonal scramble.
-    if (!phase.isPedestrian || phase.movementType === 'Pedestrian') return null;
-
-    const angleRad = (bearing - 90) * (Math.PI / 180);
-    const perpAngle = angleRad + Math.PI / 2;
-    const offsetDistance = 20;
-    const centerX = 150 + offsetDistance * Math.cos(perpAngle);
-    const centerY = 150 + offsetDistance * Math.sin(perpAngle);
-    const lineHalfLength = 38;
-    const x1 = centerX + lineHalfLength * Math.cos(angleRad);
-    const y1 = centerY + lineHalfLength * Math.sin(angleRad);
-    const x2 = centerX - lineHalfLength * Math.cos(angleRad);
-    const y2 = centerY - lineHalfLength * Math.sin(angleRad);
     const color = phaseColors[phase.phase] || '#6b7280';
 
+    // Modes 1 and 2 — a parallel crosswalk dash, perpendicular to the bearing,
+    // offset toward one of the two roadway edges. Mode 2 flips to the opposite
+    // approach by rotating the source bearing 180°.
+    if (mode === 1 || mode === 2) {
+      const effectiveBearing = mode === 2 ? (bearing + 180) % 360 : bearing;
+      const angleRad = (effectiveBearing - 90) * (Math.PI / 180);
+      const perpAngle = angleRad + Math.PI / 2;
+      const offsetDistance = 20;
+      const centerX = 150 + offsetDistance * Math.cos(perpAngle);
+      const centerY = 150 + offsetDistance * Math.sin(perpAngle);
+      const lineHalfLength = 38;
+      const x1 = centerX + lineHalfLength * Math.cos(angleRad);
+      const y1 = centerY + lineHalfLength * Math.sin(angleRad);
+      const x2 = centerX - lineHalfLength * Math.cos(angleRad);
+      const y2 = centerY - lineHalfLength * Math.sin(angleRad);
+      return (
+        <line
+          key={`ped-${index}`}
+          x1={x1} y1={y1} x2={x2} y2={y2}
+          stroke={color}
+          strokeWidth="2"
+          strokeDasharray="4 3"
+          opacity="0.7"
+        />
+      );
+    }
+
+    // Modes 3 and 4 — a diagonal pedestrian crossing through the central
+    // intersection circle. Mode 3 is "\" (top-left to bottom-right),
+    // mode 4 is "/" (top-right to bottom-left, i.e. 90° rotation of mode 3).
+    const dir = mode === 3 ? 1 : -1;
+    const d = CENTER_RADIUS / Math.SQRT2;
     return (
       <line
         key={`ped-${index}`}
-        x1={x1}
-        y1={y1}
-        x2={x2}
-        y2={y2}
+        x1={150 - d * dir} y1={150 - d}
+        x2={150 + d * dir} y2={150 + d}
         stroke={color}
         strokeWidth="2"
-        strokeDasharray="4 3"
-        opacity="0.6"
+        strokeDasharray="5 4"
+        opacity="0.7"
       />
     );
   };

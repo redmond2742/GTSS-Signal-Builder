@@ -199,7 +199,7 @@ export default function SignalDetails() {
       signalId: signalId && signalId !== 'new' ? signalId : "",
       phase: 1,
       movementType: "Through",
-      isPedestrian: true,
+      isPedestrian: 1,
       numOfLanes: 1,
       isOverlap: false,
     },
@@ -457,7 +457,9 @@ export default function SignalDetails() {
         isPedestrian:
           qpMovementType === "Through" ||
           qpMovementType === "Through-Right" ||
-          qpMovementType === "Pedestrian",
+          qpMovementType === "Pedestrian"
+            ? 1
+            : 0,
         numOfLanes: parseInt(qpLanes, 10) || 1,
         isOverlap: false,
       });
@@ -488,7 +490,7 @@ export default function SignalDetails() {
       signalId: signalId || "",
       phase: signalPhases.length + 1,
       movementType: "Through",
-      isPedestrian: true,
+      isPedestrian: 1,
       numOfLanes: 1,
       isOverlap: false,
     });
@@ -501,7 +503,10 @@ export default function SignalDetails() {
       signalId: phase.signalId,
       phase: phase.phase,
       movementType: phase.movementType,
-      isPedestrian: phase.isPedestrian ?? phase.movementType === "Through",
+      isPedestrian:
+        typeof phase.isPedestrian === "number"
+          ? phase.isPedestrian
+          : (phase.isPedestrian ? 1 : phase.movementType === "Through" ? 1 : 0),
       numOfLanes: phase.numOfLanes,
       isOverlap: phase.isOverlap,
       approachId: phase.approachId,
@@ -511,21 +516,20 @@ export default function SignalDetails() {
 
   useEffect(() => {
     if (editingPhase || pedestrianDirty) return;
-    // Auto-set the Pedestrian checkbox from the movement type:
-    //   • Through / Through-Right / Pedestrian → check
-    //   • Permissive Phase → leave the current value alone (so a previously
-    //     checked Pedestrian box stays checked)
-    //   • Anything else (left/right/etc.) → uncheck
+    // Auto-set the Pedestrian Crossing mode from the movement type:
+    //   • Through / Through-Right / Pedestrian → 1 (assigned approach)
+    //   • Permissive Phase → preserve current value (don't reset)
+    //   • Anything else (left/right/etc.) → 0 (none)
     if (
       phaseMovementType === "Through" ||
       phaseMovementType === "Through-Right" ||
       phaseMovementType === "Pedestrian"
     ) {
-      phaseForm.setValue("isPedestrian", true);
+      phaseForm.setValue("isPedestrian", 1);
     } else if (phaseMovementType === "Permissive Phase") {
       // intentionally preserve
     } else {
-      phaseForm.setValue("isPedestrian", false);
+      phaseForm.setValue("isPedestrian", 0);
     }
   }, [editingPhase, pedestrianDirty, phaseMovementType, phaseForm]);
 
@@ -2015,27 +2019,36 @@ export default function SignalDetails() {
                   render={({ field }) => (
                     <FormItem className="space-y-0.5">
                       <div className="flex items-center space-x-1">
-                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Pedestrian Phase Enabled</FormLabel>
+                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Pedestrian Crossing</FormLabel>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p className="text-xs">Enable to add a pedestrian crossing phase alongside this movement.</p>
+                            <p className="text-xs">
+                              0 = none · 1 = on assigned approach · 2 = on opposite approach ·
+                              3 = diagonal crossing · 4 = diagonal crossing shifted 90°.
+                            </p>
                           </TooltipContent>
                         </Tooltip>
                       </div>
-                      <FormControl>
-                        <div className="flex items-center space-x-2">
-                          <Switch
-                            checked={field.value || false}
-                            onCheckedChange={field.onChange}
-                          />
-                          <span style={{ fontSize: '12px' }} className="text-grey-600">
-                            {field.value ? 'Yes' : 'No'}
-                          </span>
-                        </div>
-                      </FormControl>
+                      <Select
+                        value={String(typeof field.value === "number" ? field.value : (field.value ? 1 : 0))}
+                        onValueChange={(v) => field.onChange(parseInt(v, 10))}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="h-6" style={{ fontSize: '12px' }}>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="0">0 — None</SelectItem>
+                          <SelectItem value="1">1 — Assigned approach</SelectItem>
+                          <SelectItem value="2">2 — Opposite approach</SelectItem>
+                          <SelectItem value="3">3 — Diagonal</SelectItem>
+                          <SelectItem value="4">4 — Diagonal (90° shifted)</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -41,7 +41,12 @@ export const phases = pgTable("phases", {
   phase: integer("phase").notNull(),
   signalId: text("signal_id").notNull(),
   movementType: text("movement_type").notNull(),
-  isPedestrian: boolean("is_pedestrian").default(false),
+  // Pedestrian crossing mode for the phase:
+  //   0 = none, 1 = crosswalk on the assigned approach (legacy "true"),
+  //   2 = crosswalk on the opposite-angle approach,
+  //   3 = diagonal scramble crossing,
+  //   4 = diagonal scramble shifted 90°.
+  isPedestrian: integer("is_pedestrian").default(0),
   numOfLanes: integer("num_of_lanes").default(1),
   approachId: text("approach_id"),
   isOverlap: boolean("is_overlap").default(false),

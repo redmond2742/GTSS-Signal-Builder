@@ -21,7 +21,7 @@ interface PendingPhase {
   approachId: string;
   movementType: string;
   numOfLanes: number;
-  isPedestrian: boolean;
+  isPedestrian: number; // 0 = none, 1 = assigned approach, 2 = opposite, 3 = diagonal, 4 = diagonal shifted 90°
   isOverlap: boolean;
 }
 
@@ -239,7 +239,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
         approachId: defaultApproach,
         movementType: "Through",
         numOfLanes: 1,
-        isPedestrian: true,
+        isPedestrian: 1,
         isOverlap: false,
       }
     ]);
@@ -251,18 +251,17 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
 
-      // Auto-set isPedestrian based on movement type
+      // Auto-set Pedestrian mode (integer 0–4) from movement type:
+      //  • Through / Through-Right / Pedestrian → 1 (assigned approach)
+      //  • Permissive Phase → preserve current (don't reset a manually-set mode)
+      //  • Anything else → 0 (none)
       if (field === 'movementType') {
-        // Auto-set Pedestrian from movement type:
-        //  • Through / Through-Right / Pedestrian → check
-        //  • Permissive Phase → preserve current (don't uncheck a manually-checked box)
-        //  • Anything else → uncheck
         if (value === 'Through' || value === 'Through-Right' || value === 'Pedestrian') {
-          updated[index].isPedestrian = true;
+          updated[index].isPedestrian = 1;
         } else if (value === 'Permissive Phase') {
-          // leave updated[index].isPedestrian as-is
+          // intentionally preserve
         } else {
-          updated[index].isPedestrian = false;
+          updated[index].isPedestrian = 0;
         }
       }
 
@@ -327,7 +326,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
       approachId: oppositeApproachId,
       movementType: "Left Turn",
       numOfLanes: 1,
-      isPedestrian: false,
+      isPedestrian: 0,
       isOverlap: false,
     };
 
@@ -392,7 +391,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
         approachId,
         movementType: isThrough ? "Through" : "Left Turn",
         numOfLanes: 1,
-        isPedestrian: isThrough,
+        isPedestrian: isThrough ? 1 : 0,
         isOverlap: false,
       };
     };
@@ -563,7 +562,11 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
           approachId: p.approachId || "",
           movementType: p.movementType,
           numOfLanes: p.numOfLanes || 1,
-          isPedestrian: p.isPedestrian || false,
+          // Coerce legacy boolean values to the new integer scheme on load.
+          isPedestrian:
+            typeof p.isPedestrian === "number"
+              ? p.isPedestrian
+              : (p.isPedestrian ? 1 : 0),
           isOverlap: p.isOverlap || false,
         }));
         setPendingPhases(loadedPhases);
@@ -804,12 +807,26 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
                               />
                             </TableCell>
                             <TableCell className="py-1.5 text-center">
-                              <Checkbox
-                                checked={phase.isPedestrian}
-                                onCheckedChange={(checked) => handlePhaseChange(idx, 'isPedestrian', Boolean(checked))}
-                                data-tab-col={5}
-                                data-tab-row={visualRow}
-                              />
+                              <Select
+                                value={String(phase.isPedestrian ?? 0)}
+                                onValueChange={(v) => handlePhaseChange(idx, 'isPedestrian', parseInt(v, 10))}
+                              >
+                                <SelectTrigger
+                                  className="h-7 text-xs w-14 mx-auto"
+                                  data-tab-col={5}
+                                  data-tab-row={visualRow}
+                                  title="Pedestrian crossing: 0 none · 1 assigned · 2 opposite · 3 diagonal · 4 diagonal 90°"
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="0">0</SelectItem>
+                                  <SelectItem value="1">1</SelectItem>
+                                  <SelectItem value="2">2</SelectItem>
+                                  <SelectItem value="3">3</SelectItem>
+                                  <SelectItem value="4">4</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </TableCell>
                             <TableCell className="py-1.5">
                               <Button
