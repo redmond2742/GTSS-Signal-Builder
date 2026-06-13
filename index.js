@@ -202,10 +202,16 @@ var phases = pgTable("phases", {
   signalId: text("signal_id").notNull(),
   movementType: text("movement_type").notNull(),
   // Pedestrian crossing mode for the phase:
-  //   0 = none, 1 = crosswalk on the assigned approach (legacy "true"),
-  //   2 = crosswalk on the opposite-angle approach,
-  //   3 = diagonal scramble crossing,
-  //   4 = diagonal scramble shifted 90°.
+  //   0 = none
+  //   1 = single crosswalk on the assigned approach (legacy "true")
+  //   2 = two crosswalks (assigned approach AND its 180° opposite)
+  //   3 = single crosswalk on the 180° opposite approach
+  //   4 = single diagonal crosswalk
+  //   5 = single diagonal crosswalk on the other diagonal (90° rotated)
+  //   6 = both diagonals shown simultaneously (full scramble "X")
+  //   7 = all four crosswalks AND both diagonals (full all-directions scramble)
+  // When movementType === 'Pedestrian' the same integer drives the rendering
+  // (no auto-scramble override).
   isPedestrian: integer("is_pedestrian").default(0),
   numOfLanes: integer("num_of_lanes").default(1),
   approachId: text("approach_id"),
