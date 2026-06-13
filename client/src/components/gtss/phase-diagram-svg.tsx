@@ -126,45 +126,9 @@ export const PhaseDiagram = ({ phases, approaches, intersectionName, intersectio
     return baseOffset;
   };
 
-  // Pedestrian-only (scramble) phase: a dashed diagonal kept WITHIN the central
-  // intersection circle (radius 42) so it represents the crossing without
-  // sprawling out toward the approaches. The phase number sits just outside
-  // the circle at the diagonal end. Multiple scramble phases alternate the
-  // diagonal direction ("\" then "/").
+  // Radius of the central intersection circle. Diagonal pedestrian crossings
+  // (modes 4, 5, 6) are sized so the line endpoints fall on this circle.
   const CENTER_RADIUS = 42;
-  const renderScramble = (phase: PhaseDiagramPhase, scrambleIndex: number) => {
-    const color = phaseColors[phase.phase] || '#6b7280';
-    const dir = scrambleIndex % 2 === 0 ? 1 : -1; // "\" then "/"
-    // Endpoint distance per axis so the diagonal end lands on the central
-    // circle: (d, d) is at radius d*√2, set equal to CENTER_RADIUS.
-    const d = CENTER_RADIUS / Math.SQRT2;
-    const x1 = 150 - d * dir;
-    const y1 = 150 - d;
-    const x2 = 150 + d * dir;
-    const y2 = 150 + d;
-    // Phase-number position: a little beyond the top end, along the diagonal.
-    const labelD = d + 9;
-    const lx = 150 - labelD * dir;
-    const ly = 150 - labelD;
-    return (
-      <g key={`scramble-${phase.phase}-${scrambleIndex}`}>
-        <line
-          x1={x1}
-          y1={y1}
-          x2={x2}
-          y2={y2}
-          stroke={color}
-          strokeWidth="2.5"
-          strokeDasharray="5 4"
-          strokeLinecap="round"
-          opacity="0.85"
-        />
-        <text x={lx} y={ly} textAnchor="middle" fontSize="12" fontWeight="bold" fill={color}>
-          {phase.phase}
-        </text>
-      </g>
-    );
-  };
 
   // Coerce legacy boolean to the integer scheme.
   const pedMode = (phase: PhaseDiagramPhase): number => {
@@ -172,52 +136,75 @@ export const PhaseDiagram = ({ phases, approaches, intersectionName, intersectio
     return phase.isPedestrian ? 1 : 0;
   };
 
+  // Build a single perpendicular crosswalk dash for a given bearing. Shared by
+  // modes 1 (assigned), 2 (both — emits twice), and 3 (opposite).
+  const crosswalkDashAt = (bearing: number, color: string, key: string) => {
+    const angleRad = (bearing - 90) * (Math.PI / 180);
+    const perpAngle = angleRad + Math.PI / 2;
+    const offsetDistance = 20;
+    const centerX = 150 + offsetDistance * Math.cos(perpAngle);
+    const centerY = 150 + offsetDistance * Math.sin(perpAngle);
+    const lineHalfLength = 38;
+    const x1 = centerX + lineHalfLength * Math.cos(angleRad);
+    const y1 = centerY + lineHalfLength * Math.sin(angleRad);
+    const x2 = centerX - lineHalfLength * Math.cos(angleRad);
+    const y2 = centerY - lineHalfLength * Math.sin(angleRad);
+    return (
+      <line
+        key={key}
+        x1={x1} y1={y1} x2={x2} y2={y2}
+        stroke={color}
+        strokeWidth="2"
+        strokeDasharray="4 3"
+        opacity="0.7"
+      />
+    );
+  };
+
   const renderPedestrianLine = (phase: PhaseDiagramPhase, index: number) => {
-    // Pedestrian-ONLY phases (movementType "Pedestrian") are drawn by
-    // renderScramble as the full diagonal-X scramble. This function handles
-    // pedestrian INDICATORS attached to vehicle phases via the integer mode.
-    if (phase.movementType === 'Pedestrian') return null;
+    // Pedestrian crossing rendering driven by the integer mode. Applies to
+    // both vehicle phases (as a pedestrian indicator) AND to Pedestrian-only
+    // phases (movementType === 'Pedestrian') — the integer is the single
+    // source of truth for what gets drawn.
+    //   0 = none
+    //   1 = crosswalk on the assigned approach
+    //   2 = two crosswalks (assigned + 180° opposite)
+    //   3 = single crosswalk on the 180° opposite approach
+    //   4 = single diagonal crosswalk ("\")
+    //   5 = single diagonal crosswalk ("/" — 90° rotated from mode 4)
+    //   6 = both diagonals shown simultaneously (full scramble "X")
+    //   7 = all four crosswalks AND both diagonals (full all-directions scramble)
     const mode = pedMode(phase);
     if (mode === 0) return null;
     const bearing = getApproachBearing(phase.approachId);
     if (bearing === null) return null;
     const color = phaseColors[phase.phase] || '#6b7280';
 
-    // Modes 1 and 2 — a parallel crosswalk dash, perpendicular to the bearing,
-    // offset toward one of the two roadway edges. Mode 2 flips to the opposite
-    // approach by rotating the source bearing 180°.
-    if (mode === 1 || mode === 2) {
-      const effectiveBearing = mode === 2 ? (bearing + 180) % 360 : bearing;
-      const angleRad = (effectiveBearing - 90) * (Math.PI / 180);
-      const perpAngle = angleRad + Math.PI / 2;
-      const offsetDistance = 20;
-      const centerX = 150 + offsetDistance * Math.cos(perpAngle);
-      const centerY = 150 + offsetDistance * Math.sin(perpAngle);
-      const lineHalfLength = 38;
-      const x1 = centerX + lineHalfLength * Math.cos(angleRad);
-      const y1 = centerY + lineHalfLength * Math.sin(angleRad);
-      const x2 = centerX - lineHalfLength * Math.cos(angleRad);
-      const y2 = centerY - lineHalfLength * Math.sin(angleRad);
+    if (mode === 1) {
+      return crosswalkDashAt(bearing, color, `ped-${index}-near`);
+    }
+    if (mode === 2) {
+      // Two crosswalks: one on the assigned approach, one on the opposite.
       return (
-        <line
-          key={`ped-${index}`}
-          x1={x1} y1={y1} x2={x2} y2={y2}
-          stroke={color}
-          strokeWidth="2"
-          strokeDasharray="4 3"
-          opacity="0.7"
-        />
+        <g key={`ped-${index}`}>
+          {crosswalkDashAt(bearing, color, `ped-${index}-near`)}
+          {crosswalkDashAt((bearing + 180) % 360, color, `ped-${index}-far`)}
+        </g>
       );
     }
+    if (mode === 3) {
+      // Single crosswalk on the opposite approach only.
+      return crosswalkDashAt((bearing + 180) % 360, color, `ped-${index}-far`);
+    }
 
-    // Modes 3 and 4 — a diagonal pedestrian crossing through the central
-    // intersection circle. Mode 3 is "\" (top-left to bottom-right),
-    // mode 4 is "/" (top-right to bottom-left, i.e. 90° rotation of mode 3).
-    const dir = mode === 3 ? 1 : -1;
+    // Modes 4, 5, 6 — diagonal pedestrian crossings through the central
+    // intersection circle. Mode 4 is "\" (top-left to bottom-right);
+    // mode 5 is "/" (top-right to bottom-left, 90° rotation of mode 4);
+    // mode 6 draws BOTH diagonals at the same time forming an "X".
     const d = CENTER_RADIUS / Math.SQRT2;
-    return (
+    const diagonal = (dir: 1 | -1, key: string) => (
       <line
-        key={`ped-${index}`}
+        key={key}
         x1={150 - d * dir} y1={150 - d}
         x2={150 + d * dir} y2={150 + d}
         stroke={color}
@@ -226,6 +213,32 @@ export const PhaseDiagram = ({ phases, approaches, intersectionName, intersectio
         opacity="0.7"
       />
     );
+
+    if (mode === 6) {
+      return (
+        <g key={`ped-${index}`}>
+          {diagonal(1, `ped-${index}-d1`)}
+          {diagonal(-1, `ped-${index}-d2`)}
+        </g>
+      );
+    }
+
+    if (mode === 7) {
+      // Full all-directions scramble: every parallel crosswalk + both diagonals.
+      return (
+        <g key={`ped-${index}`}>
+          {crosswalkDashAt(bearing, color, `ped-${index}-n`)}
+          {crosswalkDashAt((bearing + 90) % 360, color, `ped-${index}-e`)}
+          {crosswalkDashAt((bearing + 180) % 360, color, `ped-${index}-s`)}
+          {crosswalkDashAt((bearing + 270) % 360, color, `ped-${index}-w`)}
+          {diagonal(1, `ped-${index}-d1`)}
+          {diagonal(-1, `ped-${index}-d2`)}
+        </g>
+      );
+    }
+
+    const dir = mode === 4 ? 1 : -1;
+    return diagonal(dir, `ped-${index}`);
   };
 
   const renderArrow = (phase: PhaseDiagramPhase, index: number) => {
@@ -448,12 +461,8 @@ export const PhaseDiagram = ({ phases, approaches, intersectionName, intersectio
           );
         })}
 
-        {/* Through-movement crosswalk dashes (parallel to the approach) */}
+        {/* Pedestrian crossings (integer-mode driven, including Pedestrian-only phases) */}
         {phases.map((phase, idx) => renderPedestrianLine(phase, idx))}
-        {/* Pedestrian-only scramble diagonals */}
-        {phases
-          .filter(p => p.movementType === 'Pedestrian')
-          .map((phase, idx) => renderScramble(phase, idx))}
         {phases.map((phase, idx) => renderArrow(phase, idx))}
 
         {/* Intersection ID, scaled to sit within the central crosswalk box */}

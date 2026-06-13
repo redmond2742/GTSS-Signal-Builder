@@ -298,7 +298,7 @@ export const approachStorage = {
 };
 
 // Phase operations - updated for GTSSv1.1
-// Coerce legacy boolean isPedestrian values to the new integer scheme:
+// Coerce legacy boolean isPedestrian values to the integer scheme:
 // false → 0, true → 1, undefined/null → 0, numbers pass through.
 function normalizePedestrian(value: unknown): number {
   if (typeof value === "number") return value;
@@ -306,13 +306,39 @@ function normalizePedestrian(value: unknown): number {
   return 0;
 }
 
+// One-time migration: the pedestrian-mode meanings were renumbered so a new
+// "two crosswalks" value could be inserted at 2. Old data: 2 = opposite, 3 =
+// diagonal, 4 = diagonal-90°. New data: 2 = two crosswalks, 3 = opposite,
+// 4 = diagonal, 5 = diagonal-90°. To preserve previously chosen visuals we
+// shift old 2/3/4 → new 3/4/5 the first time we read after the rename.
+const PED_RENUMBER_FLAG = "gtss_ped_renumber_v2_done";
+
 export const phaseStorage = {
   getAll: (): Phase[] => {
     const raw = getFromStorage<Phase[]>(STORAGE_KEYS.PHASES, []);
-    return raw.map(p => ({
+    const normalized = raw.map(p => ({
       ...p,
       isPedestrian: normalizePedestrian((p as { isPedestrian?: unknown }).isPedestrian),
     }));
+    try {
+      if (typeof localStorage !== "undefined" && !localStorage.getItem(PED_RENUMBER_FLAG)) {
+        const renumbered = normalized.map(p => {
+          const v = p.isPedestrian;
+          // 2/3/4 are the only renumbered values; 0 and 1 are unchanged, and
+          // 5 (the new top of the range) won't exist in pre-rename data.
+          if (typeof v === "number" && v >= 2 && v <= 4) {
+            return { ...p, isPedestrian: v + 1 };
+          }
+          return p;
+        });
+        saveToStorage(STORAGE_KEYS.PHASES, renumbered);
+        localStorage.setItem(PED_RENUMBER_FLAG, "1");
+        return renumbered;
+      }
+    } catch {
+      // localStorage may be unavailable (SSR / privacy mode) — skip migration.
+    }
+    return normalized;
   },
 
   getBySignal: (signalId: string): Phase[] => {
@@ -1072,20 +1098,24 @@ export function parsePhasesTXT(content: string): Phase[] {
       continue;
     }
 
-    // Pedestrian mode: integer 0–4. Accept legacy "true"/"false" too:
+    // Pedestrian mode: integer 0–7. Accept legacy "true"/"false" too:
     //   true  → 1 (crosswalk on assigned approach)
     //   false → 0 (none)
-    let pedestrianMode = movementType === "Through" ? 1 : 0;
+    let pedestrianMode = movementType === "Pedestrian"
+      ? 6
+      : movementType === "Through"
+        ? 1
+        : 0;
     if (values.length > 6 && values[6].trim() !== '') {
       const raw = values[6].trim().toLowerCase();
       if (raw === 'true') pedestrianMode = 1;
       else if (raw === 'false') pedestrianMode = 0;
       else {
         const n = parseInt(raw, 10);
-        if (Number.isInteger(n) && n >= 0 && n <= 4) {
+        if (Number.isInteger(n) && n >= 0 && n <= 7) {
           pedestrianMode = n;
         } else {
-          errors.push(`Row ${i + 1}: Pedestrian mode must be 0–4 (or legacy "true"/"false"), got "${values[6]}"`);
+          errors.push(`Row ${i + 1}: Pedestrian mode must be 0–7 (or legacy "true"/"false"), got "${values[6]}"`);
           continue;
         }
       }

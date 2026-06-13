@@ -517,13 +517,15 @@ export default function SignalDetails() {
   useEffect(() => {
     if (editingPhase || pedestrianDirty) return;
     // Auto-set the Pedestrian Crossing mode from the movement type:
-    //   • Through / Through-Right / Pedestrian → 1 (assigned approach)
+    //   • Pedestrian → 6 (both diagonals "X" — full scramble look)
+    //   • Through / Through-Right → 1 (assigned approach)
     //   • Permissive Phase → preserve current value (don't reset)
     //   • Anything else (left/right/etc.) → 0 (none)
-    if (
+    if (phaseMovementType === "Pedestrian") {
+      phaseForm.setValue("isPedestrian", 6);
+    } else if (
       phaseMovementType === "Through" ||
-      phaseMovementType === "Through-Right" ||
-      phaseMovementType === "Pedestrian"
+      phaseMovementType === "Through-Right"
     ) {
       phaseForm.setValue("isPedestrian", 1);
     } else if (phaseMovementType === "Permissive Phase") {
@@ -2026,8 +2028,11 @@ export default function SignalDetails() {
                           </TooltipTrigger>
                           <TooltipContent>
                             <p className="text-xs">
-                              0 = none · 1 = on assigned approach · 2 = on opposite approach ·
-                              3 = diagonal crossing · 4 = diagonal crossing shifted 90°.
+                              0 = none · 1 = assigned approach ·
+                              2 = both (assigned + opposite) · 3 = opposite approach ·
+                              4 = diagonal · 5 = other diagonal (90° rotated) ·
+                              6 = both diagonals (X) · 7 = all directions (4 crosswalks + X).
+                              Applies to Pedestrian phases too.
                             </p>
                           </TooltipContent>
                         </Tooltip>
@@ -2044,9 +2049,12 @@ export default function SignalDetails() {
                         <SelectContent>
                           <SelectItem value="0">0 — None</SelectItem>
                           <SelectItem value="1">1 — Assigned approach</SelectItem>
-                          <SelectItem value="2">2 — Opposite approach</SelectItem>
-                          <SelectItem value="3">3 — Diagonal</SelectItem>
-                          <SelectItem value="4">4 — Diagonal (90° shifted)</SelectItem>
+                          <SelectItem value="2">2 — Both (assigned + opposite)</SelectItem>
+                          <SelectItem value="3">3 — Opposite approach</SelectItem>
+                          <SelectItem value="4">4 — Diagonal</SelectItem>
+                          <SelectItem value="5">5 — Other diagonal (90° rotated)</SelectItem>
+                          <SelectItem value="6">6 — Both diagonals (X)</SelectItem>
+                          <SelectItem value="7">7 — All directions (4 crosswalks + X)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

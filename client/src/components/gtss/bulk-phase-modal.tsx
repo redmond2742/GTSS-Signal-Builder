@@ -21,7 +21,7 @@ interface PendingPhase {
   approachId: string;
   movementType: string;
   numOfLanes: number;
-  isPedestrian: number; // 0 = none, 1 = assigned approach, 2 = opposite, 3 = diagonal, 4 = diagonal shifted 90°
+  isPedestrian: number; // 0=none 1=assigned 2=both 3=opposite 4=diagonal 5=other diagonal 6=both diagonals (X) 7=all directions
   isOverlap: boolean;
 }
 
@@ -251,12 +251,15 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
 
-      // Auto-set Pedestrian mode (integer 0–4) from movement type:
-      //  • Through / Through-Right / Pedestrian → 1 (assigned approach)
+      // Auto-set Pedestrian mode (integer 0–6) from movement type:
+      //  • Pedestrian → 6 (both diagonals "X" — full scramble look)
+      //  • Through / Through-Right → 1 (assigned approach)
       //  • Permissive Phase → preserve current (don't reset a manually-set mode)
       //  • Anything else → 0 (none)
       if (field === 'movementType') {
-        if (value === 'Through' || value === 'Through-Right' || value === 'Pedestrian') {
+        if (value === 'Pedestrian') {
+          updated[index].isPedestrian = 6;
+        } else if (value === 'Through' || value === 'Through-Right') {
           updated[index].isPedestrian = 1;
         } else if (value === 'Permissive Phase') {
           // intentionally preserve
@@ -815,7 +818,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
                                   className="h-7 text-xs w-14 mx-auto"
                                   data-tab-col={5}
                                   data-tab-row={visualRow}
-                                  title="Pedestrian crossing: 0 none · 1 assigned · 2 opposite · 3 diagonal · 4 diagonal 90°"
+                                  title="Pedestrian crossing: 0 none · 1 assigned · 2 both · 3 opposite · 4 diagonal · 5 other diagonal · 6 both diagonals (X) · 7 all directions (4 crosswalks + X)"
                                 >
                                   <SelectValue />
                                 </SelectTrigger>
@@ -825,6 +828,9 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
                                   <SelectItem value="2">2</SelectItem>
                                   <SelectItem value="3">3</SelectItem>
                                   <SelectItem value="4">4</SelectItem>
+                                  <SelectItem value="5">5</SelectItem>
+                                  <SelectItem value="6">6</SelectItem>
+                                  <SelectItem value="7">7</SelectItem>
                                 </SelectContent>
                               </Select>
                             </TableCell>

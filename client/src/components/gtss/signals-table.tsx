@@ -248,9 +248,9 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
           withHandle
           className="bg-grey-200 hover:bg-primary-300 transition-colors"
         />
-        <ResizablePanel defaultSize={65} minSize={20} className="overflow-auto">
-      <Card className="rounded-none border-0">
-        <CardHeader className="bg-grey-50 border-b border-grey-200 p-3">
+        <ResizablePanel defaultSize={65} minSize={20} className="flex flex-col min-h-0">
+      <Card className="rounded-none border-0 flex flex-col h-full min-h-0">
+        <CardHeader className="bg-grey-50 border-b border-grey-200 p-3 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-grey-700">
@@ -276,12 +276,12 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 flex-1 min-h-0 overflow-auto">
           <div className="w-full">
             {/* Signals Table */}
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-grey-50 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]">
                   <TableRow className="bg-grey-50 border-b border-grey-200">
                     <SortableHeader field="signalId">Signal ID</SortableHeader>
                     <SortableHeader field="streetName1">Street 1</SortableHeader>
