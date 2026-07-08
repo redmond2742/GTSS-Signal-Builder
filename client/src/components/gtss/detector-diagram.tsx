@@ -19,6 +19,10 @@ interface PhaseData {
 interface ApproachData {
   approachId: string;
   compassBearing: number | null;
+  /** FR — free right slip lane bypassing the signal:
+   *   0 = none, 1 = FR, 2 = FR-P (with a pedestrian crossing).
+   * Legacy booleans are coerced to 0/1. */
+  freeRight?: boolean | number | null;
 }
 
 interface SignalData {
@@ -402,6 +406,49 @@ export default function DetectorDiagram({ detectors, phases, approaches, signal,
 
         {/* Approach roads */}
         {approaches.map((approach, idx) => renderApproachRoad(approach, idx))}
+
+        {/* FR — free right slip lanes: a flat arc peeling off the approach
+            road to the right, joining the perpendicular exit road. Mode 2
+            (FR-P) adds a pedestrian crosswalk across the arc's middle. */}
+        {approaches.map((approach, idx) => {
+          const frMode = typeof approach.freeRight === "number"
+            ? approach.freeRight
+            : (approach.freeRight ? 1 : 0);
+          if (frMode === 0 || approach.compassBearing === null) return null;
+          const adjustedBearing = (approach.compassBearing + 180) % 360;
+          const angleRad = (adjustedBearing - 90) * (Math.PI / 180);
+          const rightRad = angleRad - Math.PI / 2;
+          const midRad = angleRad - Math.PI / 4;
+          const p = (r: number, a: number) => [CENTER_X + r * Math.cos(a), CENTER_Y + r * Math.sin(a)];
+          const d = INTERSECTION_RADIUS + ROAD_LENGTH * 0.75; // peel-off / merge radius
+          const R = 2 * d; // flat arc so it clears the intersection box
+          const [sx, sy] = p(d, angleRad);
+          const [ex, ey] = p(d, rightRad);
+          const path = `M ${sx} ${sy} A ${R} ${R} 0 0 1 ${ex} ${ey}`;
+          // Radial distance of the arc's midpoint (closest point to center).
+          const arcMid = (Math.SQRT2 * d + Math.sqrt(4 * R * R - 2 * d * d)) / 2 - R;
+          const [lx, ly] = p(arcMid + 18, midRad);
+          const [cwx1, cwy1] = p(arcMid - 9, midRad);
+          const [cwx2, cwy2] = p(arcMid + 9, midRad);
+          return (
+            <g key={`fr-${idx}`}>
+              <path d={path} fill="none" stroke="#e5e7eb" strokeWidth="14" strokeLinecap="butt" />
+              <path d={path} fill="none" stroke="#9ca3af" strokeWidth="1.25" strokeDasharray="4 4" />
+              {frMode === 2 && (
+                <line
+                  x1={cwx1} y1={cwy1} x2={cwx2} y2={cwy2}
+                  stroke="#6b7280"
+                  strokeWidth="2.5"
+                  strokeDasharray="3 2"
+                  opacity="0.85"
+                />
+              )}
+              <text x={lx} y={ly + 3} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#9ca3af">
+                {frMode === 2 ? "FR-P" : "FR"}
+              </text>
+            </g>
+          );
+        })}
 
         {/* Center intersection */}
         <circle cx={CENTER_X} cy={CENTER_Y} r={INTERSECTION_RADIUS} fill="#f9fafb" stroke="#d1d5db" strokeWidth="2" />
