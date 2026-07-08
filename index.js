@@ -194,7 +194,14 @@ var approaches = pgTable("approaches", {
   signalId: text("signal_id").notNull(),
   streetName: text("street_name").notNull(),
   compassBearing: integer("compass_bearing"),
-  postedSpeed: integer("posted_speed")
+  postedSpeed: integer("posted_speed"),
+  // FR — Free Right: the approach has a right-turn slip lane that bypasses
+  // the signal. Drawn on the phase diagram as a quarter-circle lane peeling
+  // off to the right before the intersection.
+  //   0 = none
+  //   1 = FR   (slip lane, no pedestrian crossing)
+  //   2 = FR-P (slip lane WITH a pedestrian crossing across its middle)
+  freeRight: integer("free_right").default(0)
 });
 var phases = pgTable("phases", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
