@@ -30,6 +30,11 @@ export interface PhaseDiagramApproach {
   approachId: string;
   compassBearing: number | null;
   streetName?: string;
+  /** FR — free right slip lane that branches off to the right before the
+   * intersection, bypassing the signal:
+   *   0 = none, 1 = FR, 2 = FR-P (with a pedestrian crossing).
+   * Legacy booleans are coerced to 0/1. */
+  freeRight?: boolean | number | null;
 }
 
 export interface PhaseDiagramProps {
@@ -458,6 +463,56 @@ export const PhaseDiagram = ({ phases, approaches, intersectionName, intersectio
           const innerY = 150 + 44 * Math.sin(angleRad);
           return (
             <line key={idx} x1={outerX} y1={outerY} x2={innerX} y2={innerY} stroke="#e5e7eb" strokeWidth="20" strokeLinecap="butt" />
+          );
+        })}
+
+        {/* FR — free right slip lanes. A quarter-circle arc that peels off the
+            approach leg and sweeps right around the corner, joining the
+            perpendicular exit leg outside the central intersection circle.
+            Mode 2 (FR-P) adds a pedestrian crosswalk across the arc's middle. */}
+        {approaches.map((approach, idx) => {
+          const frMode = typeof approach.freeRight === "number"
+            ? approach.freeRight
+            : (approach.freeRight ? 1 : 0);
+          if (frMode === 0 || approach.compassBearing === null) return null;
+          const adjustedBearing = (approach.compassBearing + 180) % 360;
+          const angleRad = (adjustedBearing - 90) * (Math.PI / 180);
+          // angleRad points from center to the outer end of the leg; traffic
+          // flows inward, so "right of travel" is angleRad - 90°.
+          const rightRad = angleRad - Math.PI / 2;
+          const midRad = angleRad - Math.PI / 4;
+          const p = (r: number, a: number) => [150 + r * Math.cos(a), 150 + r * Math.sin(a)];
+          const d = 98;        // peel-off / merge radius on each leg
+          const R = d * 1.35;  // arc radius — slightly flatter than a tangent
+                               // quarter circle so it clears the central island
+          const [sx, sy] = p(d, angleRad);   // peel-off point on the approach leg
+          const [ex, ey] = p(d, rightRad);   // merge point on the right exit leg
+          const path = `M ${sx} ${sy} A ${R} ${R} 0 0 1 ${ex} ${ey}`;
+          // Radial distance of the arc's midpoint (its closest point to the
+          // intersection center, on the 45° bisector): |arc center| − R.
+          const arcMid = (Math.SQRT2 * d + Math.sqrt(4 * R * R - 2 * d * d)) / 2 - R;
+          const [lx, ly] = p(arcMid + 13, midRad); // label in the corner pocket
+          // FR-P crosswalk: a short dash across the lane at the arc midpoint,
+          // running radially (perpendicular to the lane's direction of travel).
+          const [cwx1, cwy1] = p(arcMid - 7, midRad);
+          const [cwx2, cwy2] = p(arcMid + 7, midRad);
+          return (
+            <g key={`fr-${idx}`}>
+              <path d={path} fill="none" stroke="#e5e7eb" strokeWidth="10" strokeLinecap="butt" />
+              <path d={path} fill="none" stroke="#9ca3af" strokeWidth="1.25" strokeDasharray="3 3" markerEnd="url(#arrowhead-grey)" />
+              {frMode === 2 && (
+                <line
+                  x1={cwx1} y1={cwy1} x2={cwx2} y2={cwy2}
+                  stroke="#6b7280"
+                  strokeWidth="2"
+                  strokeDasharray="2 1.5"
+                  opacity="0.85"
+                />
+              )}
+              <text x={lx} y={ly + 3} textAnchor="middle" fontSize="8" fontWeight="bold" fill="#9ca3af">
+                {frMode === 2 ? "FR-P" : "FR"}
+              </text>
+            </g>
           );
         })}
 

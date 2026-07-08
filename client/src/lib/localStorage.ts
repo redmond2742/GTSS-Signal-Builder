@@ -226,9 +226,22 @@ export const signalStorage = {
 };
 
 // Approach operations - new for GTSSv1.1
+// Coerce the FR (free right) value to the integer scheme:
+//   0 = none, 1 = FR (slip lane), 2 = FR-P (slip lane with ped crossing).
+// Legacy booleans (from the short-lived boolean field) map false → 0, true → 1.
+function normalizeFreeRight(value: unknown): number {
+  if (typeof value === "number") return value;
+  if (value === true) return 1;
+  return 0;
+}
+
 export const approachStorage = {
   getAll: (): Approach[] => {
-    return getFromStorage<Approach[]>(STORAGE_KEYS.APPROACHES, []);
+    const raw = getFromStorage<Approach[]>(STORAGE_KEYS.APPROACHES, []);
+    return raw.map(a => ({
+      ...a,
+      freeRight: normalizeFreeRight((a as { freeRight?: unknown }).freeRight),
+    }));
   },
 
   getBySignal: (signalId: string): Approach[] => {
@@ -248,6 +261,7 @@ export const approachStorage = {
       streetName: approach.streetName,
       compassBearing: approach.compassBearing ?? null,
       postedSpeed: approach.postedSpeed ?? null,
+      freeRight: normalizeFreeRight(approach.freeRight),
     };
 
     const updatedApproaches = [...approaches, newApproach];
@@ -267,6 +281,9 @@ export const approachStorage = {
     if (index === -1) return null;
 
     const updatedApproach = { ...approaches[index], ...updates };
+    if ("freeRight" in updates) {
+      updatedApproach.freeRight = normalizeFreeRight(updatedApproach.freeRight);
+    }
     approaches[index] = updatedApproach;
     saveToStorage(STORAGE_KEYS.APPROACHES, approaches);
     return updatedApproach;
@@ -660,7 +677,7 @@ export function generateSignalsCSV(signals: Signal[]): string {
 
 // New for GTSSv1.1
 export function generateApproachesCSV(approaches: Approach[]): string {
-  const headers = 'approach_id,signal_id,street_name,compass_bearing,posted_speed';
+  const headers = 'approach_id,signal_id,street_name,compass_bearing,posted_speed,free_right';
 
   if (approaches.length === 0) return headers + '\n';
 
@@ -669,8 +686,12 @@ export function generateApproachesCSV(approaches: Approach[]): string {
     return a.approachId.localeCompare(b.approachId);
   });
 
+  // free_right column: '' = none, 'FR' = slip lane, 'FR-P' = slip lane with
+  // pedestrian crossing.
+  const frLabel = (v: number | boolean | null | undefined) =>
+    v === 2 ? 'FR-P' : v === 1 || v === true ? 'FR' : '';
   const rows = sortedApproaches.map(approach =>
-    `${sanitizeCSVField(approach.approachId)},${sanitizeCSVField(approach.signalId)},${sanitizeCSVField(approach.streetName)},${sanitizeCSVField(approach.compassBearing)},${sanitizeCSVField(approach.postedSpeed)}`
+    `${sanitizeCSVField(approach.approachId)},${sanitizeCSVField(approach.signalId)},${sanitizeCSVField(approach.streetName)},${sanitizeCSVField(approach.compassBearing)},${sanitizeCSVField(approach.postedSpeed)},${frLabel(approach.freeRight)}`
   );
 
   return [headers, ...rows].join('\n');
@@ -975,7 +996,7 @@ export function parseApproachesTXT(content: string): Approach[] {
     const values = parseCSVLine(lines[i]);
 
     if (values.length < 5) {
-      errors.push(`Row ${i + 1}: Must have 5 fields (approachId, signalId, streetName, compassBearing, postedSpeed)`);
+      errors.push(`Row ${i + 1}: Must have at least 5 fields (approachId, signalId, streetName, compassBearing, postedSpeed[, freeRight])`);
       continue;
     }
 
@@ -1010,6 +1031,23 @@ export function parseApproachesTXT(content: string): Approach[] {
       postedSpeed = Number(values[4]);
     }
 
+    // Optional 6th column: FR (free right slip lane).
+    //   '' / 'false' / '0' → 0 (none)
+    //   'FR' / 'true' / '1' → 1 (slip lane)
+    //   'FR-P' / 'FRP' / '2' → 2 (slip lane with pedestrian crossing)
+    // Legacy 5-field rows default to 0.
+    let freeRight = 0;
+    if (values.length > 5 && values[5].trim() !== '') {
+      const raw = values[5].trim().toLowerCase();
+      if (raw === 'false' || raw === '0') freeRight = 0;
+      else if (raw === 'fr' || raw === 'true' || raw === '1') freeRight = 1;
+      else if (raw === 'fr-p' || raw === 'frp' || raw === '2') freeRight = 2;
+      else {
+        errors.push(`Row ${i + 1}: Free right must be "FR", "FR-P", or empty, got "${values[5]}"`);
+        continue;
+      }
+    }
+
     approaches.push({
       id: nanoid(),
       approachId: values[0],
@@ -1017,6 +1055,7 @@ export function parseApproachesTXT(content: string): Approach[] {
       streetName: values[2],
       compassBearing,
       postedSpeed,
+      freeRight,
     });
   }
 

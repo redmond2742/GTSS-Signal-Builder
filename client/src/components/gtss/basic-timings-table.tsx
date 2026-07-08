@@ -522,7 +522,8 @@ export default function BasicTimingsTable({ triggerAdd }: BasicTimingsTableProps
                             }))}
                             approaches={filteredApproaches.map(a => ({
                               approachId: a.approachId,
-                              compassBearing: a.compassBearing
+                              compassBearing: a.compassBearing,
+                              freeRight: a.freeRight
                             }))}
                             intersectionName={intersectionName}
                             svgRef={phaseDiagramRef}

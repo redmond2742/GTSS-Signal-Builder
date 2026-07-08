@@ -148,6 +148,8 @@ export default function SignalDetails() {
   const [qaStreetName, setQaStreetName] = useState("");
   const [qaBearing, setQaBearing] = useState<string>("");
   const [qaSpeed, setQaSpeed] = useState<string>("");
+  // FR mode: "0" = none, "1" = FR, "2" = FR-P (with pedestrian crossing)
+  const [qaFreeRight, setQaFreeRight] = useState<string>("0");
 
   // Quick-add Phase (rapid input below the map on Phases tab)
   const [qpPhase, setQpPhase] = useState<string>("");
@@ -414,6 +416,7 @@ export default function SignalDetails() {
         streetName: qaStreetName.trim(),
         compassBearing: parseInt(qaBearing, 10) || 0,
         postedSpeed: qaSpeed ? parseInt(qaSpeed, 10) : null,
+        freeRight: parseInt(qaFreeRight, 10) || 0,
       });
       const updated = approaches.filter(a => a.signalId === signalId);
       setSignalApproaches(updated);
@@ -422,6 +425,7 @@ export default function SignalDetails() {
       setQaStreetName("");
       setQaBearing("");
       setQaSpeed("");
+      setQaFreeRight("0");
       toast({ title: "Approach added", description: qaApproachId });
     } catch {
       toast({ title: "Error", description: "Failed to add approach.", variant: "destructive" });
@@ -1176,6 +1180,17 @@ export default function SignalDetails() {
                 <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Speed</label>
                 <Input type="number" min="0" max="100" value={qaSpeed} onChange={(e) => setQaSpeed(e.target.value)} placeholder="35" className="h-8 text-sm" />
               </div>
+              <div className="flex flex-col w-20" title="Free Right — right-turn slip lane bypassing the signal. FR-P includes a pedestrian crossing.">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">FR</label>
+                <Select value={qaFreeRight} onValueChange={setQaFreeRight}>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">None</SelectItem>
+                    <SelectItem value="1">FR</SelectItem>
+                    <SelectItem value="2">FR-P</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button onClick={handleQuickAddApproach} className="h-8 px-3 bg-primary-600 hover:bg-primary-700">
                 <Plus className="w-3 h-3 mr-1" />Add
               </Button>
@@ -1241,6 +1256,7 @@ export default function SignalDetails() {
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Street Name</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Bearing</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Posted Speed</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }} title="Free Right — right-turn slip lane bypassing the signal">FR</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1248,8 +1264,9 @@ export default function SignalDetails() {
                     <TableRow key={approach.id} className="hover:bg-grey-50">
                       <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>{approach.approachId}</TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.streetName || '-'}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.compassBearing ? `${approach.compassBearing}°` : '-'}</TableCell>
+                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.compassBearing != null ? `${approach.compassBearing}°` : '-'}</TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.postedSpeed ? `${approach.postedSpeed} mph` : '-'}</TableCell>
+                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.freeRight === 2 ? 'FR-P' : approach.freeRight ? 'FR' : '-'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

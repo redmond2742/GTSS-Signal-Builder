@@ -32,6 +32,7 @@ interface PendingApproach {
   bearing: number;
   streetName: string;
   postedSpeed: number | null;
+  freeRight: number; // FR — 0 = none, 1 = FR slip lane, 2 = FR-P (with ped crossing)
   direction: string;
 }
 
@@ -139,6 +140,7 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
         bearing: Math.round(normalizedBearing),
         streetName,
         postedSpeed: preserveData && pendingApproaches[i]?.postedSpeed || null,
+        freeRight: (preserveData && pendingApproaches[i]?.freeRight) || 0,
         direction: getDirectionFromBearing(normalizedBearing),
       });
     }
@@ -388,6 +390,7 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
             streetName: approach.streetName,
             compassBearing: approach.bearing,
             postedSpeed: approach.postedSpeed,
+            freeRight: approach.freeRight,
           });
           updatedCount++;
         } else {
@@ -398,6 +401,7 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
             streetName: approach.streetName,
             compassBearing: approach.bearing,
             postedSpeed: approach.postedSpeed,
+            freeRight: approach.freeRight,
           });
           createdCount++;
         }
@@ -442,6 +446,7 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
           bearing: a.compassBearing || 0,
           streetName: a.streetName,
           postedSpeed: a.postedSpeed,
+          freeRight: typeof a.freeRight === "number" ? a.freeRight : (a.freeRight ? 1 : 0),
           direction: getDirectionFromBearing(a.compassBearing || 0),
         }));
 
@@ -487,6 +492,7 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
               bearing: Math.round(bearing),
               streetName,
               postedSpeed: null,
+              freeRight: 0,
               direction: getDirectionFromBearing(bearing),
             });
           }
@@ -665,6 +671,7 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
                         <TableHead className="w-60 text-xs">Angle</TableHead>
                         <TableHead className="w-48 text-xs">Street Name *</TableHead>
                         <TableHead className="w-20 text-xs">Speed (mph)</TableHead>
+                        <TableHead className="w-24 text-xs text-center" title="Free Right — right-turn slip lane bypassing the signal. FR-P includes a pedestrian crossing.">FR</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -736,6 +743,32 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
                               data-tab-col={3}
                               data-tab-row={idx}
                             />
+                          </TableCell>
+                          <TableCell className="py-2">
+                            <Select
+                              value={String(approach.freeRight ?? 0)}
+                              onValueChange={(v) =>
+                                setPendingApproaches(prev => {
+                                  const updated = [...prev];
+                                  updated[idx] = { ...updated[idx], freeRight: parseInt(v, 10) };
+                                  return updated;
+                                })
+                              }
+                            >
+                              <SelectTrigger
+                                className="h-8 text-xs w-20 mx-auto"
+                                data-tab-col={4}
+                                data-tab-row={idx}
+                                title="Free Right — right-turn slip lane bypassing the signal. FR-P includes a pedestrian crossing."
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="0">None</SelectItem>
+                                <SelectItem value="1">FR</SelectItem>
+                                <SelectItem value="2">FR-P</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </TableCell>
                         </TableRow>
                       ))}

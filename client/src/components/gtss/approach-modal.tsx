@@ -46,6 +46,7 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
       streetName: "",
       compassBearing: undefined,
       postedSpeed: undefined,
+      freeRight: 0,
     },
   });
 
@@ -57,6 +58,7 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
         streetName: approach.streetName,
         compassBearing: approach.compassBearing || undefined,
         postedSpeed: approach.postedSpeed || undefined,
+        freeRight: typeof approach.freeRight === "number" ? approach.freeRight : (approach.freeRight ? 1 : 0),
       });
     }
   }, [approach, form]);
@@ -279,6 +281,32 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
                         value={field.value || ""}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="freeRight"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Free Right (FR) — right-turn slip lane bypassing the signal</FormLabel>
+                    <Select
+                      value={String(typeof field.value === "number" ? field.value : (field.value ? 1 : 0))}
+                      onValueChange={(v) => field.onChange(parseInt(v, 10))}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="0">None</SelectItem>
+                        <SelectItem value="1">FR — slip lane</SelectItem>
+                        <SelectItem value="2">FR-P — slip lane with pedestrian crossing</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
