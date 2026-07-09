@@ -199,9 +199,14 @@ var approaches = pgTable("approaches", {
   // the signal. Drawn on the phase diagram as a quarter-circle lane peeling
   // off to the right before the intersection.
   //   0 = none
-  //   1 = FR   (slip lane, no pedestrian crossing)
-  //   2 = FR-P (slip lane WITH a pedestrian crossing across its middle)
-  freeRight: integer("free_right").default(0)
+  //   1 = FR     (slip lane, no pedestrian crossing)
+  //   2 = FR-P   (slip lane WITH a pedestrian crossing across its middle)
+  //   3 = FR-P-I (improved: traffic-calmed lane with a shark's-teeth yield
+  //               line before a ladder-style crosswalk)
+  freeRight: integer("free_right").default(0),
+  // Number of free-right lanes. In approaches.txt this prefixes the FR code
+  // as "<n>-FR", "<n>-FR-P", etc. (a bare "FR" / "FR-P" implies 1 lane).
+  freeRightLanes: integer("free_right_lanes").default(1)
 });
 var phases = pgTable("phases", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
