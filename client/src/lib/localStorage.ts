@@ -227,12 +227,19 @@ export const signalStorage = {
 
 // Approach operations - new for GTSSv1.1
 // Coerce the FR (free right) value to the integer scheme:
-//   0 = none, 1 = FR (slip lane), 2 = FR-P (slip lane with ped crossing).
+//   0 = none, 1 = FR (slip lane), 2 = FR-P (slip lane with ped crossing),
+//   3 = FR-P-I (improved traffic-calmed crossing).
 // Legacy booleans (from the short-lived boolean field) map false → 0, true → 1.
 function normalizeFreeRight(value: unknown): number {
   if (typeof value === "number") return value;
   if (value === true) return 1;
   return 0;
+}
+
+// Number of free-right lanes; at least 1 whenever a lane is present.
+function normalizeFreeRightLanes(value: unknown): number {
+  const n = typeof value === "number" ? value : parseInt(String(value ?? ""), 10);
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
 }
 
 export const approachStorage = {
@@ -241,6 +248,7 @@ export const approachStorage = {
     return raw.map(a => ({
       ...a,
       freeRight: normalizeFreeRight((a as { freeRight?: unknown }).freeRight),
+      freeRightLanes: normalizeFreeRightLanes((a as { freeRightLanes?: unknown }).freeRightLanes),
     }));
   },
 
@@ -262,6 +270,7 @@ export const approachStorage = {
       compassBearing: approach.compassBearing ?? null,
       postedSpeed: approach.postedSpeed ?? null,
       freeRight: normalizeFreeRight(approach.freeRight),
+      freeRightLanes: normalizeFreeRightLanes(approach.freeRightLanes),
     };
 
     const updatedApproaches = [...approaches, newApproach];
@@ -283,6 +292,9 @@ export const approachStorage = {
     const updatedApproach = { ...approaches[index], ...updates };
     if ("freeRight" in updates) {
       updatedApproach.freeRight = normalizeFreeRight(updatedApproach.freeRight);
+    }
+    if ("freeRightLanes" in updates) {
+      updatedApproach.freeRightLanes = normalizeFreeRightLanes(updatedApproach.freeRightLanes);
     }
     approaches[index] = updatedApproach;
     saveToStorage(STORAGE_KEYS.APPROACHES, approaches);
@@ -631,6 +643,7 @@ export const exportData = () => {
 const MOVEMENT_TYPE_MAP: { [key: string]: string } = {
   "Through": "T",
   "Left Turn": "L",
+  "Left Protected-Permissive": "LPP",
   "Left Through Shared": "LT",
   "Permissive Phase": "TL",
   "Flashing Yellow Arrow": "FYA",
@@ -644,6 +657,7 @@ const MOVEMENT_TYPE_MAP: { [key: string]: string } = {
 const MOVEMENT_TYPE_REVERSE_MAP: { [key: string]: string } = {
   "T": "Through",
   "L": "Left Turn",
+  "LPP": "Left Protected-Permissive",
   "LT": "Left Through Shared",
   "TL": "Permissive Phase",
   "FYA": "Flashing Yellow Arrow",
@@ -687,11 +701,16 @@ export function generateApproachesCSV(approaches: Approach[]): string {
   });
 
   // free_right column: '' = none, 'FR' = slip lane, 'FR-P' = slip lane with
-  // pedestrian crossing.
-  const frLabel = (v: number | boolean | null | undefined) =>
-    v === 2 ? 'FR-P' : v === 1 || v === true ? 'FR' : '';
+  // pedestrian crossing, 'FR-P-I' = improved (traffic-calmed) crossing. When
+  // more than one free-right lane exists it is prefixed as '<n>-FR…'.
+  const frLabel = (v: number | boolean | null | undefined, lanes: number | null | undefined) => {
+    const code = v === 3 ? 'FR-P-I' : v === 2 ? 'FR-P' : v === 1 || v === true ? 'FR' : '';
+    if (!code) return '';
+    const n = typeof lanes === 'number' && lanes > 1 ? lanes : 1;
+    return n > 1 ? `${n}-${code}` : code;
+  };
   const rows = sortedApproaches.map(approach =>
-    `${sanitizeCSVField(approach.approachId)},${sanitizeCSVField(approach.signalId)},${sanitizeCSVField(approach.streetName)},${sanitizeCSVField(approach.compassBearing)},${sanitizeCSVField(approach.postedSpeed)},${frLabel(approach.freeRight)}`
+    `${sanitizeCSVField(approach.approachId)},${sanitizeCSVField(approach.signalId)},${sanitizeCSVField(approach.streetName)},${sanitizeCSVField(approach.compassBearing)},${sanitizeCSVField(approach.postedSpeed)},${frLabel(approach.freeRight, approach.freeRightLanes)}`
   );
 
   return [headers, ...rows].join('\n');
@@ -1031,19 +1050,30 @@ export function parseApproachesTXT(content: string): Approach[] {
       postedSpeed = Number(values[4]);
     }
 
-    // Optional 6th column: FR (free right slip lane).
+    // Optional 6th column: FR (free right slip lane), optionally prefixed with
+    // a lane count as "<n>-FR…" (e.g. "2-FR-P" = two-lane FR-P).
     //   '' / 'false' / '0' → 0 (none)
     //   'FR' / 'true' / '1' → 1 (slip lane)
     //   'FR-P' / 'FRP' / '2' → 2 (slip lane with pedestrian crossing)
-    // Legacy 5-field rows default to 0.
+    //   'FR-P-I' / 'FRPI' / '3' → 3 (improved traffic-calmed crossing)
+    // Legacy 5-field rows default to 0 with 1 lane.
     let freeRight = 0;
+    let freeRightLanes = 1;
     if (values.length > 5 && values[5].trim() !== '') {
-      const raw = values[5].trim().toLowerCase();
+      let raw = values[5].trim().toLowerCase();
+      // Strip an optional "<n>-" lane-count prefix.
+      const laneMatch = raw.match(/^(\d+)\s*-\s*(fr.*)$/);
+      if (laneMatch) {
+        const n = parseInt(laneMatch[1], 10);
+        if (n >= 1) freeRightLanes = n;
+        raw = laneMatch[2];
+      }
       if (raw === 'false' || raw === '0') freeRight = 0;
       else if (raw === 'fr' || raw === 'true' || raw === '1') freeRight = 1;
       else if (raw === 'fr-p' || raw === 'frp' || raw === '2') freeRight = 2;
+      else if (raw === 'fr-p-i' || raw === 'frpi' || raw === '3') freeRight = 3;
       else {
-        errors.push(`Row ${i + 1}: Free right must be "FR", "FR-P", or empty, got "${values[5]}"`);
+        errors.push(`Row ${i + 1}: Free right must be "FR", "FR-P", "FR-P-I" (optionally "<n>-" prefixed), or empty, got "${values[5]}"`);
         continue;
       }
     }
@@ -1056,6 +1086,7 @@ export function parseApproachesTXT(content: string): Approach[] {
       compassBearing,
       postedSpeed,
       freeRight,
+      freeRightLanes,
     });
   }
 
@@ -1120,7 +1151,7 @@ export function parsePhasesTXT(content: string): Phase[] {
     // Validate movement type is recognized - reject unrecognized types
     if (!MOVEMENT_TYPE_REVERSE_MAP[encodedMovement]) {
       // If it's not a known code, verify it's a valid full movement type name
-      const validTypes = ["Through", "Left Turn", "Left Through Shared", "Permissive Phase", "Flashing Yellow Arrow", "U-Turn", "Right Turn", "Through-Right", "Pedestrian"];
+      const validTypes = ["Through", "Left Turn", "Left Protected-Permissive", "Left Through Shared", "Permissive Phase", "Flashing Yellow Arrow", "U-Turn", "Right Turn", "Through-Right", "Pedestrian"];
       if (!validTypes.includes(encodedMovement)) {
         errors.push(`Row ${i + 1}: Movement type "${encodedMovement}" is not recognized. Expected codes: T, L, LT, TL, FYA, U, R, TR, PED or full names.`);
         continue;

@@ -39,6 +39,7 @@ interface BulkPhaseModalProps {
 const movementTypes = [
   { value: "Through", label: "Through (T)" },
   { value: "Left Turn", label: "Left Turn (L)" },
+  { value: "Left Protected-Permissive", label: "Left Protected-Permissive (LPP)" },
   { value: "Left Through Shared", label: "Left Through Shared (LT)" },
   { value: "Permissive Phase", label: "Permissive Phase (TL)" },
   { value: "Flashing Yellow Arrow", label: "Flashing Yellow Arrow (FYA)" },

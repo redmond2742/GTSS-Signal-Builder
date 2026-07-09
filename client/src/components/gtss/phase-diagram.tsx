@@ -1,3 +1,5 @@
+import { freeRightPedMarkings } from "./free-right-markings";
+
 // Phase colors by phase number
 export const phaseColors: Record<number, string> = {
   1: "#22c55e", // green
@@ -23,9 +25,11 @@ interface ApproachData {
   approachId: string;
   compassBearing: number | null;
   /** FR — free right slip lane bypassing the signal:
-   *   0 = none, 1 = FR, 2 = FR-P (with a pedestrian crossing).
+   *   0 = none, 1 = FR, 2 = FR-P, 3 = FR-P-I.
    * Legacy booleans are coerced to 0/1. */
   freeRight?: boolean | number | null;
+  /** Number of free-right lanes (widens the drawn slip lane). */
+  freeRightLanes?: number | null;
 }
 
 interface PhaseDiagramProps {
@@ -46,6 +50,7 @@ export default function PhaseDiagram({ phases, approaches, intersectionName, svg
   const getMovementType = (movementType: string): 'straight' | 'left' | 'right' | 'uturn' | 'pedestrian' | 'leftThrough' | 'permissive' => {
     switch (movementType) {
       case 'Left Turn':
+      case 'Left Protected-Permissive':
       case 'Flashing Yellow Arrow':
         return 'left';
       case 'Left Through Shared':
@@ -153,10 +158,29 @@ export default function PhaseDiagram({ phases, approaches, intersectionName, svg
       const tipX = bendX + tipLength * Math.cos(leftPerpAngle);
       const tipY = bendY + tipLength * Math.sin(leftPerpAngle);
 
+      // LPP — protected-permissive left: the whole arrow shaft is dashed.
+      const isLpp = phase.movementType === 'Left Protected-Permissive';
+      // FYA — flashing yellow arrow: the turning segment is drawn in yellow
+      // with a yellow head, dashed so it reads as flashing on and off.
+      const isFya = phase.movementType === 'Flashing Yellow Arrow';
+
       return (
         <g key={index}>
-          <line x1={startX} y1={startY} x2={bendX} y2={bendY} stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-          <line x1={bendX} y1={bendY} x2={tipX} y2={tipY} stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" markerEnd={`url(#arrowhead-${phase.phase})`} />
+          <line
+            x1={startX} y1={startY} x2={bendX} y2={bendY}
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeDasharray={isLpp ? '6 5' : undefined}
+          />
+          <line
+            x1={bendX} y1={bendY} x2={tipX} y2={tipY}
+            stroke={isFya ? '#eab308' : color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeDasharray={isLpp ? '6 5' : isFya ? '4 4' : undefined}
+            markerEnd={isFya ? 'url(#arrowhead-fya)' : `url(#arrowhead-${phase.phase})`}
+          />
         </g>
       );
     }
@@ -274,6 +298,10 @@ export default function PhaseDiagram({ phases, approaches, intersectionName, svg
         <marker id="arrowhead-grey" markerWidth="6" markerHeight="5" refX="5" refY="2.5" orient="auto">
           <polygon points="0 0, 6 2.5, 0 5" fill="#9ca3af" />
         </marker>
+        {/* Yellow head for Flashing Yellow Arrow left turns */}
+        <marker id="arrowhead-fya" markerWidth="6" markerHeight="5" refX="5" refY="2.5" orient="auto">
+          <polygon points="0 0, 6 2.5, 0 5" fill="#eab308" />
+        </marker>
       </defs>
 
       {intersectionName && !compact && (
@@ -304,9 +332,11 @@ export default function PhaseDiagram({ phases, approaches, intersectionName, svg
           );
         })}
 
-        {/* FR — free right slip lanes: a quarter-circle arc peeling off the
-            approach leg to the right, joining the perpendicular exit leg.
-            Mode 2 (FR-P) adds a pedestrian crosswalk across the arc's middle. */}
+        {/* FR — free right slip lanes: an arc peeling off the approach leg to
+            the right, departing onto the neighboring approach's actual leg
+            (sweep angle follows the real compass bearings). Mode 2 (FR-P) adds
+            a crosswalk; mode 3 (FR-P-I) adds a traffic-calmed ladder crosswalk
+            with a shark's-teeth yield line. */}
         {approaches.map((approach, idx) => {
           const frMode = typeof approach.freeRight === "number"
             ? approach.freeRight
@@ -314,35 +344,52 @@ export default function PhaseDiagram({ phases, approaches, intersectionName, svg
           if (frMode === 0 || approach.compassBearing === null) return null;
           const adjustedBearing = (approach.compassBearing + 180) % 360;
           const angleRad = (adjustedBearing - 90) * (Math.PI / 180);
-          const rightRad = angleRad - Math.PI / 2;
-          const midRad = angleRad - Math.PI / 4;
+          // Sweep = clockwise gap to the nearest other approach on the right
+          // side (10°–170°); falls back to 90° when there is none.
+          const rightGaps = approaches
+            .filter(o => o !== approach && o.compassBearing !== null)
+            .map(o => {
+              const oRad = ((((o.compassBearing as number) + 180) % 360) - 90) * (Math.PI / 180);
+              const gap = (angleRad - oRad) % (2 * Math.PI);
+              return gap < 0 ? gap + 2 * Math.PI : gap;
+            })
+            .filter(gap => gap > 0.17 && gap < Math.PI - 0.17);
+          const sweep = rightGaps.length > 0 ? Math.min(...rightGaps) : Math.PI / 2;
+          const exitRad = angleRad - sweep;
+          const midRad = angleRad - sweep / 2;
           const p = (r: number, a: number) => [150 + r * Math.cos(a), 150 + r * Math.sin(a)];
-          const d = 98;        // peel-off / merge radius on each leg
-          const R = d * 1.35;  // arc radius — slightly flatter than a tangent
-                               // quarter circle so it clears the central island
+          const d = 98;         // peel-off / merge radius on each leg
+          const h = sweep / 2;
+          // Preferred arc: 1.35× the tangent fillet radius, pushed out to a
+          // minimum clearance so wide corners never clip the central island.
+          const flatR = 1.35 * d * Math.tan(h);
+          const flatMid =
+            d * Math.cos(h) +
+            Math.sqrt(Math.max(flatR * flatR - (d * Math.sin(h)) ** 2, 0)) -
+            flatR;
+          const clear = Math.max(50, flatMid);
+          const sag = d * Math.cos(h) - clear; // signed: + bows toward center
           const [sx, sy] = p(d, angleRad);
-          const [ex, ey] = p(d, rightRad);
-          const path = `M ${sx} ${sy} A ${R} ${R} 0 0 1 ${ex} ${ey}`;
-          const arcMid = (Math.SQRT2 * d + Math.sqrt(4 * R * R - 2 * d * d)) / 2 - R;
-          const [lx, ly] = p(arcMid + 13, midRad);
-          const [cwx1, cwy1] = p(arcMid - 7, midRad);
-          const [cwx2, cwy2] = p(arcMid + 7, midRad);
+          const [ex, ey] = p(d, exitRad);
+          // Circle through both endpoints and the bisector point at `clear`.
+          const path =
+            Math.abs(sag) < 0.5
+              ? `M ${sx} ${sy} L ${ex} ${ey}`
+              : (() => {
+                  const R = ((d * Math.sin(h)) ** 2 + sag * sag) / (2 * Math.abs(sag));
+                  return `M ${sx} ${sy} A ${R} ${R} 0 0 ${sag > 0 ? 1 : 0} ${ex} ${ey}`;
+                })();
+          const [mcx, mcy] = p(clear, midRad);
+          const frLanes = Math.max(1, approach.freeRightLanes ?? 1);
+          const roadWidth = 10 + (frLanes - 1) * 6;
           return (
             <g key={`fr-${idx}`}>
-              <path d={path} fill="none" stroke="#e5e7eb" strokeWidth="10" strokeLinecap="butt" />
-              <path d={path} fill="none" stroke="#9ca3af" strokeWidth="1.25" strokeDasharray="3 3" markerEnd="url(#arrowhead-grey)" />
-              {frMode === 2 && (
-                <line
-                  x1={cwx1} y1={cwy1} x2={cwx2} y2={cwy2}
-                  stroke="#6b7280"
-                  strokeWidth="2"
-                  strokeDasharray="2 1.5"
-                  opacity="0.85"
-                />
-              )}
-              <text x={lx} y={ly + 3} textAnchor="middle" fontSize="8" fontWeight="bold" fill="#9ca3af">
-                {frMode === 2 ? "FR-P" : "FR"}
-              </text>
+              <path d={path} fill="none" stroke="#e5e7eb" strokeWidth={roadWidth} strokeLinecap="butt" />
+              <path d={path} fill="none" stroke="#9ca3af" strokeWidth="1.25" strokeDasharray="3 3" />
+              {freeRightPedMarkings(frMode, {
+                keyPrefix: `fr-mark-${idx}`,
+                cx: mcx, cy: mcy, midRad, halfWidth: roadWidth / 2 + 2, scale: 1,
+              })}
             </g>
           );
         })}

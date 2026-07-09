@@ -1,4 +1,5 @@
 import React from "react";
+import { freeRightPedMarkings } from "./free-right-markings";
 
 interface DetectorData {
   channel: string;
@@ -20,9 +21,11 @@ interface ApproachData {
   approachId: string;
   compassBearing: number | null;
   /** FR — free right slip lane bypassing the signal:
-   *   0 = none, 1 = FR, 2 = FR-P (with a pedestrian crossing).
+   *   0 = none, 1 = FR, 2 = FR-P, 3 = FR-P-I.
    * Legacy booleans are coerced to 0/1. */
   freeRight?: boolean | number | null;
+  /** Number of free-right lanes (widens the drawn slip lane). */
+  freeRightLanes?: number | null;
 }
 
 interface SignalData {
@@ -58,35 +61,18 @@ const isAdvancedDetector = (purpose: string, setback?: number): boolean => {
   return ["Advanced Loop", "Count Detector", "Extension", "Dilemma Zone"].includes(purpose);
 };
 
-// Get setback distance in diagram units
-const getSetbackOffset = (purpose: string, setback?: number, scale: number = 1): number => {
-  let offset = 0;
-
-  if (setback !== undefined && setback > 0) {
-    offset = setback * 2; // Scale for visibility
-  } else {
-    switch (purpose) {
-      case "Stop Bar":
-        offset = 0;
-        break;
-      case "Advanced Loop":
-        offset = 120;
-        break;
-      case "Count Detector":
-        offset = 160;
-        break;
-      case "Extension":
-        offset = 80;
-        break;
-      case "Dilemma Zone":
-        offset = 200;
-        break;
-      default:
-        offset = 0;
-    }
+// Effective setback in feet, used to ORDER advanced detectors along the road
+// (and as the label when it comes from a real stopbar_setback_dist). Purposes
+// without an explicit distance get a typical ordering value.
+const effectiveSetback = (d: { purpose: string; stopbarSetbackDist?: number }): number => {
+  if (d.stopbarSetbackDist !== undefined && d.stopbarSetbackDist > 0) return d.stopbarSetbackDist;
+  switch (d.purpose) {
+    case "Extension": return 80;
+    case "Advanced Loop": return 120;
+    case "Count Detector": return 160;
+    case "Dilemma Zone": return 200;
+    default: return 0;
   }
-
-  return offset * scale;
 };
 
 // Lane width in diagram units
@@ -101,7 +87,6 @@ export default function DetectorDiagram({ detectors, phases, approaches, signal,
   const CENTER_Y = 200;
   const INTERSECTION_RADIUS = 75; // Larger intersection for better spacing
   const ROAD_LENGTH = hasAdvancedDetectors ? 110 : 105; // Extended to use more canvas space
-  const SETBACK_SCALE = hasAdvancedDetectors ? 0.8 : 0.7;
 
   // Get approach for a phase
   const getApproachForPhase = (phaseNum: number): ApproachData | null => {
@@ -125,7 +110,7 @@ export default function DetectorDiagram({ detectors, phases, approaches, signal,
 
     approachPhases.forEach(phase => {
       const lanes = phase.numOfLanes || 1;
-      if (phase.movementType === "Left Turn" || phase.movementType === "Left" || phase.movementType === "Flashing Yellow Arrow") {
+      if (phase.movementType === "Left Turn" || phase.movementType === "Left" || phase.movementType === "Left Protected-Permissive" || phase.movementType === "Flashing Yellow Arrow") {
         leftLanes = Math.max(leftLanes, lanes);
       } else if (phase.movementType === "Right Turn" || phase.movementType === "Right") {
         rightLanes = Math.max(rightLanes, lanes);
@@ -156,7 +141,7 @@ export default function DetectorDiagram({ detectors, phases, approaches, signal,
     const laneNum = parseInt(detector.lane) || 1;
 
     // Determine which lane group this detector belongs to
-    const isLeft = phase.movementType === "Left Turn" || phase.movementType === "Left" || phase.movementType === "Flashing Yellow Arrow";
+    const isLeft = phase.movementType === "Left Turn" || phase.movementType === "Left" || phase.movementType === "Left Protected-Permissive" || phase.movementType === "Flashing Yellow Arrow";
     const isRight = phase.movementType === "Right Turn" || phase.movementType === "Right";
 
     let lanePosition: number;
@@ -264,22 +249,23 @@ export default function DetectorDiagram({ detectors, phases, approaches, signal,
       );
     }
 
-    // Add lane arrows in the middle of each lane
+    // Add lane arrows in each lane, close to the stop bar so they read as
+    // pavement markings and stay clear of the advanced-detector band.
     for (let laneIdx = 0; laneIdx < numLanes; laneIdx++) {
       const laneOffset = ((laneIdx + 0.5) - numLanes / 2) * LANE_WIDTH;
-      const arrowDist = roadStartDist + ROAD_LENGTH * 0.5;
+      const arrowDist = roadStartDist + ROAD_LENGTH * 0.3;
       const arrowX = CENTER_X + arrowDist * Math.cos(angleRad) + laneOffset * Math.cos(perpAngle);
       const arrowY = CENTER_Y + arrowDist * Math.sin(angleRad) + laneOffset * Math.sin(perpAngle);
 
-      // Determine arrow direction based on lane type
-      // Through arrows should point UP (toward center in local coords), which gets rotated by adjustedBearing
-      // Left/Right arrows are relative to the through direction
+      // Arrow direction relative to the DRIVER heading toward the
+      // intersection: 'up' = straight ahead, 'left'/'right' = turns. The
+      // local-space arrow is rotated by the approach's compass bearing (the
+      // direction of travel), so arrows always follow the flow of traffic.
       let arrowDirection: 'up' | 'left' | 'right' | 'up-left' | 'up-right' = 'up';
 
       if (laneIdx < config.rightLanes) {
         arrowDirection = 'right';
       } else if (laneIdx < config.rightLanes + config.throughLanes) {
-        // Through lanes - arrow points UP which will be rotated toward center
         arrowDirection = 'up';
       } else {
         arrowDirection = 'left';
@@ -295,7 +281,7 @@ export default function DetectorDiagram({ detectors, phases, approaches, signal,
           strokeWidth="2"
           strokeLinecap="round"
           fill="none"
-          transform={`rotate(${adjustedBearing}, ${arrowX}, ${arrowY})`}
+          transform={`rotate(${approach.compassBearing}, ${arrowX}, ${arrowY})`}
         />
       );
     }
@@ -321,57 +307,171 @@ export default function DetectorDiagram({ detectors, phases, approaches, signal,
     );
   };
 
-  // Render detector
-  const renderDetector = (detector: DetectorData, index: number) => {
-    const approach = getApproachForPhase(detector.phase);
-    if (!approach || approach.compassBearing === null) return null;
+  // ---- Detector placement ------------------------------------------------
+  // Stop-bar detectors sit just behind the stop bar. Advanced detectors are
+  // SCALED TO FIT the drawn road: their real setbacks only order them within
+  // a fixed band, and the actual distance is shown as a text label instead.
+  interface PlacedDetector {
+    det: DetectorData;
+    index: number;
+    x: number;
+    y: number;
+    dist: number;        // longitudinal distance from the diagram center
+    laneOffset: number;  // lateral offset within the road
+    adjustedBearing: number;
+    angleRad: number;
+    perpAngle: number;
+    approachId: string;
+    labeled: boolean;    // whether the channel number is drawn
+  }
 
-    const color = getTechnologyColor(detector.technologyType);
+  // Per-approach map of effective setback value → longitudinal slot distance.
+  const advancedSlots = new Map<string, Map<number, number>>();
+  approaches.forEach(a => {
+    const vals = Array.from(new Set(
+      detectors
+        .filter(d => {
+          const ap = getApproachForPhase(d.phase);
+          return ap?.approachId === a.approachId && isAdvancedDetector(d.purpose, d.stopbarSetbackDist);
+        })
+        .map(effectiveSetback)
+    )).sort((x, y) => x - y);
+    if (vals.length === 0) return;
+    const maxVal = vals[vals.length - 1];
+    const bandStart = INTERSECTION_RADIUS + 52;
+    const bandEnd = INTERSECTION_RADIUS + ROAD_LENGTH - 14;
+    const slotMap = new Map<number, number>();
+    vals.forEach(v => slotMap.set(v, bandStart + (bandEnd - bandStart) * (v / maxVal)));
+    advancedSlots.set(a.approachId, slotMap);
+  });
+
+  const placedDetectors: PlacedDetector[] = [];
+  detectors.forEach((det, index) => {
+    const approach = getApproachForPhase(det.phase);
+    if (!approach || approach.compassBearing === null) return;
 
     const adjustedBearing = (approach.compassBearing + 180) % 360;
     const angleRad = (adjustedBearing - 90) * (Math.PI / 180);
     const perpAngle = angleRad + Math.PI / 2;
+    const advanced = isAdvancedDetector(det.purpose, det.stopbarSetbackDist);
 
-    const setbackOffset = getSetbackOffset(detector.purpose, detector.stopbarSetbackDist, SETBACK_SCALE);
-    const detectorDist = INTERSECTION_RADIUS + setbackOffset + 10;
+    let dist: number;
+    if (advanced) {
+      dist = advancedSlots.get(approach.approachId)?.get(effectiveSetback(det))
+        ?? INTERSECTION_RADIUS + ROAD_LENGTH - 14;
+    } else {
+      // Stop-bar detectors: right behind the stop bar, nudged slightly by any
+      // small (≤20 ft) setback.
+      dist = INTERSECTION_RADIUS + 12 + Math.min(det.stopbarSetbackDist ?? 0, 20) * 0.9;
+    }
 
-    const laneOffset = getLaneOffset(detector);
+    const laneOffset = getLaneOffset(det);
+    placedDetectors.push({
+      det,
+      index,
+      x: CENTER_X + dist * Math.cos(angleRad) + laneOffset * Math.cos(perpAngle),
+      y: CENTER_Y + dist * Math.sin(angleRad) + laneOffset * Math.sin(perpAngle),
+      dist,
+      laneOffset,
+      adjustedBearing,
+      angleRad,
+      perpAngle,
+      approachId: approach.approachId,
+      labeled: true,
+    });
+  });
 
-    const detX = CENTER_X + detectorDist * Math.cos(angleRad) + laneOffset * Math.cos(perpAngle);
-    const detY = CENTER_Y + detectorDist * Math.sin(angleRad) + laneOffset * Math.sin(perpAngle);
+  // Group detectors that share an approach and longitudinal slot (i.e. a row
+  // across adjacent lanes). If their channel numbers run sequentially across
+  // the row, only label the first and last — the reader fills in the rest.
+  const rowGroups = new Map<string, PlacedDetector[]>();
+  placedDetectors.forEach(pd => {
+    const key = `${pd.approachId}|${pd.dist.toFixed(1)}`;
+    const group = rowGroups.get(key);
+    if (group) group.push(pd);
+    else rowGroups.set(key, [pd]);
+  });
+  rowGroups.forEach(group => {
+    if (group.length < 3) return;
+    const sorted = [...group].sort((a, b) => a.laneOffset - b.laneOffset);
+    const chans = sorted.map(pd => parseInt(pd.det.channel, 10));
+    if (!chans.every(n => Number.isFinite(n))) return;
+    const step = chans[1] - chans[0];
+    const sequential =
+      Math.abs(step) === 1 &&
+      chans.every((c, i) => i === 0 || c - chans[i - 1] === step) &&
+      sorted.every((pd, i) => i === 0 || Math.abs(pd.laneOffset - sorted[i - 1].laneOffset - LANE_WIDTH) < 0.01);
+    if (sequential) {
+      sorted.forEach((pd, i) => {
+        pd.labeled = i === 0 || i === sorted.length - 1;
+      });
+    }
+  });
 
-    const detWidth = 24; // Increased from 20
-    const detHeight = 16; // Increased from 12
+  // One distance label per advanced row that has a real measured setback,
+  // placed off the road edge beside the row.
+  const distanceLabels: React.ReactElement[] = [];
+  rowGroups.forEach((group, key) => {
+    const sample = group[0];
+    if (!isAdvancedDetector(sample.det.purpose, sample.det.stopbarSetbackDist)) return;
+    const measured = group
+      .map(pd => pd.det.stopbarSetbackDist)
+      .find(s => s !== undefined && s > 0);
+    if (measured === undefined) return;
+    const config = getLaneConfigForApproach(sample.approachId);
+    const roadHalf = (Math.max(config.totalLanes, 1) * LANE_WIDTH) / 2;
+    const lx = CENTER_X + sample.dist * Math.cos(sample.angleRad) + (roadHalf + 20) * Math.cos(sample.perpAngle);
+    const ly = CENTER_Y + sample.dist * Math.sin(sample.angleRad) + (roadHalf + 20) * Math.sin(sample.perpAngle);
+    distanceLabels.push(
+      <text
+        key={`dist-${key}`}
+        x={lx}
+        y={ly + 3}
+        textAnchor="middle"
+        fontSize="9"
+        fill="#6b7280"
+      >
+        {measured} ft
+      </text>
+    );
+  });
+
+  const renderPlacedDetector = (pd: PlacedDetector) => {
+    const color = getTechnologyColor(pd.det.technologyType);
+    const detWidth = 24;
+    const detHeight = 16;
 
     return (
-      <g key={`det-${index}`}>
+      <g key={`det-${pd.index}`}>
         <rect
-          x={detX - detWidth / 2}
-          y={detY - detHeight / 2}
+          x={pd.x - detWidth / 2}
+          y={pd.y - detHeight / 2}
           width={detWidth}
           height={detHeight}
           fill={color}
           stroke="#ffffff"
           strokeWidth="2"
           rx="2"
-          transform={`rotate(${adjustedBearing}, ${detX}, ${detY})`}
+          transform={`rotate(${pd.adjustedBearing}, ${pd.x}, ${pd.y})`}
         />
-        <text
-          x={detX}
-          y={detY + 4}
-          textAnchor="middle"
-          fontSize="10"
-          fontWeight="bold"
-          fill="#ffffff"
-        >
-          {detector.channel}
-        </text>
+        {pd.labeled && (
+          <text
+            x={pd.x}
+            y={pd.y + 4}
+            textAnchor="middle"
+            fontSize="10"
+            fontWeight="bold"
+            fill="#ffffff"
+          >
+            {pd.det.channel}
+          </text>
+        )}
       </g>
     );
   };
 
   // Get unique technology types for legend
-  const uniqueTechTypes = [...new Set(detectors.map(d => d.technologyType))];
+  const uniqueTechTypes = Array.from(new Set(detectors.map(d => d.technologyType)));
 
   const viewBoxSize = hasAdvancedDetectors ? 400 : 400;
 
@@ -407,9 +507,11 @@ export default function DetectorDiagram({ detectors, phases, approaches, signal,
         {/* Approach roads */}
         {approaches.map((approach, idx) => renderApproachRoad(approach, idx))}
 
-        {/* FR — free right slip lanes: a flat arc peeling off the approach
-            road to the right, joining the perpendicular exit road. Mode 2
-            (FR-P) adds a pedestrian crosswalk across the arc's middle. */}
+        {/* FR — free right slip lanes: an arc peeling off the approach road
+            to the right, departing onto the neighboring approach's actual
+            road (sweep angle follows the real compass bearings). Mode 2 (FR-P)
+            adds a crosswalk; mode 3 (FR-P-I) adds a traffic-calmed ladder
+            crosswalk with a shark's-teeth yield line. */}
         {approaches.map((approach, idx) => {
           const frMode = typeof approach.freeRight === "number"
             ? approach.freeRight
@@ -417,35 +519,53 @@ export default function DetectorDiagram({ detectors, phases, approaches, signal,
           if (frMode === 0 || approach.compassBearing === null) return null;
           const adjustedBearing = (approach.compassBearing + 180) % 360;
           const angleRad = (adjustedBearing - 90) * (Math.PI / 180);
-          const rightRad = angleRad - Math.PI / 2;
-          const midRad = angleRad - Math.PI / 4;
+          // Sweep = clockwise gap to the nearest other approach on the right
+          // side (10°–170°); falls back to 90° when there is none.
+          const rightGaps = approaches
+            .filter(o => o !== approach && o.compassBearing !== null)
+            .map(o => {
+              const oRad = ((((o.compassBearing as number) + 180) % 360) - 90) * (Math.PI / 180);
+              const gap = (angleRad - oRad) % (2 * Math.PI);
+              return gap < 0 ? gap + 2 * Math.PI : gap;
+            })
+            .filter(gap => gap > 0.17 && gap < Math.PI - 0.17);
+          const sweep = rightGaps.length > 0 ? Math.min(...rightGaps) : Math.PI / 2;
+          const exitRad = angleRad - sweep;
+          const midRad = angleRad - sweep / 2;
           const p = (r: number, a: number) => [CENTER_X + r * Math.cos(a), CENTER_Y + r * Math.sin(a)];
           const d = INTERSECTION_RADIUS + ROAD_LENGTH * 0.75; // peel-off / merge radius
-          const R = 2 * d; // flat arc so it clears the intersection box
+          const h = sweep / 2;
+          // Preferred arc: 2× the tangent fillet radius (flat, matching this
+          // diagram's larger scale), pushed out to a minimum clearance so
+          // wide corners never clip the central intersection circle.
+          const flatR = 2 * d * Math.tan(h);
+          const flatMid =
+            d * Math.cos(h) +
+            Math.sqrt(Math.max(flatR * flatR - (d * Math.sin(h)) ** 2, 0)) -
+            flatR;
+          const clear = Math.max(INTERSECTION_RADIUS + 14, flatMid);
+          const sag = d * Math.cos(h) - clear; // signed: + bows toward center
           const [sx, sy] = p(d, angleRad);
-          const [ex, ey] = p(d, rightRad);
-          const path = `M ${sx} ${sy} A ${R} ${R} 0 0 1 ${ex} ${ey}`;
-          // Radial distance of the arc's midpoint (closest point to center).
-          const arcMid = (Math.SQRT2 * d + Math.sqrt(4 * R * R - 2 * d * d)) / 2 - R;
-          const [lx, ly] = p(arcMid + 18, midRad);
-          const [cwx1, cwy1] = p(arcMid - 9, midRad);
-          const [cwx2, cwy2] = p(arcMid + 9, midRad);
+          const [ex, ey] = p(d, exitRad);
+          // Circle through both endpoints and the bisector point at `clear`.
+          const path =
+            Math.abs(sag) < 0.5
+              ? `M ${sx} ${sy} L ${ex} ${ey}`
+              : (() => {
+                  const R = ((d * Math.sin(h)) ** 2 + sag * sag) / (2 * Math.abs(sag));
+                  return `M ${sx} ${sy} A ${R} ${R} 0 0 ${sag > 0 ? 1 : 0} ${ex} ${ey}`;
+                })();
+          const [mcx, mcy] = p(clear, midRad);
+          const frLanes = Math.max(1, approach.freeRightLanes ?? 1);
+          const roadWidth = 14 + (frLanes - 1) * 8;
           return (
             <g key={`fr-${idx}`}>
-              <path d={path} fill="none" stroke="#e5e7eb" strokeWidth="14" strokeLinecap="butt" />
+              <path d={path} fill="none" stroke="#e5e7eb" strokeWidth={roadWidth} strokeLinecap="butt" />
               <path d={path} fill="none" stroke="#9ca3af" strokeWidth="1.25" strokeDasharray="4 4" />
-              {frMode === 2 && (
-                <line
-                  x1={cwx1} y1={cwy1} x2={cwx2} y2={cwy2}
-                  stroke="#6b7280"
-                  strokeWidth="2.5"
-                  strokeDasharray="3 2"
-                  opacity="0.85"
-                />
-              )}
-              <text x={lx} y={ly + 3} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#9ca3af">
-                {frMode === 2 ? "FR-P" : "FR"}
-              </text>
+              {freeRightPedMarkings(frMode, {
+                keyPrefix: `fr-mark-${idx}`,
+                cx: mcx, cy: mcy, midRad, halfWidth: roadWidth / 2 + 2, scale: 1.35,
+              })}
             </g>
           );
         })}
@@ -453,8 +573,10 @@ export default function DetectorDiagram({ detectors, phases, approaches, signal,
         {/* Center intersection */}
         <circle cx={CENTER_X} cy={CENTER_Y} r={INTERSECTION_RADIUS} fill="#f9fafb" stroke="#d1d5db" strokeWidth="2" />
 
-        {/* Render detectors */}
-        {detectors.map((detector, idx) => renderDetector(detector, idx))}
+        {/* Render detectors (advanced detectors scaled to fit the road) */}
+        {placedDetectors.map(pd => renderPlacedDetector(pd))}
+        {/* Distances from advanced detector rows to the stop bar */}
+        {distanceLabels}
       </g>
 
       {/* Legend - Technology Types */}

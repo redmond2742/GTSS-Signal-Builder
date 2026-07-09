@@ -321,6 +321,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                       <SelectContent>
                         <SelectItem value="Through">Through (T)</SelectItem>
                         <SelectItem value="Left Turn">Left (L)</SelectItem>
+                        <SelectItem value="Left Protected-Permissive">Left Protected-Permissive (LPP)</SelectItem>
                         <SelectItem value="Left Through Shared">Left Through Shared Lane (LT)</SelectItem>
                         <SelectItem value="Permissive Phase">Permissive Phase (TL)</SelectItem>
                         <SelectItem value="Flashing Yellow Arrow">Flashing Yellow Arrow (FYA)</SelectItem>

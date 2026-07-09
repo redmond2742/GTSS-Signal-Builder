@@ -47,6 +47,7 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
       compassBearing: undefined,
       postedSpeed: undefined,
       freeRight: 0,
+      freeRightLanes: 1,
     },
   });
 
@@ -59,6 +60,7 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
         compassBearing: approach.compassBearing || undefined,
         postedSpeed: approach.postedSpeed || undefined,
         freeRight: typeof approach.freeRight === "number" ? approach.freeRight : (approach.freeRight ? 1 : 0),
+        freeRightLanes: approach.freeRightLanes ?? 1,
       });
     }
   }, [approach, form]);
@@ -286,31 +288,59 @@ export default function ApproachModal({ approach, onClose, preSelectedSignalId }
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="freeRight"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Free Right (FR) — right-turn slip lane bypassing the signal</FormLabel>
-                    <Select
-                      value={String(typeof field.value === "number" ? field.value : (field.value ? 1 : 0))}
-                      onValueChange={(v) => field.onChange(parseInt(v, 10))}
-                    >
+              <div className="grid grid-cols-[1fr_auto] gap-3 items-start">
+                <FormField
+                  control={form.control}
+                  name="freeRight"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Free Right (FR) — right-turn slip lane bypassing the signal</FormLabel>
+                      <Select
+                        value={String(typeof field.value === "number" ? field.value : (field.value ? 1 : 0))}
+                        onValueChange={(v) => field.onChange(parseInt(v, 10))}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="0">None</SelectItem>
+                          <SelectItem value="1">FR — slip lane</SelectItem>
+                          <SelectItem value="2">FR-P — slip lane with pedestrian crossing</SelectItem>
+                          <SelectItem value="3">FR-P-I — improved traffic-calmed crossing</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="freeRightLanes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>FR Lanes</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="9"
+                          className="w-20"
+                          disabled={!form.watch("freeRight")}
+                          {...field}
+                          value={field.value ?? 1}
+                          onChange={(e) => {
+                            const n = parseInt(e.target.value, 10);
+                            field.onChange(Number.isFinite(n) && n >= 1 ? n : 1);
+                          }}
+                        />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="0">None</SelectItem>
-                        <SelectItem value="1">FR — slip lane</SelectItem>
-                        <SelectItem value="2">FR-P — slip lane with pedestrian crossing</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <FormField
                 control={form.control}

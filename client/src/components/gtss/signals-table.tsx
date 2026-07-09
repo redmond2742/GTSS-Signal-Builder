@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { Plus, Edit, Trash2, Map, List, Navigation, ChevronUp, ChevronDown, Eye, MapPin, Edit3 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Plus, Edit, Trash2, Map, List, Navigation, ChevronUp, ChevronDown, Eye, MapPin, Edit3, Search, X } from "lucide-react";
 import SignalModal from "./signal-modal";
 import BulkSignalModal from "./bulk-signal-modal";
 import SignalsMap from "@/components/ui/signals-map";
@@ -34,6 +35,9 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
   // Track which row is being hovered so the matching marker on the map can
   // be drawn with a distinct color.
   const [hoveredSignalId, setHoveredSignalId] = useState<string | null>(null);
+  // Free-text filter over the list: matches signal ID and street names
+  // (both the stored names and the ones derived from approaches).
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { agency, signals, approaches, phases, detectors, basicTimings, navigateToSignalDetails } = useGTSSStore();
 
@@ -161,8 +165,21 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
     return 0;
   };
 
+  const matchesSearch = (signal: Signal): boolean => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+    const derived = getDerivedStreetNames(signal.signalId, approaches);
+    return [
+      signal.signalId,
+      signal.streetName1,
+      signal.streetName2,
+      derived.streetName1,
+      derived.streetName2,
+    ].some(v => (v || "").toLowerCase().includes(query));
+  };
+
   const getSortedSignals = () => {
-    return [...signals].sort((a, b) => {
+    return signals.filter(matchesSearch).sort((a, b) => {
       let comparison = 0;
 
       switch (sortField) {
@@ -211,6 +228,9 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
 
 
 
+  const visibleSignals = getSortedSignals();
+  const isFiltering = searchQuery.trim() !== "";
+
   return (
     <div className="max-w-6xl h-full flex flex-col">
       {/* Vertical resizable split — drag the handle between the map and the
@@ -251,13 +271,34 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
         <ResizablePanel defaultSize={65} minSize={20} className="flex flex-col min-h-0">
       <Card className="rounded-none border-0 flex flex-col h-full min-h-0">
         <CardHeader className="bg-grey-50 border-b border-grey-200 p-3 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-grey-700">
-                {signals.length} signal{signals.length !== 1 ? 's' : ''}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className="text-sm font-medium text-grey-700 whitespace-nowrap">
+                {isFiltering
+                  ? `${visibleSignals.length} of ${signals.length} signal${signals.length !== 1 ? 's' : ''}`
+                  : `${signals.length} signal${signals.length !== 1 ? 's' : ''}`}
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-grey-400 pointer-events-none" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by ID or street name…"
+                className="h-8 pl-8 pr-8 text-sm"
+                data-testid="input-signal-search"
+              />
+              {isFiltering && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-grey-400 hover:text-grey-600"
+                  aria-label="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
               <Button
                 onClick={() => setShowBulkModal(true)}
                 variant="outline"
@@ -290,18 +331,28 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {signals.length === 0 ? (
+                  {visibleSignals.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center py-8 text-xs text-grey-500">
                         <div className="flex flex-col items-center space-y-2">
-                          <MapPin className="w-8 h-8 text-grey-300" />
-                          <p>No traffic signals configured</p>
-                          <p className="text-grey-400">Add your first signal to get started</p>
+                          {isFiltering ? (
+                            <>
+                              <Search className="w-8 h-8 text-grey-300" />
+                              <p>No signals match "{searchQuery.trim()}"</p>
+                              <p className="text-grey-400">Try a different ID or street name</p>
+                            </>
+                          ) : (
+                            <>
+                              <MapPin className="w-8 h-8 text-grey-300" />
+                              <p>No traffic signals configured</p>
+                              <p className="text-grey-400">Add your first signal to get started</p>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
                   ) : (
-                    getSortedSignals().map((signal) => (
+                    visibleSignals.map((signal) => (
                       <TableRow
                         key={signal.id}
                         className="hover:bg-grey-50 cursor-pointer transition-colors"

@@ -150,6 +150,7 @@ export default function SignalDetails() {
   const [qaSpeed, setQaSpeed] = useState<string>("");
   // FR mode: "0" = none, "1" = FR, "2" = FR-P (with pedestrian crossing)
   const [qaFreeRight, setQaFreeRight] = useState<string>("0");
+  const [qaFreeRightLanes, setQaFreeRightLanes] = useState<string>("1");
 
   // Quick-add Phase (rapid input below the map on Phases tab)
   const [qpPhase, setQpPhase] = useState<string>("");
@@ -417,6 +418,7 @@ export default function SignalDetails() {
         compassBearing: parseInt(qaBearing, 10) || 0,
         postedSpeed: qaSpeed ? parseInt(qaSpeed, 10) : null,
         freeRight: parseInt(qaFreeRight, 10) || 0,
+        freeRightLanes: parseInt(qaFreeRightLanes, 10) || 1,
       });
       const updated = approaches.filter(a => a.signalId === signalId);
       setSignalApproaches(updated);
@@ -426,6 +428,7 @@ export default function SignalDetails() {
       setQaBearing("");
       setQaSpeed("");
       setQaFreeRight("0");
+      setQaFreeRightLanes("1");
       toast({ title: "Approach added", description: qaApproachId });
     } catch {
       toast({ title: "Error", description: "Failed to add approach.", variant: "destructive" });
@@ -1180,7 +1183,7 @@ export default function SignalDetails() {
                 <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Speed</label>
                 <Input type="number" min="0" max="100" value={qaSpeed} onChange={(e) => setQaSpeed(e.target.value)} placeholder="35" className="h-8 text-sm" />
               </div>
-              <div className="flex flex-col w-20" title="Free Right — right-turn slip lane bypassing the signal. FR-P includes a pedestrian crossing.">
+              <div className="flex flex-col w-24" title="Free Right — right-turn slip lane bypassing the signal. FR-P adds a pedestrian crossing; FR-P-I is an improved traffic-calmed crossing.">
                 <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">FR</label>
                 <Select value={qaFreeRight} onValueChange={setQaFreeRight}>
                   <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
@@ -1188,8 +1191,21 @@ export default function SignalDetails() {
                     <SelectItem value="0">None</SelectItem>
                     <SelectItem value="1">FR</SelectItem>
                     <SelectItem value="2">FR-P</SelectItem>
+                    <SelectItem value="3">FR-P-I</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="flex flex-col w-16" title="Number of free-right lanes">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">FR Lanes</label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="9"
+                  value={qaFreeRightLanes}
+                  onChange={(e) => setQaFreeRightLanes(e.target.value)}
+                  disabled={qaFreeRight === "0"}
+                  className="h-8 text-sm disabled:opacity-50"
+                />
               </div>
               <Button onClick={handleQuickAddApproach} className="h-8 px-3 bg-primary-600 hover:bg-primary-700">
                 <Plus className="w-3 h-3 mr-1" />Add
@@ -1257,6 +1273,7 @@ export default function SignalDetails() {
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Bearing</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Posted Speed</TableHead>
                     <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }} title="Free Right — right-turn slip lane bypassing the signal">FR</TableHead>
+                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }} title="Number of free-right lanes">FR Lanes</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1266,7 +1283,8 @@ export default function SignalDetails() {
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.streetName || '-'}</TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.compassBearing != null ? `${approach.compassBearing}°` : '-'}</TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.postedSpeed ? `${approach.postedSpeed} mph` : '-'}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.freeRight === 2 ? 'FR-P' : approach.freeRight ? 'FR' : '-'}</TableCell>
+                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.freeRight === 3 ? 'FR-P-I' : approach.freeRight === 2 ? 'FR-P' : approach.freeRight ? 'FR' : '-'}</TableCell>
+                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.freeRight ? (approach.freeRightLanes ?? 1) : '-'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1295,6 +1313,7 @@ export default function SignalDetails() {
                   <SelectContent>
                     <SelectItem value="Through">Through (T)</SelectItem>
                     <SelectItem value="Left Turn">Left Turn (L)</SelectItem>
+                    <SelectItem value="Left Protected-Permissive">Left Protected-Permissive (LPP)</SelectItem>
                     <SelectItem value="Right Turn">Right Turn (R)</SelectItem>
                     <SelectItem value="Through-Right">Through-Right (TR)</SelectItem>
                     <SelectItem value="Left Through Shared">Left Through Shared (LT)</SelectItem>
@@ -1944,6 +1963,7 @@ export default function SignalDetails() {
                         <SelectContent>
                           <SelectItem value="Through">Through (T)</SelectItem>
                           <SelectItem value="Left Turn">Left Turn (L)</SelectItem>
+                          <SelectItem value="Left Protected-Permissive">Left Protected-Permissive (LPP)</SelectItem>
                           <SelectItem value="Left Through Shared">Left Through Shared (LT)</SelectItem>
                           <SelectItem value="Permissive Phase">Permissive Phase (TL)</SelectItem>
                           <SelectItem value="Flashing Yellow Arrow">Flashing Yellow Arrow (FYA)</SelectItem>

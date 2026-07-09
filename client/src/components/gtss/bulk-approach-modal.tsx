@@ -32,7 +32,8 @@ interface PendingApproach {
   bearing: number;
   streetName: string;
   postedSpeed: number | null;
-  freeRight: number; // FR — 0 = none, 1 = FR slip lane, 2 = FR-P (with ped crossing)
+  freeRight: number; // FR — 0 = none, 1 = FR, 2 = FR-P (ped crossing), 3 = FR-P-I (improved)
+  freeRightLanes: number; // number of free-right lanes (≥ 1)
   direction: string;
 }
 
@@ -141,6 +142,7 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
         streetName,
         postedSpeed: preserveData && pendingApproaches[i]?.postedSpeed || null,
         freeRight: (preserveData && pendingApproaches[i]?.freeRight) || 0,
+        freeRightLanes: (preserveData && pendingApproaches[i]?.freeRightLanes) || 1,
         direction: getDirectionFromBearing(normalizedBearing),
       });
     }
@@ -391,6 +393,7 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
             compassBearing: approach.bearing,
             postedSpeed: approach.postedSpeed,
             freeRight: approach.freeRight,
+            freeRightLanes: approach.freeRightLanes,
           });
           updatedCount++;
         } else {
@@ -402,6 +405,7 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
             compassBearing: approach.bearing,
             postedSpeed: approach.postedSpeed,
             freeRight: approach.freeRight,
+            freeRightLanes: approach.freeRightLanes,
           });
           createdCount++;
         }
@@ -447,6 +451,7 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
           streetName: a.streetName,
           postedSpeed: a.postedSpeed,
           freeRight: typeof a.freeRight === "number" ? a.freeRight : (a.freeRight ? 1 : 0),
+          freeRightLanes: a.freeRightLanes ?? 1,
           direction: getDirectionFromBearing(a.compassBearing || 0),
         }));
 
@@ -493,6 +498,7 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
               streetName,
               postedSpeed: null,
               freeRight: 0,
+              freeRightLanes: 1,
               direction: getDirectionFromBearing(bearing),
             });
           }
@@ -671,7 +677,8 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
                         <TableHead className="w-60 text-xs">Angle</TableHead>
                         <TableHead className="w-48 text-xs">Street Name *</TableHead>
                         <TableHead className="w-20 text-xs">Speed (mph)</TableHead>
-                        <TableHead className="w-24 text-xs text-center" title="Free Right — right-turn slip lane bypassing the signal. FR-P includes a pedestrian crossing.">FR</TableHead>
+                        <TableHead className="w-24 text-xs text-center" title="Free Right — right-turn slip lane bypassing the signal. FR-P adds a pedestrian crossing; FR-P-I is an improved traffic-calmed crossing.">FR</TableHead>
+                        <TableHead className="w-16 text-xs text-center" title="Number of free-right lanes">FR Lanes</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -756,10 +763,10 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
                               }
                             >
                               <SelectTrigger
-                                className="h-8 text-xs w-20 mx-auto"
+                                className="h-8 text-xs w-24 mx-auto"
                                 data-tab-col={4}
                                 data-tab-row={idx}
-                                title="Free Right — right-turn slip lane bypassing the signal. FR-P includes a pedestrian crossing."
+                                title="Free Right — right-turn slip lane bypassing the signal. FR-P adds a pedestrian crossing; FR-P-I is an improved traffic-calmed crossing."
                               >
                                 <SelectValue />
                               </SelectTrigger>
@@ -767,8 +774,30 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
                                 <SelectItem value="0">None</SelectItem>
                                 <SelectItem value="1">FR</SelectItem>
                                 <SelectItem value="2">FR-P</SelectItem>
+                                <SelectItem value="3">FR-P-I</SelectItem>
                               </SelectContent>
                             </Select>
+                          </TableCell>
+                          <TableCell className="py-2">
+                            <Input
+                              type="number"
+                              min="1"
+                              max="9"
+                              value={approach.freeRight ? (approach.freeRightLanes ?? 1) : ""}
+                              disabled={!approach.freeRight}
+                              onChange={(e) =>
+                                setPendingApproaches(prev => {
+                                  const updated = [...prev];
+                                  const n = parseInt(e.target.value, 10);
+                                  updated[idx] = { ...updated[idx], freeRightLanes: Number.isFinite(n) && n >= 1 ? n : 1 };
+                                  return updated;
+                                })
+                              }
+                              className="h-8 text-sm w-14 mx-auto disabled:opacity-50"
+                              data-tab-col={5}
+                              data-tab-row={idx}
+                              title="Number of free-right lanes"
+                            />
                           </TableCell>
                         </TableRow>
                       ))}
