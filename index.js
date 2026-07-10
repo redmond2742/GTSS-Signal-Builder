@@ -98,7 +98,6 @@ var MemStorage = class {
       id,
       ...phaseData,
       isPedestrian: phaseData.isPedestrian ?? false,
-      isOverlap: phaseData.isOverlap ?? false,
       channelOutput: phaseData.channelOutput || null,
       compassBearing: phaseData.compassBearing || null,
       postedSpeedLimit: phaseData.postedSpeedLimit || null,
@@ -227,7 +226,12 @@ var phases = pgTable("phases", {
   isPedestrian: integer("is_pedestrian").default(0),
   numOfLanes: integer("num_of_lanes").default(1),
   approachId: text("approach_id"),
-  isOverlap: boolean("is_overlap").default(false)
+  // Measured crosswalk length in feet for the phase's pedestrian crossing.
+  // Null means "not measured" — phases.txt then carries an estimate instead:
+  //   LE-#  lane-estimated distance (12 ft × lanes on the crossed approach)
+  //   TE-#  time-estimated distance (ped clearance × 3.5 ft/s walking speed)
+  // The shorter available estimate is exported; a measured value overrides both.
+  crosswalkLength: integer("crosswalk_length")
 });
 var detectors = pgTable("detectors", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -467,10 +471,10 @@ function generatePhasesCSV(phases2) {
     "Through-Right": "TR",
     "Pedestrian": "PED"
   };
-  const headers = "Phase,SignalID,Movement_Type,is_pedestrian,is_overlap,channel_output,Compass_Bearing,Posted_Speed_Limit,vehicle_detection_ids,ped_audible_enabled\n";
+  const headers = "Phase,SignalID,Movement_Type,is_pedestrian,channel_output,Compass_Bearing,Posted_Speed_Limit,vehicle_detection_ids,ped_audible_enabled\n";
   const rows = phases2.map((p) => {
     const shorthandMovementType = movementTypeMap[p.movementType] || p.movementType;
-    return `${p.phase},${p.signalId},"${shorthandMovementType}",${p.isPedestrian},${p.isOverlap},"${p.channelOutput || ""}",${p.compassBearing || ""},${p.postedSpeedLimit || ""},"${p.vehicleDetectionIds || ""}",${p.pedAudibleEnabled}`;
+    return `${p.phase},${p.signalId},"${shorthandMovementType}",${p.isPedestrian},"${p.channelOutput || ""}",${p.compassBearing || ""},${p.postedSpeedLimit || ""},"${p.vehicleDetectionIds || ""}",${p.pedAudibleEnabled}`;
   }).join("\n");
   return headers + (rows ? rows + "\n" : "");
 }
