@@ -67,7 +67,12 @@ export const phases = pgTable("phases", {
   isPedestrian: integer("is_pedestrian").default(0),
   numOfLanes: integer("num_of_lanes").default(1),
   approachId: text("approach_id"),
-  isOverlap: boolean("is_overlap").default(false),
+  // Measured crosswalk length in feet for the phase's pedestrian crossing.
+  // Null means "not measured" — phases.txt then carries an estimate instead:
+  //   LE-#  lane-estimated distance (12 ft × lanes on the crossed approach)
+  //   TE-#  time-estimated distance (ped clearance × 3.5 ft/s walking speed)
+  // The shorter available estimate is exported; a measured value overrides both.
+  crosswalkLength: integer("crosswalk_length"),
 });
 
 export const detectors = pgTable("detectors", {

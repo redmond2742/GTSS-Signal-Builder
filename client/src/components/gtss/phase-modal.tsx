@@ -34,7 +34,6 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
       signalId: preSelectedSignalId || "",
       movementType: "Through",
       isPedestrian: true,
-      isOverlap: false,
       numOfLanes: 1,
       approachId: undefined,
     },
@@ -50,7 +49,6 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
         signalId: phase.signalId,
         movementType: phase.movementType,
         isPedestrian: phase.isPedestrian ?? phase.movementType === "Through",
-        isOverlap: phase.isOverlap,
         numOfLanes: phase.numOfLanes || 1,
         approachId: phase.approachId || undefined,
       });
@@ -439,22 +437,6 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="isOverlap"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center space-x-3">
-                      <FormControl>
-                        <Switch
-                          checked={field.value || false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel>{field.value ? "Overlap" : "Not Overlap"}</FormLabel>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
             </div>
 

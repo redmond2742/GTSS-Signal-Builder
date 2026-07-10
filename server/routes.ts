@@ -223,10 +223,10 @@ function generatePhasesCSV(phases: any[]): string {
     "Pedestrian": "PED"
   };
 
-  const headers = 'Phase,SignalID,Movement_Type,is_pedestrian,is_overlap,channel_output,Compass_Bearing,Posted_Speed_Limit,vehicle_detection_ids,ped_audible_enabled\n';
+  const headers = 'Phase,SignalID,Movement_Type,is_pedestrian,channel_output,Compass_Bearing,Posted_Speed_Limit,vehicle_detection_ids,ped_audible_enabled\n';
   const rows = phases.map(p => {
     const shorthandMovementType = movementTypeMap[p.movementType] || p.movementType;
-    return `${p.phase},${p.signalId},"${shorthandMovementType}",${p.isPedestrian},${p.isOverlap},"${p.channelOutput || ''}",${p.compassBearing || ''},${p.postedSpeedLimit || ''},"${p.vehicleDetectionIds || ''}",${p.pedAudibleEnabled}`;
+    return `${p.phase},${p.signalId},"${shorthandMovementType}",${p.isPedestrian},"${p.channelOutput || ''}",${p.compassBearing || ''},${p.postedSpeedLimit || ''},"${p.vehicleDetectionIds || ''}",${p.pedAudibleEnabled}`;
   }).join('\n');
   return headers + (rows ? rows + '\n' : '');
 }

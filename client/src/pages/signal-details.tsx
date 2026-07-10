@@ -204,7 +204,7 @@ export default function SignalDetails() {
       movementType: "Through",
       isPedestrian: 1,
       numOfLanes: 1,
-      isOverlap: false,
+      crosswalkLength: null,
     },
   });
 
@@ -220,7 +220,7 @@ export default function SignalDetails() {
       { id: "agency", label: "agency.txt", content: generateAgencyCSV(agency) },
       { id: "signals", label: "signals.txt", content: generateSignalsCSV([signal]) },
       { id: "approaches", label: "approaches.txt", content: generateApproachesCSV(signalApproaches) },
-      { id: "phases", label: "phases.txt", content: generatePhasesCSV(signalPhases) },
+      { id: "phases", label: "phases.txt", content: generatePhasesCSV(signalPhases, signalTimings, signalApproaches) },
       { id: "detectors", label: "detectors.txt", content: generateDetectionCSV(signalDetectors) },
       { id: "basic_timings", label: "basic_timings.txt", content: generateBasicTimingsCSV(signalTimings) },
     ] as GTSSFilePreview[];
@@ -468,7 +468,6 @@ export default function SignalDetails() {
             ? 1
             : 0,
         numOfLanes: parseInt(qpLanes, 10) || 1,
-        isOverlap: false,
       });
       const updated = phases.filter(p => p.signalId === signalId);
       setSignalPhases(updated);
@@ -499,7 +498,7 @@ export default function SignalDetails() {
       movementType: "Through",
       isPedestrian: 1,
       numOfLanes: 1,
-      isOverlap: false,
+      crosswalkLength: null,
     });
     setShowPhaseModal(true);
   };
@@ -515,8 +514,8 @@ export default function SignalDetails() {
           ? phase.isPedestrian
           : (phase.isPedestrian ? 1 : phase.movementType === "Through" ? 1 : 0),
       numOfLanes: phase.numOfLanes,
-      isOverlap: phase.isOverlap,
       approachId: phase.approachId,
+      crosswalkLength: phase.crosswalkLength ?? null,
     });
     setShowPhaseModal(true);
   };
@@ -1420,14 +1419,7 @@ export default function SignalDetails() {
                       className="hover:bg-grey-50 cursor-pointer transition-colors"
                       onClick={() => handlePhaseEdit(phase)}
                     >
-                      <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>
-                        <div className="flex items-center space-x-1">
-                          <span>{phase.phase}</span>
-                          {phase.isOverlap && (
-                            <Badge variant="secondary" style={{ fontSize: '10px' }} className="px-1 py-0">Overlap</Badge>
-                          )}
-                        </div>
-                      </TableCell>
+                      <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>{phase.phase}</TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{phase.movementType}</TableCell>
                       <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>
                         {phase.approachId || '-'}
@@ -2100,30 +2092,40 @@ export default function SignalDetails() {
                 />
                 <FormField
                   control={phaseForm.control}
-                  name="isOverlap"
+                  name="crosswalkLength"
                   render={({ field }) => (
                     <FormItem className="space-y-0.5">
                       <div className="flex items-center space-x-1">
-                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Overlap Phase</FormLabel>
+                        <FormLabel className="font-medium" style={{ fontSize: '12px' }}>Crosswalk Length (ft)</FormLabel>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <HelpCircle className="w-3 h-3 text-grey-400 hover:text-grey-600" />
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p className="text-xs">Enable if this phase runs simultaneously with another phase. Used for concurrent movements like right turns with through traffic.</p>
+                            <p className="text-xs">
+                              Measured crosswalk distance in feet. Leave blank to
+                              auto-estimate in phases.txt: LE-# from the full
+                              street width (approach + departure lanes,
+                              12 ft/lane) or TE-# from ped clearance time
+                              (3.5 ft/s) — the shorter is used. A measured value
+                              overrides both.
+                            </p>
                           </TooltipContent>
                         </Tooltip>
                       </div>
                       <FormControl>
-                        <div className="flex items-center space-x-2">
-                          <Switch
-                            checked={field.value || false}
-                            onCheckedChange={field.onChange}
-                          />
-                          <span style={{ fontSize: '12px' }} className="text-grey-600">
-                            {field.value ? 'Yes' : 'No'}
-                          </span>
-                        </div>
+                        <Input
+                          type="number"
+                          min="0"
+                          placeholder="auto (LE/TE)"
+                          className="h-6 px-2"
+                          style={{ fontSize: '12px' }}
+                          value={field.value ?? ""}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            field.onChange(v === "" ? null : parseInt(v, 10) || null);
+                          }}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

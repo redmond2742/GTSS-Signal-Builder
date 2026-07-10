@@ -131,7 +131,7 @@ export default function ExportPanel() {
       ? { id: "approaches", label: "approaches.txt", content: generateApproachesCSV(approaches) }
       : null,
     includeFiles.phases
-      ? { id: "phases", label: "phases.txt", content: generatePhasesCSV(phases) }
+      ? { id: "phases", label: "phases.txt", content: generatePhasesCSV(phases, basicTimings, approaches) }
       : null,
     includeFiles.detection
       ? { id: "detectors", label: "detectors.txt", content: generateDetectionCSV(detectors) }

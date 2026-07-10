@@ -345,10 +345,16 @@ const PED_RENUMBER_FLAG = "gtss_ped_renumber_v2_done";
 export const phaseStorage = {
   getAll: (): Phase[] => {
     const raw = getFromStorage<Phase[]>(STORAGE_KEYS.PHASES, []);
-    const normalized = raw.map(p => ({
-      ...p,
-      isPedestrian: normalizePedestrian((p as { isPedestrian?: unknown }).isPedestrian),
-    }));
+    // The overlap flag was removed from the data model entirely — strip it
+    // from previously stored rows and persist the cleaned data once.
+    const hadOverlap = raw.some(p => "isOverlap" in (p as object));
+    const normalized = raw.map(p => {
+      const { isOverlap: _dropped, ...rest } = p as Phase & { isOverlap?: unknown };
+      return {
+        ...rest,
+        isPedestrian: normalizePedestrian((p as { isPedestrian?: unknown }).isPedestrian),
+      };
+    });
     try {
       if (typeof localStorage !== "undefined" && !localStorage.getItem(PED_RENUMBER_FLAG)) {
         const renumbered = normalized.map(p => {
@@ -363,6 +369,9 @@ export const phaseStorage = {
         saveToStorage(STORAGE_KEYS.PHASES, renumbered);
         localStorage.setItem(PED_RENUMBER_FLAG, "1");
         return renumbered;
+      }
+      if (hadOverlap) {
+        saveToStorage(STORAGE_KEYS.PHASES, normalized);
       }
     } catch {
       // localStorage may be unavailable (SSR / privacy mode) — skip migration.
@@ -389,7 +398,7 @@ export const phaseStorage = {
           : normalizePedestrian(phase.isPedestrian),
       numOfLanes: phase.numOfLanes ?? 1,
       approachId: phase.approachId ?? null,
-      isOverlap: phase.isOverlap ?? false,
+      crosswalkLength: phase.crosswalkLength ?? null,
     };
 
     const updatedPhases = [...phases, newPhase];
@@ -716,9 +725,130 @@ export function generateApproachesCSV(approaches: Approach[]): string {
   return [headers, ...rows].join('\n');
 }
 
+// Crosswalk length code for phases.txt. Knowing the crosswalk distance is an
+// important aspect of intersection safety (finding the longest crossings,
+// cross-checking timing values against standards). Codes:
+//   LE-#  lane-estimated distance: 12 ft × total lanes crossed. The crosswalk
+//         spans the WHOLE street, so this counts the approach (inbound) lanes
+//         plus the leg's departure lanes — sized by the widest phase that
+//         discharges onto the leg (opposite through, turns into the street).
+//   TE-#  time-estimated distance: ped clearance × 3.5 ft/s walking speed
+//         (when both exist, the SHORTER of LE and TE is exported)
+//   #     measured distance in feet — overrides both estimates
+const FT_PER_LANE = 12;
+const WALKING_SPEED_FPS = 3.5;
+
+export function crosswalkLengthCode(
+  phase: Phase,
+  allPhases: Phase[],
+  basicTimings: BasicTiming[] = [],
+  approaches: Approach[] = [],
+): string {
+  // A measured value always wins, whether or not a crossing is configured.
+  if (typeof phase.crosswalkLength === "number" && phase.crosswalkLength > 0) {
+    return String(phase.crosswalkLength);
+  }
+
+  const pedMode = typeof phase.isPedestrian === "number" ? phase.isPedestrian : (phase.isPedestrian ? 1 : 0);
+  if (pedMode === 0) return '';
+
+  // LE — full street width at 12 ft per lane: the crossed leg's inbound
+  // (approach) lanes plus its departure lanes.
+  let laneEstimate: number | null = null;
+  if (phase.approachId) {
+    const groupOf = (movementType: string): 'left' | 'right' | 'through' | 'ped' => {
+      switch (movementType) {
+        case 'Left Turn':
+        case 'Left Protected-Permissive':
+        case 'Flashing Yellow Arrow':
+        case 'U-Turn':
+          return 'left';
+        case 'Right Turn':
+          return 'right';
+        case 'Pedestrian':
+          return 'ped';
+        default:
+          return 'through';
+      }
+    };
+
+    // Inbound lanes: max lanes per movement group on the approach, summed.
+    const maxByGroup = { left: 0, right: 0, through: 0 };
+    allPhases
+      .filter(p => p.signalId === phase.signalId && p.approachId === phase.approachId)
+      .forEach(p => {
+        const g = groupOf(p.movementType);
+        if (g === 'ped') return;
+        maxByGroup[g] = Math.max(maxByGroup[g], p.numOfLanes || 1);
+      });
+    const inboundLanes = maxByGroup.left + maxByGroup.right + maxByGroup.through;
+
+    // Departure lanes: any phase whose movement discharges onto this leg
+    // (the opposite approach's through, or a turn that ends on this street)
+    // needs receiving lanes on the far side of the crosswalk. Compare each
+    // phase's departure heading against this leg's outbound direction and
+    // take the widest matching movement.
+    let departureLanes = 0;
+    const findApproach = (approachId: string | null) =>
+      approaches.find(a => a.approachId === approachId && a.signalId === phase.signalId);
+    const crossedLeg = findApproach(phase.approachId);
+    if (crossedLeg?.compassBearing != null) {
+      const outbound = (crossedLeg.compassBearing + 180) % 360;
+      const angDiff = (a: number, b: number) => {
+        const d = Math.abs((((a - b) % 360) + 360) % 360);
+        return Math.min(d, 360 - d);
+      };
+      allPhases
+        .filter(p => p.signalId === phase.signalId && p.approachId)
+        .forEach(p => {
+          const ap = findApproach(p.approachId);
+          if (ap?.compassBearing == null) return;
+          const b = ap.compassBearing;
+          // Departure heading(s) for the movement, as compass bearings.
+          const headings: number[] = [];
+          switch (p.movementType) {
+            case 'Through': headings.push(b); break;
+            case 'Through-Right': headings.push(b, b + 90); break;
+            case 'Left Turn':
+            case 'Left Protected-Permissive':
+            case 'Flashing Yellow Arrow': headings.push(b - 90); break;
+            case 'Left Through Shared':
+            case 'Permissive Phase': headings.push(b, b - 90); break;
+            case 'Right Turn': headings.push(b + 90); break;
+            case 'U-Turn': headings.push(b + 180); break;
+            default: return; // Pedestrian
+          }
+          if (headings.some(h => angDiff(h, outbound) <= 45)) {
+            departureLanes = Math.max(departureLanes, p.numOfLanes || 1);
+          }
+        });
+    }
+
+    const totalLanes = inboundLanes + departureLanes;
+    if (totalLanes > 0) laneEstimate = totalLanes * FT_PER_LANE;
+  }
+
+  // TE — from the phase's ped clearance interval at standard walking speed.
+  let timeEstimate: number | null = null;
+  const timing = basicTimings.find(t => t.signalId === phase.signalId && t.phase === phase.phase);
+  if (timing?.pedClearance && timing.pedClearance > 0) {
+    timeEstimate = Math.round(timing.pedClearance * WALKING_SPEED_FPS);
+  }
+
+  if (laneEstimate !== null && timeEstimate !== null) {
+    return timeEstimate < laneEstimate ? `TE-${timeEstimate}` : `LE-${laneEstimate}`;
+  }
+  if (timeEstimate !== null) return `TE-${timeEstimate}`;
+  if (laneEstimate !== null) return `LE-${laneEstimate}`;
+  return '';
+}
+
 // Updated for GTSSv1.1 - removed compass_bearing, posted_speed; added approach_id
-export function generatePhasesCSV(phases: Phase[]): string {
-  const headers = 'phase,signal_id,movement_type,num_of_lanes,approach_id,is_overlap,pedestrian_phase_enabled';
+export function generatePhasesCSV(phases: Phase[], basicTimings: BasicTiming[] = [], approaches: Approach[] = []): string {
+  // PedX — Pedestrian Crossing mode (integer 0–7; legacy files may still
+  // carry true/false or a pedestrian_phase_enabled header, both accepted on import).
+  // crosswalk_length — LE-# / TE-# estimate or a measured value in feet.
+  const headers = 'phase,signal_id,movement_type,num_of_lanes,approach_id,PedX,crosswalk_length';
 
   if (phases.length === 0) return headers + '\n';
 
@@ -738,7 +868,8 @@ export function generatePhasesCSV(phases: Phase[]): string {
       typeof phase.isPedestrian === "number"
         ? phase.isPedestrian
         : (phase.movementType === "Through" ? 1 : 0);
-    return `${sanitizeCSVField(phase.phase)},${sanitizeCSVField(phase.signalId)},${sanitizeCSVField(encodedMovementType)},${sanitizeCSVField(phase.numOfLanes || 1)},${sanitizeCSVField(phase.approachId)},${sanitizeCSVField(phase.isOverlap || false)},${sanitizeCSVField(pedMode)}`;
+    const crosswalk = crosswalkLengthCode(phase, phases, basicTimings, approaches);
+    return `${sanitizeCSVField(phase.phase)},${sanitizeCSVField(phase.signalId)},${sanitizeCSVField(encodedMovementType)},${sanitizeCSVField(phase.numOfLanes || 1)},${sanitizeCSVField(phase.approachId)},${sanitizeCSVField(pedMode)},${crosswalk}`;
   });
 
   return [headers, ...rows].join('\n');
@@ -1111,12 +1242,21 @@ export function parsePhasesTXT(content: string): Phase[] {
   const phases: Phase[] = [];
   const errors: string[] = [];
 
+  // The overlap column was removed from the format. Older exports still carry
+  // an is_overlap column between approach_id and the pedestrian mode — sniff
+  // the header and drop that column so both layouts import cleanly.
+  const headerCols = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase());
+  const overlapIdx = headerCols.findIndex(h => h.includes('overlap'));
+
   for (let i = 1; i < lines.length; i++) {
     // Use proper CSV parser to handle quoted fields
     const values = parseCSVLine(lines[i]);
+    if (overlapIdx >= 0 && values.length > overlapIdx) {
+      values.splice(overlapIdx, 1);
+    }
 
-    if (values.length < 6) {
-      errors.push(`Row ${i + 1}: Must have at least 6 fields (phase, signalId, movementType, numOfLanes, approachId, isOverlap)`);
+    if (values.length < 5) {
+      errors.push(`Row ${i + 1}: Must have at least 5 fields (phase, signalId, movementType, numOfLanes, approachId)`);
       continue;
     }
 
@@ -1161,13 +1301,6 @@ export function parsePhasesTXT(content: string): Phase[] {
     // Parse optional approach_id field
     const approachId = values[4] && values[4].trim() !== '' ? values[4] : null;
 
-    // Validate overlap boolean
-    const overlapValue = values[5].toLowerCase();
-    if (overlapValue !== 'true' && overlapValue !== 'false') {
-      errors.push(`Row ${i + 1}: Overlap must be "true" or "false", got "${values[5]}"`);
-      continue;
-    }
-
     // Pedestrian mode: integer 0–7. Accept legacy "true"/"false" too:
     //   true  → 1 (crosswalk on assigned approach)
     //   false → 0 (none)
@@ -1176,8 +1309,8 @@ export function parsePhasesTXT(content: string): Phase[] {
       : movementType === "Through"
         ? 1
         : 0;
-    if (values.length > 6 && values[6].trim() !== '') {
-      const raw = values[6].trim().toLowerCase();
+    if (values.length > 5 && values[5].trim() !== '') {
+      const raw = values[5].trim().toLowerCase();
       if (raw === 'true') pedestrianMode = 1;
       else if (raw === 'false') pedestrianMode = 0;
       else {
@@ -1185,9 +1318,25 @@ export function parsePhasesTXT(content: string): Phase[] {
         if (Number.isInteger(n) && n >= 0 && n <= 7) {
           pedestrianMode = n;
         } else {
-          errors.push(`Row ${i + 1}: Pedestrian mode must be 0–7 (or legacy "true"/"false"), got "${values[6]}"`);
+          errors.push(`Row ${i + 1}: Pedestrian mode must be 0–7 (or legacy "true"/"false"), got "${values[5]}"`);
           continue;
         }
+      }
+    }
+
+    // Optional crosswalk length column.
+    //   LE-# / TE-# → lane/time estimates; recomputed on export, so not stored
+    //   plain number → measured distance in feet (stored; overrides estimates)
+    let crosswalkLength: number | null = null;
+    if (values.length > 6 && values[6].trim() !== '') {
+      const raw = values[6].trim().toLowerCase();
+      if (raw.startsWith('le-') || raw.startsWith('te-')) {
+        // Estimated value — derived data, nothing to store.
+      } else if (isValidInteger(values[6]) && Number(values[6]) > 0) {
+        crosswalkLength = Number(values[6]);
+      } else {
+        errors.push(`Row ${i + 1}: Crosswalk length must be "LE-#", "TE-#", or a positive number of feet, got "${values[6]}"`);
+        continue;
       }
     }
 
@@ -1199,7 +1348,7 @@ export function parsePhasesTXT(content: string): Phase[] {
       isPedestrian: pedestrianMode,
       numOfLanes: numOfLanes,
       approachId,
-      isOverlap: overlapValue === 'true',
+      crosswalkLength,
     });
   }
 

@@ -22,7 +22,7 @@ interface PendingPhase {
   movementType: string;
   numOfLanes: number;
   isPedestrian: number; // 0=none 1=assigned 2=both 3=opposite 4=diagonal 5=other diagonal 6=both diagonals (X) 7=all directions
-  isOverlap: boolean;
+  crosswalkLength: number | null; // measured ft; null = auto-estimate (LE/TE) in phases.txt
 }
 
 interface BulkPhaseModalProps {
@@ -86,7 +86,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
   // — editing a row's phase number won't make it jump positions. The user
   // can still click a column header to sort manually; a third click on the
   // same header clears the sort back to insertion order.
-  type SortField = 'phase' | 'approachId' | 'movementType' | 'numOfLanes' | 'isOverlap' | 'isPedestrian';
+  type SortField = 'phase' | 'approachId' | 'movementType' | 'numOfLanes' | 'isPedestrian';
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
@@ -124,9 +124,6 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
           break;
         case 'numOfLanes':
           comparison = a.numOfLanes - b.numOfLanes;
-          break;
-        case 'isOverlap':
-          comparison = (a.isOverlap ? 1 : 0) - (b.isOverlap ? 1 : 0);
           break;
         case 'isPedestrian':
           comparison = (a.isPedestrian ? 1 : 0) - (b.isPedestrian ? 1 : 0);
@@ -241,7 +238,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
         movementType: "Through",
         numOfLanes: 1,
         isPedestrian: 1,
-        isOverlap: false,
+        crosswalkLength: null,
       }
     ]);
   };
@@ -331,7 +328,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
       movementType: "Left Turn",
       numOfLanes: 1,
       isPedestrian: 0,
-      isOverlap: false,
+      crosswalkLength: null,
     };
 
     setPendingPhases(prev => [...prev, newPhase]);
@@ -396,7 +393,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
         movementType: isThrough ? "Through" : "Left Turn",
         numOfLanes: 1,
         isPedestrian: isThrough ? 1 : 0,
-        isOverlap: false,
+        crosswalkLength: null,
       };
     };
 
@@ -512,7 +509,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
             approachId: phase.approachId || null,
             numOfLanes: phase.numOfLanes,
             isPedestrian: phase.isPedestrian,
-            isOverlap: phase.isOverlap,
+            crosswalkLength: phase.crosswalkLength,
           });
           updatedCount++;
         } else {
@@ -524,7 +521,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
             approachId: phase.approachId || null,
             numOfLanes: phase.numOfLanes,
             isPedestrian: phase.isPedestrian,
-            isOverlap: phase.isOverlap,
+            crosswalkLength: phase.crosswalkLength,
           });
           createdCount++;
         }
@@ -571,7 +568,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
             typeof p.isPedestrian === "number"
               ? p.isPedestrian
               : (p.isPedestrian ? 1 : 0),
-          isOverlap: p.isOverlap || false,
+          crosswalkLength: p.crosswalkLength ?? null,
         }));
         setPendingPhases(loadedPhases);
       } else {
@@ -728,8 +725,8 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
                           <SortableHeader field="approachId">Approach</SortableHeader>
                           <SortableHeader field="movementType">Movement</SortableHeader>
                           <SortableHeader field="numOfLanes" className="w-16">Lanes</SortableHeader>
-                          <SortableHeader field="isOverlap" className="w-20 text-center">Overlap</SortableHeader>
                           <SortableHeader field="isPedestrian" className="w-20 text-center">Ped</SortableHeader>
+                          <TableHead className="w-20 text-xs py-2 text-center" title="Measured crosswalk length in feet. Blank = auto-estimate in phases.txt (LE-# from lanes, TE-# from ped clearance time; shorter wins).">CW ft</TableHead>
                           <TableHead className="w-12 text-xs py-2"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -803,14 +800,6 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
                               />
                             </TableCell>
                             <TableCell className="py-1.5 text-center">
-                              <Checkbox
-                                checked={phase.isOverlap}
-                                onCheckedChange={(checked) => handlePhaseChange(idx, 'isOverlap', Boolean(checked))}
-                                data-tab-col={4}
-                                data-tab-row={visualRow}
-                              />
-                            </TableCell>
-                            <TableCell className="py-1.5 text-center">
                               <Select
                                 value={String(phase.isPedestrian ?? 0)}
                                 onValueChange={(v) => handlePhaseChange(idx, 'isPedestrian', parseInt(v, 10))}
@@ -834,6 +823,22 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
                                   <SelectItem value="7">7</SelectItem>
                                 </SelectContent>
                               </Select>
+                            </TableCell>
+                            <TableCell className="py-1.5">
+                              <Input
+                                type="number"
+                                min="0"
+                                value={phase.crosswalkLength ?? ""}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  handlePhaseChange(idx, 'crosswalkLength', v === "" ? null : parseInt(v, 10) || null);
+                                }}
+                                placeholder="auto"
+                                className="h-7 text-xs w-16 mx-auto"
+                                data-tab-col={6}
+                                data-tab-row={visualRow}
+                                title="Measured crosswalk length in feet. Blank = auto-estimate (LE/TE) in phases.txt."
+                              />
                             </TableCell>
                             <TableCell className="py-1.5">
                               <Button

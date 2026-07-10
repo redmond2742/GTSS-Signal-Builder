@@ -359,16 +359,7 @@ export default function PhasesTable({ triggerAdd, triggerBulk }: PhasesTableProp
                     >
                       <TableCell className="font-medium text-grey-900 text-xs py-1 px-2">{phase.signalId}</TableCell>
                       <TableCell className="text-grey-600 text-xs py-1 px-2">{phase.phase}</TableCell>
-                      <TableCell className="text-grey-600 text-xs py-1 px-2">
-                        <div className="flex items-center space-x-1">
-                          <span>{phase.movementType}</span>
-                          {phase.isOverlap && (
-                            <Badge variant="secondary" className="bg-orange-100 text-orange-800" style={{ fontSize: '10px', padding: '1px 4px' }}>
-                              Overlap
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
+                      <TableCell className="text-grey-600 text-xs py-1 px-2">{phase.movementType}</TableCell>
                       <TableCell className="text-grey-600 text-xs py-1 px-2">
                         {phase.approachId || '-'}
                       </TableCell>
