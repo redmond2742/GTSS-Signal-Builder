@@ -13,6 +13,7 @@ import { Plus, Save, Trash2, Download, ChevronUp, ChevronDown, Wand2 } from "luc
 import { Checkbox } from "@/components/ui/checkbox";
 import { getSignalDisplayName, handleColumnMajorTab } from "@/lib/utils";
 import { guessPhaseDirectionMapping, isTypicallyThroughPhase } from "@/lib/agencyDefaults";
+import { downloadSvgAsJpg, phaseDiagramFileName } from "@/lib/svg-export";
 import { PhaseDiagram, phaseColors } from "./phase-diagram-svg";
 
 interface PendingPhase {
@@ -169,51 +170,7 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
   // Download diagram as JPG - captures full diagram including labels
   const handleDownloadImage = () => {
     if (!svgRef.current) return;
-
-    const svg = svgRef.current;
-    // Clone the SVG and set explicit dimensions for export
-    const svgClone = svg.cloneNode(true) as SVGSVGElement;
-    svgClone.setAttribute('width', '340');
-    svgClone.setAttribute('height', '384');
-
-    const svgData = new XMLSerializer().serializeToString(svgClone);
-    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-    const svgUrl = URL.createObjectURL(svgBlob);
-
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const scale = 2; // Higher resolution
-      // Match viewBox dimensions: -20 0 340 384 means width=340, height=384
-      canvas.width = 340 * scale;
-      canvas.height = 384 * scale;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      // White background
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Draw SVG at scale
-      ctx.scale(scale, scale);
-      ctx.drawImage(img, 0, 0, 340, 384);
-
-      // Convert to JPG and download
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${selectedSignalId || 'phase-diagram'}.jpg`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 'image/jpeg', 0.95);
-
-      URL.revokeObjectURL(svgUrl);
-    };
-    img.src = svgUrl;
+    downloadSvgAsJpg(svgRef.current, phaseDiagramFileName(selectedSignalId));
   };
 
   // Get next available phase number

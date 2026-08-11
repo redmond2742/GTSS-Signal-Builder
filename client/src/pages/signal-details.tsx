@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertSignalSchema, insertPhaseSchema, insertDetectorSchema, type Signal, type Phase, type Detector, type Approach, type BasicTiming, type InsertSignal, type InsertPhase, type InsertDetector } from "@shared/schema";
@@ -18,7 +18,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { MapContainer, Marker, Polyline, useMap, useMapEvents } from "react-leaflet";
 import MapTileLayers from "@/components/ui/map-tile-layers";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MapPin, Edit3, Plus, Trash2, Navigation, ArrowLeft, Settings, HelpCircle, ChevronLeft, ChevronRight, FileText, Lock, Unlock } from "lucide-react";
+import { MapPin, Edit3, Plus, Trash2, Navigation, ArrowLeft, Settings, HelpCircle, ChevronLeft, ChevronRight, FileText, Lock, Unlock, Download } from "lucide-react";
+import { downloadSvgAsJpg, phaseDiagramFileName } from "@/lib/svg-export";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import PhaseModal from "@/components/gtss/phase-modal";
 import DetectorModal from "@/components/gtss/detector-modal";
@@ -113,6 +114,13 @@ export default function SignalDetails() {
   const detectorHooks = useDetectors();
   const approachHooks = useApproaches();
   const timingHooks = useBasicTimings();
+
+  // Phase diagram SVG, for the "Download Image" button in its card header.
+  const phaseDiagramRef = useRef<SVGSVGElement>(null);
+  const handleDownloadPhaseDiagram = () => {
+    if (!phaseDiagramRef.current) return;
+    downloadSvgAsJpg(phaseDiagramRef.current, phaseDiagramFileName(signal?.signalId));
+  };
 
   const [signal, setSignal] = useState<Signal | null>(null);
   const [signalPhases, setSignalPhases] = useState<Phase[]>([]);
@@ -1097,10 +1105,23 @@ export default function SignalDetails() {
         {/* Phase Diagram — always visible regardless of active tab */}
         <Card className="h-[500px]">
           <CardHeader className="bg-grey-50 border-b border-grey-200 px-3 py-2">
-            <CardTitle className="text-sm font-semibold text-grey-800 flex items-center space-x-2">
-              <Settings className="w-4 h-4 text-primary-600" />
-              <span>Phase Diagram</span>
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold text-grey-800 flex items-center space-x-2">
+                <Settings className="w-4 h-4 text-primary-600" />
+                <span>Phase Diagram</span>
+              </CardTitle>
+              {signalPhases.length > 0 && (
+                <Button
+                  onClick={handleDownloadPhaseDiagram}
+                  variant="outline"
+                  className="h-7 px-2 text-xs flex items-center gap-1"
+                  title="Download this phase diagram as an image"
+                >
+                  <Download className="w-3 h-3" />
+                  <span>Download Image</span>
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="p-2 h-[calc(100%-2.75rem)]">
             {signalPhases.length === 0 ? (
@@ -1114,6 +1135,7 @@ export default function SignalDetails() {
                 phases={signalPhases}
                 approaches={signalApproaches}
                 intersectionId={signal?.signalId}
+                svgRef={phaseDiagramRef}
               />
             )}
           </CardContent>

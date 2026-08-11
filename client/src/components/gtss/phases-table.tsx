@@ -14,6 +14,7 @@ import PhaseModal from "./phase-modal";
 import BulkPhaseModal from "./bulk-phase-modal";
 import PhaseDiagram from "./phase-diagram";
 import { getSignalDisplayName } from "@/lib/utils";
+import { downloadSvgAsJpg, phaseDiagramFileName } from "@/lib/svg-export";
 
 type SortField = 'phase' | 'signalId' | 'movementType' | 'approachId' | 'numOfLanes';
 type SortDirection = 'asc' | 'desc';
@@ -41,45 +42,7 @@ export default function PhasesTable({ triggerAdd, triggerBulk }: PhasesTableProp
   // Download diagram as JPG
   const handleDownloadImage = () => {
     if (!svgRef.current) return;
-
-    const svg = svgRef.current;
-    const svgClone = svg.cloneNode(true) as SVGSVGElement;
-    svgClone.setAttribute('width', '340');
-    svgClone.setAttribute('height', '360');
-
-    const svgData = new XMLSerializer().serializeToString(svgClone);
-    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-    const svgUrl = URL.createObjectURL(svgBlob);
-
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const scale = 2;
-      canvas.width = 340 * scale;
-      canvas.height = 360 * scale;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.scale(scale, scale);
-      ctx.drawImage(img, 0, 0, 340, 360);
-
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${filterSignal || 'phase-diagram'}.jpg`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 'image/jpeg', 0.95);
-
-      URL.revokeObjectURL(svgUrl);
-    };
-    img.src = svgUrl;
+    downloadSvgAsJpg(svgRef.current, phaseDiagramFileName(filterSignal));
   };
 
   // Handle triggers from parent component. Capture initial values so the

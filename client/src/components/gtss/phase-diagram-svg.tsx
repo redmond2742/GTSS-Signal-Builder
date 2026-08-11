@@ -53,6 +53,63 @@ export interface PhaseDiagramProps {
 // yet (so the legend still shows distinct colors before phases exist).
 const STREET_PALETTE = ["#0ea5e9", "#f59e0b", "#16a34a", "#db2777", "#7c3aed", "#0d9488"];
 
+// --- Header text wrapping -------------------------------------------------
+// SVG doesn't wrap text, so long titles / street lists would run past the
+// canvas edge and get clipped. We measure with an approximation (no layout
+// engine is available while building the element tree) and break the header
+// onto as many lines as it needs; the diagram below shifts down to match.
+const HEADER_MAX_WIDTH = 320; // viewBox is 340 wide — leave a small margin
+const TITLE_FONT = 14;
+const TITLE_LINE_H = 16;
+const STREET_FONT = 12;
+const STREET_LINE_H = 14;
+
+// Average glyph advance for the bold sans-serif used in the header.
+const estTextWidth = (text: string, fontSize: number) => text.length * fontSize * 0.58;
+
+// Break a plain string onto lines at word boundaries.
+const wrapWords = (text: string, fontSize: number, maxWidth: number): string[] => {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [];
+  const lines: string[] = [];
+  let current = "";
+  words.forEach(word => {
+    const candidate = current ? `${current} ${word}` : word;
+    if (current && estTextWidth(candidate, fontSize) > maxWidth) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = candidate;
+    }
+  });
+  if (current) lines.push(current);
+  return lines;
+};
+
+// Pack the street names (each keeps its own color) into lines separated by
+// " · ", stacking onto a new line rather than overflowing.
+const packStreets = (names: string[], fontSize: number, maxWidth: number): string[][] => {
+  if (names.length === 0) return [];
+  const separatorWidth = estTextWidth(" · ", fontSize);
+  const lines: string[][] = [];
+  let current: string[] = [];
+  let currentWidth = 0;
+  names.forEach(name => {
+    const width = estTextWidth(name, fontSize);
+    const added = current.length > 0 ? separatorWidth + width : width;
+    if (current.length > 0 && currentWidth + added > maxWidth) {
+      lines.push(current);
+      current = [name];
+      currentWidth = width;
+    } else {
+      current.push(name);
+      currentWidth += added;
+    }
+  });
+  if (current.length > 0) lines.push(current);
+  return lines;
+};
+
 export const PhaseDiagram = ({ phases, approaches, intersectionName, intersectionId, svgRef }: PhaseDiagramProps) => {
   // Unique street names (in approach order).
   const uniqueStreets = Array.from(
@@ -420,8 +477,19 @@ export const PhaseDiagram = ({ phases, approaches, intersectionName, intersectio
     );
   };
 
+  // Header layout. Extra title / street lines push the intersection drawing
+  // down and grow the canvas, so nothing is clipped and the diagram keeps its
+  // original position when everything fits on one line.
+  const titleLines = intersectionName ? wrapWords(intersectionName, TITLE_FONT, HEADER_MAX_WIDTH) : [];
+  const streetLines = packStreets(uniqueStreets, STREET_FONT, HEADER_MAX_WIDTH);
+  const titleExtra = Math.max(0, titleLines.length - 1) * TITLE_LINE_H;
+  const streetExtra = Math.max(0, streetLines.length - 1) * STREET_LINE_H;
+  const streetTop = 35 + titleExtra;
+  const diagramTop = 42 + titleExtra + streetExtra;
+  const canvasHeight = 384 + titleExtra + streetExtra;
+
   return (
-    <svg ref={svgRef} viewBox="-20 0 340 384" className="w-full h-full">
+    <svg ref={svgRef} viewBox={`-20 0 340 ${canvasHeight}`} className="w-full h-full">
       <defs>
         {Object.entries(phaseColors).map(([phase, color]) => (
           <marker
@@ -459,26 +527,42 @@ export const PhaseDiagram = ({ phases, approaches, intersectionName, intersectio
         </marker>
       </defs>
 
-      {intersectionName && (
-        <text x="150" y="16" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#374151">
-          {intersectionName}
+      {titleLines.map((line, i) => (
+        <text
+          key={`title-${i}`}
+          x="150"
+          y={16 + i * TITLE_LINE_H}
+          textAnchor="middle"
+          fontSize={TITLE_FONT}
+          fontWeight="bold"
+          fill="#374151"
+        >
+          {line}
         </text>
-      )}
+      ))}
 
-      {/* Street names colored to match the phase(s) running on each street.
-          Rendered into the SVG so the colors are captured on image download. */}
-      {uniqueStreets.length > 0 && (
-        <text x="150" y="35" textAnchor="middle" fontSize="12" fontWeight="700">
-          {uniqueStreets.map((name, i) => (
-            <React.Fragment key={`street-${i}`}>
+      {/* Street names colored to match the phase(s) running on each street,
+          stacked onto extra lines when they don't fit. Rendered into the SVG
+          so the colors are captured on image download. */}
+      {streetLines.map((lineNames, lineIdx) => (
+        <text
+          key={`streets-${lineIdx}`}
+          x="150"
+          y={streetTop + lineIdx * STREET_LINE_H}
+          textAnchor="middle"
+          fontSize={STREET_FONT}
+          fontWeight="700"
+        >
+          {lineNames.map((name, i) => (
+            <React.Fragment key={`street-${lineIdx}-${i}`}>
               {i > 0 && <tspan fill="#9ca3af"> · </tspan>}
-              <tspan fill={colorForStreet(name, i)}>{name}</tspan>
+              <tspan fill={colorForStreet(name, uniqueStreets.indexOf(name))}>{name}</tspan>
             </React.Fragment>
           ))}
         </text>
-      )}
+      ))}
 
-      <g transform="translate(0, 42)">
+      <g transform={`translate(0, ${diagramTop})`}>
         <circle cx="150" cy="150" r="115" fill="none" stroke="#e5e7eb" strokeWidth="1" strokeDasharray="4 4" />
         <circle cx="150" cy="150" r="42" fill="#f3f4f6" stroke="#d1d5db" strokeWidth="2" />
 
