@@ -307,6 +307,56 @@ export const PhaseDiagram = ({ phases, approaches, intersectionName, intersectio
     return diagonal(dir, `ped-${index}`);
   };
 
+  // --- Pedestrian-only phase badges ---------------------------------------
+  // A pedestrian-only phase (movementType === 'Pedestrian') draws crosswalks
+  // but no arrow, so the outer phase-number label — which hangs off the end of
+  // an approach leg — has nothing to attach to. Instead its number rides a
+  // color-coded "P#" badge pinned to a crossing the phase actually draws.
+
+  // Every endpoint of every crossing this phase draws, in diagram coords.
+  const pedCrossingEndpoints = (phase: PhaseDiagramPhase): Array<[number, number]> => {
+    const mode = pedMode(phase);
+    const bearing = getApproachBearing(phase.approachId);
+    if (mode === 0 || bearing === null) return [];
+
+    // Mirrors crosswalkDashAt()'s geometry.
+    const dashEnds = (b: number): Array<[number, number]> => {
+      const angleRad = (b - 90) * (Math.PI / 180);
+      const perpAngle = angleRad + Math.PI / 2;
+      const cx = 150 + 20 * Math.cos(perpAngle);
+      const cy = 150 + 20 * Math.sin(perpAngle);
+      const half = 38;
+      return [
+        [cx + half * Math.cos(angleRad), cy + half * Math.sin(angleRad)],
+        [cx - half * Math.cos(angleRad), cy - half * Math.sin(angleRad)],
+      ];
+    };
+    const d = CENTER_RADIUS / Math.SQRT2;
+    const diagEnds = (dir: 1 | -1): Array<[number, number]> => [
+      [150 - d * dir, 150 - d],
+      [150 + d * dir, 150 + d],
+    ];
+
+    switch (mode) {
+      case 1: return dashEnds(bearing);
+      case 2: return [...dashEnds(bearing), ...dashEnds((bearing + 180) % 360)];
+      case 3: return dashEnds((bearing + 180) % 360);
+      case 4: return diagEnds(1);
+      case 5: return diagEnds(-1);
+      case 6: return [...diagEnds(1), ...diagEnds(-1)];
+      case 7:
+        return [
+          ...dashEnds(bearing),
+          ...dashEnds((bearing + 90) % 360),
+          ...dashEnds((bearing + 180) % 360),
+          ...dashEnds((bearing + 270) % 360),
+          ...diagEnds(1),
+          ...diagEnds(-1),
+        ];
+      default: return [];
+    }
+  };
+
   const renderArrow = (phase: PhaseDiagramPhase, index: number) => {
     const bearing = getApproachBearing(phase.approachId);
     if (bearing === null) return null;
@@ -476,6 +526,72 @@ export const PhaseDiagram = ({ phases, approaches, intersectionName, intersectio
       </text>
     );
   };
+
+  // Place one badge per pedestrian-only phase. Candidates are the ends of the
+  // crossings it draws; we pick the end sitting deepest in an open corner
+  // (farthest from an approach leg, then from a badge already placed) and
+  // float the badge just beyond it.
+  const legAngles = approaches
+    .filter(a => a.compassBearing !== null)
+    .map(a => ((((a.compassBearing as number) + 180) % 360) - 90) * (Math.PI / 180));
+
+  const angDist = (a: number, b: number) => {
+    const diff = Math.abs(a - b) % (2 * Math.PI);
+    return diff > Math.PI ? 2 * Math.PI - diff : diff;
+  };
+
+  const pedBadges: Array<{ key: string; phase: number; x: number; y: number }> = [];
+  {
+    const placed: Array<{ angle: number; radius: number }> = [];
+    const unanchored: Array<{ key: string; phase: number }> = [];
+    phases.forEach((phase, idx) => {
+      if (phase.movementType !== 'Pedestrian') return;
+      const ends = pedCrossingEndpoints(phase);
+      if (ends.length === 0) {
+        unanchored.push({ key: `ped-badge-${idx}`, phase: phase.phase });
+        return;
+      }
+      let bestAngle = 0;
+      let bestRadius = CENTER_RADIUS;
+      let bestScore = -Infinity;
+      ends.forEach(([x, y]) => {
+        const angle = Math.atan2(y - 150, x - 150);
+        const legClear = legAngles.length > 0
+          ? Math.min(...legAngles.map(l => angDist(angle, l)))
+          : Math.PI / 2;
+        const badgeClear = placed.length > 0
+          ? Math.min(...placed.map(pl => angDist(angle, pl.angle)))
+          : Math.PI / 2;
+        const score = Math.min(legClear, Math.PI / 2) + Math.min(badgeClear, 0.6);
+        if (score > bestScore) {
+          bestScore = score;
+          bestAngle = angle;
+          bestRadius = Math.hypot(x - 150, y - 150);
+        }
+      });
+      // Step outward if another badge already occupies that spot.
+      let radius = bestRadius + 16;
+      while (placed.some(pl => angDist(bestAngle, pl.angle) < 0.35 && Math.abs(radius - pl.radius) < 18)) {
+        radius += 19;
+      }
+      placed.push({ angle: bestAngle, radius });
+      pedBadges.push({
+        key: `ped-badge-${idx}`,
+        phase: phase.phase,
+        x: 150 + radius * Math.cos(bestAngle),
+        y: 150 + radius * Math.sin(bestAngle),
+      });
+    });
+    // A pedestrian phase that draws no crossing at all (mode 0, or no approach
+    // assigned) still needs its number shown — line those up under the diagram.
+    unanchored.forEach((badge, i) => {
+      pedBadges.push({
+        ...badge,
+        x: 150 + (i - (unanchored.length - 1) / 2) * 34,
+        y: 306,
+      });
+    });
+  }
 
   // Header layout. Extra title / street lines push the intersection drawing
   // down and grow the canvas, so nothing is clipped and the diagram keeps its
@@ -673,10 +789,43 @@ export const PhaseDiagram = ({ phases, approaches, intersectionName, intersectio
           );
         })()}
 
-        {/* Outer phase-number labels (skip pedestrian-only — the scramble has its own) */}
+        {/* Outer phase-number labels — pedestrian-only phases have no arrow to
+            label, so they get a badge instead (below). */}
         {phases
           .filter(p => p.movementType !== 'Pedestrian')
           .map((phase, idx) => renderLabel(phase, idx))}
+
+        {/* Pedestrian-only phase numbers, color coded to match the phase and
+            pinned beside the crossing they serve. */}
+        {pedBadges.map(badge => {
+          const label = `P${badge.phase}`;
+          const width = 11 + label.length * 6.5;
+          const color = phaseColors[badge.phase] || '#6b7280';
+          return (
+            <g key={badge.key}>
+              <rect
+                x={badge.x - width / 2}
+                y={badge.y - 8}
+                width={width}
+                height={16}
+                rx={8}
+                fill={color}
+                stroke="#ffffff"
+                strokeWidth="1.5"
+              />
+              <text
+                x={badge.x}
+                y={badge.y + 4}
+                textAnchor="middle"
+                fontSize="11"
+                fontWeight="bold"
+                fill="#ffffff"
+              >
+                {label}
+              </text>
+            </g>
+          );
+        })}
       </g>
     </svg>
   );
