@@ -219,12 +219,13 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
     const direction = getPhaseDirection(targetPhase);
     const formattedPurpose = formatPurposeForDescription(staticFields.purpose ? staticValues.purpose : "Stop Bar");
 
-    // Calculate next channel
-    const existingChannels = pendingDetectors.map(d => d.channel);
-    let nextChannel = startingChannel;
-    while (existingChannels.includes(nextChannel)) {
-      nextChannel = incrementLastNumber(nextChannel);
-    }
+    // Next channel simply continues the sequence from the last row added.
+    // Channels are NOT forced to be unique — the same detector number can
+    // legitimately repeat on another lane — so this is a convenience default,
+    // not a constraint, and the field stays freely editable.
+    const nextChannel = pendingDetectors.length > 0
+      ? incrementLastNumber(pendingDetectors[pendingDetectors.length - 1].channel)
+      : startingChannel;
 
     // Calculate next lane for this phase
     const samePhaseDetectors = pendingDetectors.filter(d => d.phase === targetPhase);
@@ -268,15 +269,10 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
     let currentChannel = startingChannel;
     let currentLane = startingLane;
 
-    // Find existing channels to avoid duplicates
-    const existingChannels = new Set(pendingDetectors.map(d => d.channel));
-
+    // Channels run straight from the starting value the user typed. Rows that
+    // land on a channel already in use are allowed through — one channel can
+    // cover several lanes.
     for (let i = 0; i < quickAddCount; i++) {
-      // Skip existing channels
-      while (existingChannels.has(currentChannel)) {
-        currentChannel = incrementLastNumber(currentChannel);
-      }
-
       newDetectors.push({
         channel: currentChannel,
         phase: selectedPhaseForQuickAdd,
@@ -290,7 +286,6 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
         isDescriptionManual: false,
       });
 
-      existingChannels.add(currentChannel);
       currentChannel = incrementLastNumber(currentChannel);
       currentLane = incrementLastNumber(currentLane);
     }
@@ -346,13 +341,9 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
   // Duplicate detector with incremented channel and lane
   const handleDuplicateDetector = (index: number) => {
     const source = pendingDetectors[index];
-    const existingChannels = new Set(pendingDetectors.map(d => d.channel));
-
-    let nextChannel = incrementLastNumber(source.channel);
-    while (existingChannels.has(nextChannel)) {
-      nextChannel = incrementLastNumber(nextChannel);
-    }
-
+    // One step up on both fields. Edit either back down if this channel is
+    // meant to cover the adjacent lane too.
+    const nextChannel = incrementLastNumber(source.channel);
     const nextLane = incrementLastNumber(source.lane);
     const direction = getPhaseDirection(source.phase);
     const formattedPurpose = formatPurposeForDescription(source.purpose);
@@ -418,17 +409,25 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
       return;
     }
 
-    // Check for duplicate channels across both existing and pending
-    const allChannels = [...existingDetectors.map(d => d.channel), ...pendingDetectors.map(d => d.channel)];
-    const duplicates = allChannels.filter((c, i) => allChannels.indexOf(c) !== i);
-    if (duplicates.length > 0) {
-      toast({
-        title: "Duplicate Channels",
-        description: `Channel values must be unique. Duplicates: ${Array.from(new Set(duplicates)).join(", ")}`,
-        variant: "destructive",
-      });
-      return;
-    }
+    // Channel numbers are deliberately NOT required to be unique: one channel
+    // often reports several lanes on the same phase, so the same number can
+    // appear on more than one row. Only a row that repeats channel + phase +
+    // lane exactly looks like a slip, and even that is just flagged — the save
+    // goes through either way.
+    const rowIdentity = (d: { channel: string; phase: number; lane: string | null }) =>
+      `${(d.channel ?? '').trim()}|${d.phase}|${(d.lane ?? '').trim()}`;
+    const seenRows = new Set<string>();
+    const repeatedChannels = new Set<string>();
+    [...existingDetectors, ...pendingDetectors].forEach(d => {
+      const key = rowIdentity(d);
+      if (seenRows.has(key)) repeatedChannels.add((d.channel ?? '').trim());
+      else seenRows.add(key);
+    });
+    // Only one toast is ever on screen at a time, so this rides along with the
+    // success message below rather than firing its own.
+    const repeatNote = repeatedChannels.size > 0
+      ? ` Channel ${Array.from(repeatedChannels).join(", ")} repeats the same phase and lane.`
+      : "";
 
     setIsProcessing(true);
 
@@ -469,7 +468,7 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
 
       toast({
         title: "Success",
-        description: `Created ${pendingDetectors.length} detector${pendingDetectors.length !== 1 ? "s" : ""}`,
+        description: `Created ${pendingDetectors.length} detector${pendingDetectors.length !== 1 ? "s" : ""}.${repeatNote}`,
       });
 
       onClose();
