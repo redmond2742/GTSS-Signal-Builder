@@ -400,10 +400,12 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
       return;
     }
 
-    if (pendingDetectors.length === 0) {
+    // Edits to existing detectors are saveable on their own — adding a new row
+    // is not a precondition. Only an empty panel has nothing to write.
+    if (pendingDetectors.length === 0 && existingDetectors.length === 0) {
       toast({
-        title: "No New Detectors",
-        description: "Add at least one new detector to save",
+        title: "Nothing to Save",
+        description: "Add a detector, or edit one of the existing rows",
         variant: "destructive",
       });
       return;
@@ -466,9 +468,15 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
         });
       }
 
+      const createdCount = pendingDetectors.length;
+      const updatedCount = existingDetectors.filter(d => d.id).length;
+      const summary = [
+        createdCount > 0 ? `Created ${createdCount} detector${createdCount !== 1 ? "s" : ""}` : "",
+        updatedCount > 0 ? `${createdCount > 0 ? "updated" : "Updated"} ${updatedCount} existing` : "",
+      ].filter(Boolean).join(", ");
       toast({
         title: "Success",
-        description: `Created ${pendingDetectors.length} detector${pendingDetectors.length !== 1 ? "s" : ""}.${repeatNote}`,
+        description: `${summary}.${repeatNote}`,
       });
 
       onClose();
@@ -1291,13 +1299,19 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
             </Button>
             <Button
               onClick={handleSaveAll}
-              disabled={!selectedSignalId || pendingDetectors.length === 0 || isProcessing}
+              disabled={
+                !selectedSignalId ||
+                (pendingDetectors.length === 0 && existingDetectors.length === 0) ||
+                isProcessing
+              }
               className="bg-primary-600 hover:bg-primary-700"
             >
               <Save className="w-4 h-4 mr-2" />
               {isProcessing
                 ? "Saving..."
-                : `Create ${pendingDetectors.length} Detector${pendingDetectors.length !== 1 ? "s" : ""}`
+                : pendingDetectors.length > 0
+                  ? `Create ${pendingDetectors.length} Detector${pendingDetectors.length !== 1 ? "s" : ""}`
+                  : "Save Changes"
               }
             </Button>
           </div>
