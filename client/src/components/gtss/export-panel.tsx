@@ -1,19 +1,17 @@
-import { useState, useEffect } from "react";
-import { useExport } from "@/lib/localStorageHooks";
-import { generateAgencyCSV, generateSignalsCSV, generateApproachesCSV, generatePhasesCSV, generateDetectionCSV, generateBasicTimingsCSV } from "@/lib/localStorage";
-import { useGTSSStore } from "@/store/gtss-store";
-import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import GTSSFileViewer, { GTSSFilePreview } from "@/components/gtss/gtss-file-viewer";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Download, CheckCircle, AlertTriangle, XCircle, Info, ChevronDown, ChevronRight, Eye } from "lucide-react";
-import { evaluateGTSSCompleteness } from "@/lib/gtssValidation";
-import GTSSFileViewer, { GTSSFilePreview } from "@/components/gtss/gtss-file-viewer";
+import { useToast } from "@/hooks/use-toast";
+import { useGTSSStore } from "@/store/gtss-store";
+import { evaluateGTSSCompleteness, generateAgencyCSV, generateApproachesCSV, generateBasicTimingsCSV, generateDetectionCSV, generatePhasesCSV, generateSignalsCSV, useExport } from "gtss";
+import { AlertTriangle, CheckCircle, ChevronDown, ChevronRight, Download, Eye, Info, XCircle } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export default function ExportPanel() {
   const { agency, signals, approaches, phases, detectors, basicTimings, navigateToSignalDetails } = useGTSSStore();
@@ -397,8 +395,8 @@ export default function ExportPanel() {
                 {exportFormat === "zip"
                   ? "Export will create a ZIP file with selected TXT files"
                   : exportFormat === "txt"
-                  ? "Export will download individual TXT files separately"
-                  : "Export will create a package with selected files"}
+                    ? "Export will download individual TXT files separately"
+                    : "Export will create a package with selected files"}
               </div>
               <Button
                 onClick={handleExportValidated}

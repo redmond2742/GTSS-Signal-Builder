@@ -1,38 +1,33 @@
-import { useState, useEffect, useMemo, useRef } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { insertSignalSchema, insertPhaseSchema, insertDetectorSchema, type Signal, type Phase, type Detector, type Approach, type BasicTiming, type InsertSignal, type InsertPhase, type InsertDetector } from "@shared/schema";
-import { useGTSSStore } from "@/store/gtss-store";
-import { useSignals, usePhases, useDetectors, useApproaches, useBasicTimings } from "@/lib/localStorageHooks";
-import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { MapContainer, Marker, Polyline, useMap, useMapEvents } from "react-leaflet";
-import MapTileLayers from "@/components/ui/map-tile-layers";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MapPin, Edit3, Plus, Trash2, Navigation, ArrowLeft, Settings, HelpCircle, ChevronLeft, ChevronRight, FileText, Lock, Unlock, Download } from "lucide-react";
-import { downloadSvgAsJpg, phaseDiagramFileName } from "@/lib/svg-export";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import PhaseModal from "@/components/gtss/phase-modal";
-import DetectorModal from "@/components/gtss/detector-modal";
-import BulkPhaseModal from "@/components/gtss/bulk-phase-modal";
+import BasicTimingModal from "@/components/gtss/basic-timing-modal";
 import BulkApproachModal from "@/components/gtss/bulk-approach-modal";
 import BulkDetectorModal from "@/components/gtss/bulk-detector-modal";
-import BasicTimingModal from "@/components/gtss/basic-timing-modal";
-import { PhaseDiagram } from "@/components/gtss/phase-diagram-svg";
-import TimingBulkImport from "@/components/gtss/timing-bulk-import";
+import BulkPhaseModal from "@/components/gtss/bulk-phase-modal";
+import DetectorModal from "@/components/gtss/detector-modal";
 import GTSSFileViewer, { GTSSFilePreview } from "@/components/gtss/gtss-file-viewer";
-import { generateAgencyCSV, generateSignalsCSV, generatePhasesCSV, generateDetectionCSV, generateApproachesCSV, generateBasicTimingsCSV } from "@/lib/localStorage";
-import { suggestStreetNameForApproach } from "@/lib/utils";
+import { PhaseDiagram } from "@/components/gtss/phase-diagram-svg";
 import { StreetNameInput } from "@/components/gtss/street-name-input";
+import TimingBulkImport from "@/components/gtss/timing-bulk-import";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import MapTileLayers from "@/components/ui/map-tile-layers";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useToast } from "@/hooks/use-toast";
+import { useGTSSStore } from "@/store/gtss-store";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertPhaseSchema, insertSignalSchema, type Approach, type BasicTiming, type Detector, type InsertPhase, type InsertSignal, type Phase, type Signal } from "@shared/schema";
+import { downloadSvgAsJpg, generateAgencyCSV, generateApproachesCSV, generateBasicTimingsCSV, generateDetectionCSV, generatePhasesCSV, generateSignalsCSV, phaseDiagramFileName, suggestStreetNameForApproach, useApproaches, useBasicTimings, useDetectors, usePhases, useSignals } from "gtss";
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, Edit3, FileText, HelpCircle, Lock, MapPin, Navigation, Plus, Settings, Trash2, Unlock } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { MapContainer, Marker, Polyline, useMap, useMapEvents } from "react-leaflet";
 
 // Location picker component for interactive map editing
 function LocationPicker({ onLocationSelect }: { onLocationSelect: (lat: number, lon: number) => void }) {
@@ -305,7 +300,7 @@ export default function SignalDetails() {
       const normalizedDetectors = filteredDetectors.map(d => {
         const stripped = d.channel.replace(/^det\s+/i, "");
         if (stripped !== d.channel) {
-          try { detectorHooks.update(d.id, { channel: stripped }); } catch {}
+          try { detectorHooks.update(d.id, { channel: stripped }); } catch { }
           return { ...d, channel: stripped };
         }
         return d;
@@ -327,21 +322,21 @@ export default function SignalDetails() {
         if (!data.signalId) {
           data.signalId = `SIG-${Date.now()}`;
         }
-        
+
         const newSignal = signalHooks.save(data);
         setSignal(newSignal);
         setIsEditingSignal(false);
-        
+
         // Update the navigation state to show the created signal
         navigateToSignalDetails(newSignal.signalId);
-        
+
         toast({
           title: "Success",
           description: "Signal created successfully",
         });
       } else if (signal) {
         const updatedSignal = signalHooks.update(signal.signalId, data);
-        
+
         if (updatedSignal) {
           setSignal(updatedSignal);
           // Force a refresh of the form with updated data
@@ -357,7 +352,7 @@ export default function SignalDetails() {
           if (updatedSignal.signalId !== signal.signalId) {
             navigateToSignalDetails(updatedSignal.signalId);
           }
-          
+
           setIsEditingSignal(false);
           toast({
             title: "Success",
@@ -471,8 +466,8 @@ export default function SignalDetails() {
         approachId: qpApproachId || null,
         isPedestrian:
           qpMovementType === "Through" ||
-          qpMovementType === "Through-Right" ||
-          qpMovementType === "Pedestrian"
+            qpMovementType === "Through-Right" ||
+            qpMovementType === "Pedestrian"
             ? 1
             : 0,
         numOfLanes: parseInt(qpLanes, 10) || 1,
@@ -498,7 +493,7 @@ export default function SignalDetails() {
       });
       return;
     }
-    
+
     setEditingPhase(null);
     phaseForm.reset({
       signalId: signalId || "",
@@ -575,11 +570,11 @@ export default function SignalDetails() {
       } else {
         phaseHooks.save(data);
       }
-      
+
       const updatedPhases = phases.filter(p => p.signalId === signalId);
       setSignalPhases(updatedPhases);
       setShowPhaseModal(false);
-      
+
       toast({
         title: "Success",
         description: editingPhase ? "Phase updated successfully" : "Phase added successfully",
@@ -622,7 +617,7 @@ export default function SignalDetails() {
       });
       return;
     }
-    
+
     setEditingDetector(null);
     setShowDetectorModal(true);
   };
@@ -750,22 +745,22 @@ export default function SignalDetails() {
 
   const handleSignalDelete = () => {
     if (!signal) return;
-    
+
     const confirmText = `DELETE`;
     const userInput = prompt(
       `This will permanently delete signal "${signal.signalId}" and all its phases and detectors.\n\nType "${confirmText}" to confirm deletion:`
     );
-    
+
     if (userInput === confirmText) {
       try {
         // Delete the signal (this will also delete associated phases and detectors via signalStorage.delete)
         signalHooks.delete(signal.signalId);
-        
+
         toast({
           title: "Success",
           description: "Signal and all associated data deleted successfully",
         });
-        
+
         // Navigate back to main page
         navigateToMain();
       } catch (error) {
@@ -845,12 +840,12 @@ export default function SignalDetails() {
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
-            
+
             {/* Signal pill with ID and street names */}
             <Badge variant="outline" className="text-xs px-3 py-1">
               {signal.signalId} • {derivedStreetNames || "No street names"}
             </Badge>
-            
+
             <Button
               variant="ghost"
               size="sm"
@@ -1152,733 +1147,733 @@ export default function SignalDetails() {
         </TabsList>
 
         <TabsContent value="approaches" className="mt-3 space-y-3">
-      {/* Quick-Add Approach — rapid input directly below the map */}
-      {!isNewSignal && !showBulkApproachModal && (
-        <Card>
-          <CardContent className="p-3">
-            <div className="flex gap-2 items-end flex-wrap">
-              <div className="flex flex-col min-w-[120px]">
-                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Approach ID</label>
-                <Input value={qaApproachId} onChange={(e) => setQaApproachId(e.target.value)} className="h-8 text-sm" />
-              </div>
-              <div className="flex flex-col flex-1 min-w-[160px]">
-                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Street Name *</label>
-                <StreetNameInput
-                  value={qaStreetName}
-                  onChange={setQaStreetName}
-                  suggestions={allStreetNames}
-                  placeholder="e.g. Main St"
-                  className="h-8 text-sm"
-                />
-              </div>
-              <div className="flex flex-col w-24">
-                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Bearing *</label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="360"
-                  value={qaBearing}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    setQaBearing(raw);
-                    // Once the value parses to a real number, also try the
-                    // street-name suggestion so manual typing benefits too.
-                    const n = parseInt(raw, 10);
-                    if (!isNaN(n) && raw.trim() !== "" && !qaStreetName.trim() && signal?.latitude != null && signal?.longitude != null) {
-                      const suggestion = suggestStreetNameForApproach({
-                        bearing: ((n % 360) + 360) % 360,
-                        signalLat: signal.latitude,
-                        signalLng: signal.longitude,
-                        currentSignalId: signal.signalId,
-                        signals,
-                        approaches,
-                      });
-                      if (suggestion) setQaStreetName(suggestion);
-                    }
-                  }}
-                  placeholder="0-360"
-                  className="h-8 text-sm"
-                />
-              </div>
-              <div className="flex flex-col w-20">
-                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Speed</label>
-                <Input type="number" min="0" max="100" value={qaSpeed} onChange={(e) => setQaSpeed(e.target.value)} placeholder="35" className="h-8 text-sm" />
-              </div>
-              <div className="flex flex-col w-24" title="Free Right — right-turn slip lane bypassing the signal. FR-P adds a pedestrian crossing; FR-P-I is an improved traffic-calmed crossing.">
-                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">FR</label>
-                <Select value={qaFreeRight} onValueChange={setQaFreeRight}>
-                  <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">None</SelectItem>
-                    <SelectItem value="1">FR</SelectItem>
-                    <SelectItem value="2">FR-P</SelectItem>
-                    <SelectItem value="3">FR-P-I</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col w-16" title="Number of free-right lanes">
-                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">FR Lanes</label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="9"
-                  value={qaFreeRightLanes}
-                  onChange={(e) => setQaFreeRightLanes(e.target.value)}
-                  disabled={qaFreeRight === "0"}
-                  className="h-8 text-sm disabled:opacity-50"
-                />
-              </div>
-              <Button onClick={handleQuickAddApproach} className="h-8 px-3 bg-primary-600 hover:bg-primary-700">
-                <Plus className="w-3 h-3 mr-1" />Add
-              </Button>
-            </div>
-            <p className="text-[11px] text-grey-500 mt-2">Tip: click the map above to fill <span className="font-medium">Bearing</span> from the click location.</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {showBulkApproachModal ? (
-        <BulkApproachModal
-          inline
-          onClose={() => {
-            setShowBulkApproachModal(false);
-            const updatedApproaches = approaches.filter(a => a.signalId === signalId);
-            setSignalApproaches(updatedApproaches);
-          }}
-          preSelectedSignalId={signalId || ""}
-        />
-      ) : (
-      <Card>
-        <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold text-grey-800 flex items-center space-x-2">
-              <Navigation className="w-4 h-4 text-primary-600" />
-              <span>Approaches ({signalApproaches.length})</span>
-            </CardTitle>
-            <Button
-              onClick={() => {
-                if (isNewSignal) {
-                  toast({
-                    title: "Save Signal First",
-                    description: "Please save the signal information before adding approaches",
-                    variant: "destructive",
-                  });
-                  return;
-                }
-                setShowBulkApproachModal(true);
-              }}
-              className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
-            >
-              <Plus className="w-3 h-3 mr-1" />
-              Bulk Add
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {isNewSignal ? (
-            <div className="p-6 text-center text-grey-500 text-sm">
-              Save the signal first to add approaches.
-            </div>
-          ) : signalApproaches.length === 0 ? (
-            <div className="p-6 text-center text-grey-500 text-sm">
-              <p>No approaches configured.</p>
-              <p className="text-xs text-grey-400 mt-1">Define approach directions and street names for this intersection.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-grey-50 border-b border-grey-200">
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Approach ID</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Street Name</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Bearing</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Posted Speed</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }} title="Free Right — right-turn slip lane bypassing the signal">FR</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }} title="Number of free-right lanes">FR Lanes</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {signalApproaches.map((approach) => (
-                    <TableRow key={approach.id} className="hover:bg-grey-50">
-                      <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>{approach.approachId}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.streetName || '-'}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.compassBearing != null ? `${approach.compassBearing}°` : '-'}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.postedSpeed ? `${approach.postedSpeed} mph` : '-'}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.freeRight === 3 ? 'FR-P-I' : approach.freeRight === 2 ? 'FR-P' : approach.freeRight ? 'FR' : '-'}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.freeRight ? (approach.freeRightLanes ?? 1) : '-'}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      )}
-        </TabsContent>
-
-        <TabsContent value="phases" className="mt-3 space-y-3">
-      {/* Quick-Add Phase — rapid input directly below the map */}
-      {!isNewSignal && !showBulkPhaseModal && (
-        <Card>
-          <CardContent className="p-3">
-            <div className="flex gap-2 items-end flex-wrap">
-              <div className="flex flex-col w-16">
-                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Phase *</label>
-                <Input type="number" min="1" max="8" value={qpPhase} onChange={(e) => setQpPhase(e.target.value)} className="h-8 text-sm" />
-              </div>
-              <div className="flex flex-col flex-1 min-w-[160px]">
-                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Movement *</label>
-                <Select value={qpMovementType} onValueChange={setQpMovementType}>
-                  <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Through">Through (T)</SelectItem>
-                    <SelectItem value="Left Turn">Left Turn (L)</SelectItem>
-                    <SelectItem value="Left Protected-Permissive">Left Protected-Permissive (LPP)</SelectItem>
-                    <SelectItem value="Right Turn">Right Turn (R)</SelectItem>
-                    <SelectItem value="Through-Right">Through-Right (TR)</SelectItem>
-                    <SelectItem value="Left Through Shared">Left Through Shared (LT)</SelectItem>
-                    <SelectItem value="Permissive Phase">Permissive (TL)</SelectItem>
-                    <SelectItem value="Flashing Yellow Arrow">Flashing Yellow Arrow</SelectItem>
-                    <SelectItem value="U-Turn">U-Turn</SelectItem>
-                    <SelectItem value="Pedestrian">Pedestrian</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col flex-1 min-w-[160px]">
-                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Approach</label>
-                <Select value={qpApproachId} onValueChange={setQpApproachId}>
-                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select approach" /></SelectTrigger>
-                  <SelectContent>
-                    {signalApproaches.map((a) => (
-                      <SelectItem key={a.approachId} value={a.approachId}>
-                        {a.approachId} — {a.streetName || "(no name)"} {a.compassBearing != null ? `(${a.compassBearing}°)` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col w-20">
-                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Lanes</label>
-                <Input type="number" min="1" max="8" value={qpLanes} onChange={(e) => setQpLanes(e.target.value)} className="h-8 text-sm" />
-              </div>
-              <Button onClick={handleQuickAddPhase} className="h-8 px-3 bg-primary-600 hover:bg-primary-700" disabled={signalApproaches.length === 0}>
-                <Plus className="w-3 h-3 mr-1" />Add
-              </Button>
-            </div>
-            {signalApproaches.length === 0 && (
-              <p className="text-[11px] text-amber-700 mt-2">Add approaches first — phases need an approach to attach to.</p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {showBulkPhaseModal ? (
-        <BulkPhaseModal
-          inline
-          onClose={() => {
-            setShowBulkPhaseModal(false);
-            const updatedPhases = phases.filter(p => p.signalId === signalId);
-            setSignalPhases(updatedPhases);
-          }}
-          preSelectedSignalId={signalId || ""}
-        />
-      ) : (
-      <Card>
-        <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold text-grey-800 flex items-center space-x-2">
-              <Settings className="w-4 h-4 text-primary-600" />
-              <span>Signal Phases ({signalPhases.length})</span>
-            </CardTitle>
-            <div className="flex space-x-1">
-              <Button
-                onClick={() => {
-                  if (isNewSignal) {
-                    toast({
-                      title: "Save Signal First",
-                      description: "Please save the signal information before adding phases",
-                      variant: "destructive",
-                    });
-                    return;
-                  }
-                  setShowBulkPhaseModal(true);
-                }}
-                className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
-              >
-                <Plus className="w-3 h-3 mr-1" />
-                Bulk Add
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {isNewSignal ? (
-            <div className="p-6 text-center text-grey-500 text-sm">
-              Save the signal first to add phases.
-            </div>
-          ) : signalPhases.length === 0 ? (
-            <div className="p-6 text-center text-grey-500 text-sm">
-              <p>No phases configured.</p>
-              <p className="text-xs text-grey-400 mt-1">Add approaches first, then define movement phases for each direction. Phases are required before adding detectors or timings.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-grey-50 border-b border-grey-200">
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Phase</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Movement</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Approach</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Lanes</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {signalPhases.map((phase) => (
-                    <TableRow
-                      key={phase.id}
-                      className="hover:bg-grey-50 cursor-pointer transition-colors"
-                      onClick={() => handlePhaseEdit(phase)}
-                    >
-                      <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>{phase.phase}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{phase.movementType}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>
-                        {phase.approachId || '-'}
-                      </TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{phase.numOfLanes}</TableCell>
-                      <TableCell className="py-1 px-1.5">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handlePhaseDelete(phase);
-                          }}
-                          className="h-5 w-5 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-2.5 h-2.5" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      )}
-        </TabsContent>
-
-        <TabsContent value="detection" className="mt-3">
-      {showBulkDetectorModal ? (
-        <BulkDetectorModal
-          inline
-          onClose={() => {
-            setShowBulkDetectorModal(false);
-            const updatedDetectors = detectors.filter(d => d.signalId === signalId);
-            setSignalDetectors(updatedDetectors);
-          }}
-          preSelectedSignalId={signalId || ""}
-        />
-      ) : showDetectorPaste ? (
-        <Card>
-          <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold text-grey-800 flex items-center space-x-2">
-                <Navigation className="w-4 h-4 text-primary-600" />
-                <span>Paste Detector → Phase Mapping</span>
-              </CardTitle>
-              <Button
-                variant="outline"
-                onClick={() => { setShowDetectorPaste(false); setDetectorPasteText(""); }}
-                className="h-7 px-2 text-xs"
-              >
-                Cancel
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="p-4 space-y-3">
-            <div className="text-xs text-grey-600">
-              <p>Paste a two-column table where each row is <span className="font-mono">Det&nbsp;&lt;name&gt;</span> &lt;tab&gt; <span className="font-mono">&lt;phase&nbsp;number&gt;</span>. The header row is skipped, the <span className="font-mono">Det</span> prefix is stripped from the channel, and rows with phase <span className="font-mono">0</span> (or whose phase isn&apos;t configured on this signal) are skipped too. Set the defaults below and apply them to every detector created from this paste.</p>
-            </div>
-
-            {/* Defaults that get applied to every detector created here */}
-            <div className="grid grid-cols-2 gap-3 p-3 bg-grey-50 border border-grey-200 rounded-md">
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500">Default Purpose</label>
-                <Select value={pasteDefaultPurpose} onValueChange={setPasteDefaultPurpose}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {DETECTOR_PURPOSE_OPTIONS.map((opt) => (
-                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500">Default Technology</label>
-                <Select value={pasteDefaultTechnology} onValueChange={setPasteDefaultTechnology}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {DETECTOR_TECHNOLOGY_OPTIONS.map((opt) => (
-                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <textarea
-              value={detectorPasteText}
-              onChange={(e) => setDetectorPasteText(e.target.value)}
-              placeholder={"Det\tCall Phase\nDet 1\t1\nDet 2\t2\nDet 3\t3"}
-              className="w-full h-44 font-mono text-xs p-2 border border-grey-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              spellCheck={false}
-              aria-label="Paste detector-to-phase table here"
-            />
-            {detectorPasteText.trim() && (() => {
-              const parsed = parseDetectorPaste(detectorPasteText);
-              const phasesByNumber = new Set(signalPhases.map(p => p.phase));
-              const willSaveCount = parsed.filter(r => r.willSave && phasesByNumber.has(r.phase)).length;
-              const skipPhase0 = parsed.filter(r => !r.willSave).length;
-              const skipMissingPhase = parsed.filter(r => r.willSave && !phasesByNumber.has(r.phase)).length;
-              return (
-                <div className="border border-grey-200 rounded-md">
-                  <div className="flex items-center justify-between px-3 py-1.5 bg-grey-50 border-b border-grey-200 text-xs">
-                    <span className="font-medium text-grey-700">Preview ({parsed.length} row{parsed.length !== 1 ? "s" : ""})</span>
-                    <span className="text-grey-600">
-                      <span className="text-primary-700 font-medium">{willSaveCount}</span> will be added
-                      {skipPhase0 > 0 && <span className="text-grey-500">, {skipPhase0} skipped (phase 0)</span>}
-                      {skipMissingPhase > 0 && <span className="text-amber-700">, {skipMissingPhase} skipped (phase not configured)</span>}
-                    </span>
+          {/* Quick-Add Approach — rapid input directly below the map */}
+          {!isNewSignal && !showBulkApproachModal && (
+            <Card>
+              <CardContent className="p-3">
+                <div className="flex gap-2 items-end flex-wrap">
+                  <div className="flex flex-col min-w-[120px]">
+                    <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Approach ID</label>
+                    <Input value={qaApproachId} onChange={(e) => setQaApproachId(e.target.value)} className="h-8 text-sm" />
                   </div>
-                  <div className="max-h-64 overflow-y-auto">
+                  <div className="flex flex-col flex-1 min-w-[160px]">
+                    <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Street Name *</label>
+                    <StreetNameInput
+                      value={qaStreetName}
+                      onChange={setQaStreetName}
+                      suggestions={allStreetNames}
+                      placeholder="e.g. Main St"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="flex flex-col w-24">
+                    <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Bearing *</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="360"
+                      value={qaBearing}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setQaBearing(raw);
+                        // Once the value parses to a real number, also try the
+                        // street-name suggestion so manual typing benefits too.
+                        const n = parseInt(raw, 10);
+                        if (!isNaN(n) && raw.trim() !== "" && !qaStreetName.trim() && signal?.latitude != null && signal?.longitude != null) {
+                          const suggestion = suggestStreetNameForApproach({
+                            bearing: ((n % 360) + 360) % 360,
+                            signalLat: signal.latitude,
+                            signalLng: signal.longitude,
+                            currentSignalId: signal.signalId,
+                            signals,
+                            approaches,
+                          });
+                          if (suggestion) setQaStreetName(suggestion);
+                        }
+                      }}
+                      placeholder="0-360"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="flex flex-col w-20">
+                    <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Speed</label>
+                    <Input type="number" min="0" max="100" value={qaSpeed} onChange={(e) => setQaSpeed(e.target.value)} placeholder="35" className="h-8 text-sm" />
+                  </div>
+                  <div className="flex flex-col w-24" title="Free Right — right-turn slip lane bypassing the signal. FR-P adds a pedestrian crossing; FR-P-I is an improved traffic-calmed crossing.">
+                    <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">FR</label>
+                    <Select value={qaFreeRight} onValueChange={setQaFreeRight}>
+                      <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">None</SelectItem>
+                        <SelectItem value="1">FR</SelectItem>
+                        <SelectItem value="2">FR-P</SelectItem>
+                        <SelectItem value="3">FR-P-I</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col w-16" title="Number of free-right lanes">
+                    <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">FR Lanes</label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="9"
+                      value={qaFreeRightLanes}
+                      onChange={(e) => setQaFreeRightLanes(e.target.value)}
+                      disabled={qaFreeRight === "0"}
+                      className="h-8 text-sm disabled:opacity-50"
+                    />
+                  </div>
+                  <Button onClick={handleQuickAddApproach} className="h-8 px-3 bg-primary-600 hover:bg-primary-700">
+                    <Plus className="w-3 h-3 mr-1" />Add
+                  </Button>
+                </div>
+                <p className="text-[11px] text-grey-500 mt-2">Tip: click the map above to fill <span className="font-medium">Bearing</span> from the click location.</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {showBulkApproachModal ? (
+            <BulkApproachModal
+              inline
+              onClose={() => {
+                setShowBulkApproachModal(false);
+                const updatedApproaches = approaches.filter(a => a.signalId === signalId);
+                setSignalApproaches(updatedApproaches);
+              }}
+              preSelectedSignalId={signalId || ""}
+            />
+          ) : (
+            <Card>
+              <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-semibold text-grey-800 flex items-center space-x-2">
+                    <Navigation className="w-4 h-4 text-primary-600" />
+                    <span>Approaches ({signalApproaches.length})</span>
+                  </CardTitle>
+                  <Button
+                    onClick={() => {
+                      if (isNewSignal) {
+                        toast({
+                          title: "Save Signal First",
+                          description: "Please save the signal information before adding approaches",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      setShowBulkApproachModal(true);
+                    }}
+                    className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Bulk Add
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {isNewSignal ? (
+                  <div className="p-6 text-center text-grey-500 text-sm">
+                    Save the signal first to add approaches.
+                  </div>
+                ) : signalApproaches.length === 0 ? (
+                  <div className="p-6 text-center text-grey-500 text-sm">
+                    <p>No approaches configured.</p>
+                    <p className="text-xs text-grey-400 mt-1">Define approach directions and street names for this intersection.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow className="bg-grey-50 border-b border-grey-200 sticky top-0">
-                          <TableHead className="font-medium py-1 px-2" style={{ fontSize: '11px' }}>Channel</TableHead>
-                          <TableHead className="font-medium py-1 px-2" style={{ fontSize: '11px' }}>Phase</TableHead>
-                          <TableHead className="font-medium py-1 px-2" style={{ fontSize: '11px' }}>Status</TableHead>
+                        <TableRow className="bg-grey-50 border-b border-grey-200">
+                          <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Approach ID</TableHead>
+                          <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Street Name</TableHead>
+                          <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Bearing</TableHead>
+                          <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Posted Speed</TableHead>
+                          <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }} title="Free Right — right-turn slip lane bypassing the signal">FR</TableHead>
+                          <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }} title="Number of free-right lanes">FR Lanes</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {parsed.map((r, idx) => {
-                          const phaseConfigured = phasesByNumber.has(r.phase);
-                          const willAdd = r.willSave && phaseConfigured;
-                          return (
-                            <TableRow key={idx} className={willAdd ? "" : "opacity-60"}>
-                              <TableCell className="py-1 px-2 font-mono" style={{ fontSize: '11px' }}>{r.channel}</TableCell>
-                              <TableCell className="py-1 px-2 font-mono" style={{ fontSize: '11px' }}>{r.phase}</TableCell>
-                              <TableCell className="py-1 px-2" style={{ fontSize: '11px' }}>
-                                {willAdd ? (
-                                  <span className="text-green-700">Will add</span>
-                                ) : !r.willSave ? (
-                                  <span className="text-grey-500">Skipped — phase 0</span>
-                                ) : (
-                                  <span className="text-amber-700">Skipped — phase {r.phase} not on this signal</span>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
+                        {signalApproaches.map((approach) => (
+                          <TableRow key={approach.id} className="hover:bg-grey-50">
+                            <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>{approach.approachId}</TableCell>
+                            <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.streetName || '-'}</TableCell>
+                            <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.compassBearing != null ? `${approach.compassBearing}°` : '-'}</TableCell>
+                            <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.postedSpeed ? `${approach.postedSpeed} mph` : '-'}</TableCell>
+                            <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.freeRight === 3 ? 'FR-P-I' : approach.freeRight === 2 ? 'FR-P' : approach.freeRight ? 'FR' : '-'}</TableCell>
+                            <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{approach.freeRight ? (approach.freeRightLanes ?? 1) : '-'}</TableCell>
+                          </TableRow>
+                        ))}
                       </TableBody>
                     </Table>
                   </div>
-                </div>
-              );
-            })()}
-            <div className="flex justify-end gap-2 pt-1">
-              <Button
-                variant="outline"
-                onClick={() => { setShowDetectorPaste(false); setDetectorPasteText(""); }}
-                className="h-8 px-3 text-xs"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleDetectorPasteSave}
-                disabled={!detectorPasteText.trim()}
-                className="h-8 px-3 text-xs bg-primary-600 hover:bg-primary-700"
-              >
-                <Plus className="w-3 h-3 mr-1" />
-                Add Detectors
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-      <Card>
-        <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold text-grey-800 flex items-center space-x-2">
-              <Navigation className="w-4 h-4 text-primary-600" />
-              <span>Detection Equipment ({signalDetectors.length})</span>
-            </CardTitle>
-            <div className="flex items-center gap-1">
-              <Button
-                onClick={() => {
-                  if (isNewSignal) {
-                    toast({
-                      title: "Save Signal First",
-                      description: "Please save the signal information before adding detectors",
-                      variant: "destructive",
-                    });
-                    return;
-                  }
-                  setShowBulkDetectorModal(true);
-                }}
-                className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
-                disabled={signalPhases.length === 0}
-              >
-                <Plus className="w-3 h-3 mr-1" />
-                Add Detectors
-              </Button>
-              <Button
-                onClick={() => {
-                  if (isNewSignal) {
-                    toast({
-                      title: "Save Signal First",
-                      description: "Please save the signal information before adding detectors",
-                      variant: "destructive",
-                    });
-                    return;
-                  }
-                  setShowDetectorPaste(true);
-                }}
-                variant="outline"
-                className="h-7 px-2 text-xs"
-                disabled={signalPhases.length === 0}
-                title="Paste a Detector → Phase table"
-              >
-                <Plus className="w-3 h-3 mr-1" />
-                Bulk Add
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {isNewSignal ? (
-            <div className="p-6 text-center text-grey-500 text-sm">
-              Save the signal first to add detectors.
-            </div>
-          ) : signalPhases.length === 0 ? (
-            <div className="p-6 text-center">
-              <p className="text-sm text-warning-700 bg-warning-50 border border-warning-200 rounded-md p-3">
-                Phases are required before adding detectors. Add phases above first.
-              </p>
-            </div>
-          ) : signalDetectors.length === 0 ? (
-            <div className="p-6 text-center text-grey-500 text-sm">
-              <p>No detectors configured.</p>
-              <p className="text-xs text-grey-400 mt-1">Define detection equipment (loops, video, radar) assigned to each phase.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-grey-50 border-b border-grey-200">
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Channel</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Phase</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Purpose</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Technology</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {signalDetectors.map((detector) => (
-                    <TableRow
-                      key={detector.id}
-                      className="hover:bg-grey-50 cursor-pointer transition-colors"
-                      onClick={() => handleDetectorEdit(detector)}
-                    >
-                      <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>{detector.channel}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{detector.phase}</TableCell>
-                      <TableCell
-                        className="py-1 px-1.5"
-                        style={{ fontSize: '12px' }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Select
-                          value={detector.purpose || ""}
-                          onValueChange={(v) => handleDetectorFieldChange(detector.id, "purpose", v)}
-                        >
-                          <SelectTrigger className="h-7 text-xs">
-                            <SelectValue placeholder="—" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {DETECTOR_PURPOSE_OPTIONS.map((opt) => (
-                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell
-                        className="py-1 px-1.5"
-                        style={{ fontSize: '12px' }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Select
-                          value={detector.technologyType || ""}
-                          onValueChange={(v) => handleDetectorFieldChange(detector.id, "technologyType", v)}
-                        >
-                          <SelectTrigger className="h-7 text-xs">
-                            <SelectValue placeholder="—" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {DETECTOR_TECHNOLOGY_OPTIONS.map((opt) => (
-                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="py-1 px-1.5">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDetectorDelete(detector);
-                          }}
-                          className="h-5 w-5 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-2.5 h-2.5" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                )}
+              </CardContent>
+            </Card>
           )}
-        </CardContent>
-      </Card>
-      )}
+        </TabsContent>
+
+        <TabsContent value="phases" className="mt-3 space-y-3">
+          {/* Quick-Add Phase — rapid input directly below the map */}
+          {!isNewSignal && !showBulkPhaseModal && (
+            <Card>
+              <CardContent className="p-3">
+                <div className="flex gap-2 items-end flex-wrap">
+                  <div className="flex flex-col w-16">
+                    <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Phase *</label>
+                    <Input type="number" min="1" max="8" value={qpPhase} onChange={(e) => setQpPhase(e.target.value)} className="h-8 text-sm" />
+                  </div>
+                  <div className="flex flex-col flex-1 min-w-[160px]">
+                    <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Movement *</label>
+                    <Select value={qpMovementType} onValueChange={setQpMovementType}>
+                      <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Through">Through (T)</SelectItem>
+                        <SelectItem value="Left Turn">Left Turn (L)</SelectItem>
+                        <SelectItem value="Left Protected-Permissive">Left Protected-Permissive (LPP)</SelectItem>
+                        <SelectItem value="Right Turn">Right Turn (R)</SelectItem>
+                        <SelectItem value="Through-Right">Through-Right (TR)</SelectItem>
+                        <SelectItem value="Left Through Shared">Left Through Shared (LT)</SelectItem>
+                        <SelectItem value="Permissive Phase">Permissive (TL)</SelectItem>
+                        <SelectItem value="Flashing Yellow Arrow">Flashing Yellow Arrow</SelectItem>
+                        <SelectItem value="U-Turn">U-Turn</SelectItem>
+                        <SelectItem value="Pedestrian">Pedestrian</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col flex-1 min-w-[160px]">
+                    <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Approach</label>
+                    <Select value={qpApproachId} onValueChange={setQpApproachId}>
+                      <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select approach" /></SelectTrigger>
+                      <SelectContent>
+                        {signalApproaches.map((a) => (
+                          <SelectItem key={a.approachId} value={a.approachId}>
+                            {a.approachId} — {a.streetName || "(no name)"} {a.compassBearing != null ? `(${a.compassBearing}°)` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col w-20">
+                    <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500 mb-1">Lanes</label>
+                    <Input type="number" min="1" max="8" value={qpLanes} onChange={(e) => setQpLanes(e.target.value)} className="h-8 text-sm" />
+                  </div>
+                  <Button onClick={handleQuickAddPhase} className="h-8 px-3 bg-primary-600 hover:bg-primary-700" disabled={signalApproaches.length === 0}>
+                    <Plus className="w-3 h-3 mr-1" />Add
+                  </Button>
+                </div>
+                {signalApproaches.length === 0 && (
+                  <p className="text-[11px] text-amber-700 mt-2">Add approaches first — phases need an approach to attach to.</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {showBulkPhaseModal ? (
+            <BulkPhaseModal
+              inline
+              onClose={() => {
+                setShowBulkPhaseModal(false);
+                const updatedPhases = phases.filter(p => p.signalId === signalId);
+                setSignalPhases(updatedPhases);
+              }}
+              preSelectedSignalId={signalId || ""}
+            />
+          ) : (
+            <Card>
+              <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-semibold text-grey-800 flex items-center space-x-2">
+                    <Settings className="w-4 h-4 text-primary-600" />
+                    <span>Signal Phases ({signalPhases.length})</span>
+                  </CardTitle>
+                  <div className="flex space-x-1">
+                    <Button
+                      onClick={() => {
+                        if (isNewSignal) {
+                          toast({
+                            title: "Save Signal First",
+                            description: "Please save the signal information before adding phases",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        setShowBulkPhaseModal(true);
+                      }}
+                      className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Bulk Add
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {isNewSignal ? (
+                  <div className="p-6 text-center text-grey-500 text-sm">
+                    Save the signal first to add phases.
+                  </div>
+                ) : signalPhases.length === 0 ? (
+                  <div className="p-6 text-center text-grey-500 text-sm">
+                    <p>No phases configured.</p>
+                    <p className="text-xs text-grey-400 mt-1">Add approaches first, then define movement phases for each direction. Phases are required before adding detectors or timings.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-grey-50 border-b border-grey-200">
+                          <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Phase</TableHead>
+                          <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Movement</TableHead>
+                          <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Approach</TableHead>
+                          <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Lanes</TableHead>
+                          <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {signalPhases.map((phase) => (
+                          <TableRow
+                            key={phase.id}
+                            className="hover:bg-grey-50 cursor-pointer transition-colors"
+                            onClick={() => handlePhaseEdit(phase)}
+                          >
+                            <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>{phase.phase}</TableCell>
+                            <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{phase.movementType}</TableCell>
+                            <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>
+                              {phase.approachId || '-'}
+                            </TableCell>
+                            <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{phase.numOfLanes}</TableCell>
+                            <TableCell className="py-1 px-1.5">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePhaseDelete(phase);
+                                }}
+                                className="h-5 w-5 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-2.5 h-2.5" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="detection" className="mt-3">
+          {showBulkDetectorModal ? (
+            <BulkDetectorModal
+              inline
+              onClose={() => {
+                setShowBulkDetectorModal(false);
+                const updatedDetectors = detectors.filter(d => d.signalId === signalId);
+                setSignalDetectors(updatedDetectors);
+              }}
+              preSelectedSignalId={signalId || ""}
+            />
+          ) : showDetectorPaste ? (
+            <Card>
+              <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-semibold text-grey-800 flex items-center space-x-2">
+                    <Navigation className="w-4 h-4 text-primary-600" />
+                    <span>Paste Detector → Phase Mapping</span>
+                  </CardTitle>
+                  <Button
+                    variant="outline"
+                    onClick={() => { setShowDetectorPaste(false); setDetectorPasteText(""); }}
+                    className="h-7 px-2 text-xs"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 space-y-3">
+                <div className="text-xs text-grey-600">
+                  <p>Paste a two-column table where each row is <span className="font-mono">Det&nbsp;&lt;name&gt;</span> &lt;tab&gt; <span className="font-mono">&lt;phase&nbsp;number&gt;</span>. The header row is skipped, the <span className="font-mono">Det</span> prefix is stripped from the channel, and rows with phase <span className="font-mono">0</span> (or whose phase isn&apos;t configured on this signal) are skipped too. Set the defaults below and apply them to every detector created from this paste.</p>
+                </div>
+
+                {/* Defaults that get applied to every detector created here */}
+                <div className="grid grid-cols-2 gap-3 p-3 bg-grey-50 border border-grey-200 rounded-md">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500">Default Purpose</label>
+                    <Select value={pasteDefaultPurpose} onValueChange={setPasteDefaultPurpose}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {DETECTOR_PURPOSE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] uppercase tracking-wide font-medium text-grey-500">Default Technology</label>
+                    <Select value={pasteDefaultTechnology} onValueChange={setPasteDefaultTechnology}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {DETECTOR_TECHNOLOGY_OPTIONS.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <textarea
+                  value={detectorPasteText}
+                  onChange={(e) => setDetectorPasteText(e.target.value)}
+                  placeholder={"Det\tCall Phase\nDet 1\t1\nDet 2\t2\nDet 3\t3"}
+                  className="w-full h-44 font-mono text-xs p-2 border border-grey-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  spellCheck={false}
+                  aria-label="Paste detector-to-phase table here"
+                />
+                {detectorPasteText.trim() && (() => {
+                  const parsed = parseDetectorPaste(detectorPasteText);
+                  const phasesByNumber = new Set(signalPhases.map(p => p.phase));
+                  const willSaveCount = parsed.filter(r => r.willSave && phasesByNumber.has(r.phase)).length;
+                  const skipPhase0 = parsed.filter(r => !r.willSave).length;
+                  const skipMissingPhase = parsed.filter(r => r.willSave && !phasesByNumber.has(r.phase)).length;
+                  return (
+                    <div className="border border-grey-200 rounded-md">
+                      <div className="flex items-center justify-between px-3 py-1.5 bg-grey-50 border-b border-grey-200 text-xs">
+                        <span className="font-medium text-grey-700">Preview ({parsed.length} row{parsed.length !== 1 ? "s" : ""})</span>
+                        <span className="text-grey-600">
+                          <span className="text-primary-700 font-medium">{willSaveCount}</span> will be added
+                          {skipPhase0 > 0 && <span className="text-grey-500">, {skipPhase0} skipped (phase 0)</span>}
+                          {skipMissingPhase > 0 && <span className="text-amber-700">, {skipMissingPhase} skipped (phase not configured)</span>}
+                        </span>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-grey-50 border-b border-grey-200 sticky top-0">
+                              <TableHead className="font-medium py-1 px-2" style={{ fontSize: '11px' }}>Channel</TableHead>
+                              <TableHead className="font-medium py-1 px-2" style={{ fontSize: '11px' }}>Phase</TableHead>
+                              <TableHead className="font-medium py-1 px-2" style={{ fontSize: '11px' }}>Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {parsed.map((r, idx) => {
+                              const phaseConfigured = phasesByNumber.has(r.phase);
+                              const willAdd = r.willSave && phaseConfigured;
+                              return (
+                                <TableRow key={idx} className={willAdd ? "" : "opacity-60"}>
+                                  <TableCell className="py-1 px-2 font-mono" style={{ fontSize: '11px' }}>{r.channel}</TableCell>
+                                  <TableCell className="py-1 px-2 font-mono" style={{ fontSize: '11px' }}>{r.phase}</TableCell>
+                                  <TableCell className="py-1 px-2" style={{ fontSize: '11px' }}>
+                                    {willAdd ? (
+                                      <span className="text-green-700">Will add</span>
+                                    ) : !r.willSave ? (
+                                      <span className="text-grey-500">Skipped — phase 0</span>
+                                    ) : (
+                                      <span className="text-amber-700">Skipped — phase {r.phase} not on this signal</span>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  );
+                })()}
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button
+                    variant="outline"
+                    onClick={() => { setShowDetectorPaste(false); setDetectorPasteText(""); }}
+                    className="h-8 px-3 text-xs"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleDetectorPasteSave}
+                    disabled={!detectorPasteText.trim()}
+                    className="h-8 px-3 text-xs bg-primary-600 hover:bg-primary-700"
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Add Detectors
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-semibold text-grey-800 flex items-center space-x-2">
+                    <Navigation className="w-4 h-4 text-primary-600" />
+                    <span>Detection Equipment ({signalDetectors.length})</span>
+                  </CardTitle>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      onClick={() => {
+                        if (isNewSignal) {
+                          toast({
+                            title: "Save Signal First",
+                            description: "Please save the signal information before adding detectors",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        setShowBulkDetectorModal(true);
+                      }}
+                      className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
+                      disabled={signalPhases.length === 0}
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Add Detectors
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (isNewSignal) {
+                          toast({
+                            title: "Save Signal First",
+                            description: "Please save the signal information before adding detectors",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        setShowDetectorPaste(true);
+                      }}
+                      variant="outline"
+                      className="h-7 px-2 text-xs"
+                      disabled={signalPhases.length === 0}
+                      title="Paste a Detector → Phase table"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Bulk Add
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {isNewSignal ? (
+                  <div className="p-6 text-center text-grey-500 text-sm">
+                    Save the signal first to add detectors.
+                  </div>
+                ) : signalPhases.length === 0 ? (
+                  <div className="p-6 text-center">
+                    <p className="text-sm text-warning-700 bg-warning-50 border border-warning-200 rounded-md p-3">
+                      Phases are required before adding detectors. Add phases above first.
+                    </p>
+                  </div>
+                ) : signalDetectors.length === 0 ? (
+                  <div className="p-6 text-center text-grey-500 text-sm">
+                    <p>No detectors configured.</p>
+                    <p className="text-xs text-grey-400 mt-1">Define detection equipment (loops, video, radar) assigned to each phase.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-grey-50 border-b border-grey-200">
+                          <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Channel</TableHead>
+                          <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Phase</TableHead>
+                          <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Purpose</TableHead>
+                          <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Technology</TableHead>
+                          <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {signalDetectors.map((detector) => (
+                          <TableRow
+                            key={detector.id}
+                            className="hover:bg-grey-50 cursor-pointer transition-colors"
+                            onClick={() => handleDetectorEdit(detector)}
+                          >
+                            <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>{detector.channel}</TableCell>
+                            <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{detector.phase}</TableCell>
+                            <TableCell
+                              className="py-1 px-1.5"
+                              style={{ fontSize: '12px' }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Select
+                                value={detector.purpose || ""}
+                                onValueChange={(v) => handleDetectorFieldChange(detector.id, "purpose", v)}
+                              >
+                                <SelectTrigger className="h-7 text-xs">
+                                  <SelectValue placeholder="—" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {DETECTOR_PURPOSE_OPTIONS.map((opt) => (
+                                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell
+                              className="py-1 px-1.5"
+                              style={{ fontSize: '12px' }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Select
+                                value={detector.technologyType || ""}
+                                onValueChange={(v) => handleDetectorFieldChange(detector.id, "technologyType", v)}
+                              >
+                                <SelectTrigger className="h-7 text-xs">
+                                  <SelectValue placeholder="—" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {DETECTOR_TECHNOLOGY_OPTIONS.map((opt) => (
+                                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell className="py-1 px-1.5">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDetectorDelete(detector);
+                                }}
+                                className="h-5 w-5 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-2.5 h-2.5" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="timings" className="mt-3 space-y-3">
-      {showTimingImport && !isNewSignal && signalPhases.length > 0 && (
-        <TimingBulkImport
-          signalId={signalId || ""}
-          signalPhases={signalPhases}
-          existingTimings={signalTimings}
-          onClose={() => setShowTimingImport(false)}
-          onImported={() => {
-            const updated = basicTimings.filter(t => t.signalId === signalId);
-            setSignalTimings(updated);
-          }}
-        />
-      )}
-      {/* Basic Timings Section */}
-      <Card>
-        <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold text-grey-800 flex items-center space-x-2">
-              <Settings className="w-4 h-4 text-primary-600" />
-              <span>Basic Timings ({signalTimings.length})</span>
-            </CardTitle>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (isNewSignal) {
-                    toast({ title: "Save Signal First", description: "Please save the signal information before adding timings", variant: "destructive" });
-                    return;
-                  }
-                  if (signalPhases.length === 0) {
-                    toast({ title: "Add Phases First", description: "Please add phases before configuring timings", variant: "destructive" });
-                    return;
-                  }
-                  setShowTimingImport((v) => !v);
-                }}
-                className="h-7 px-2 text-xs"
-                disabled={signalPhases.length === 0}
-              >
-                <Plus className="w-3 h-3 mr-1" />
-                Bulk Import
-              </Button>
-              <Button
-                onClick={() => {
-                  if (isNewSignal) {
-                    toast({
-                      title: "Save Signal First",
-                      description: "Please save the signal information before adding timings",
-                      variant: "destructive",
-                    });
-                    return;
-                  }
-                  if (signalPhases.length === 0) {
-                    toast({
-                      title: "Add Phases First",
-                      description: "Please add phases before configuring timings",
-                      variant: "destructive",
-                    });
-                    return;
-                  }
-                  setShowBasicTimingModal(true);
-                }}
-                className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
-                disabled={signalPhases.length === 0}
-              >
-                <Plus className="w-3 h-3 mr-1" />
-                Add Timing
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {isNewSignal ? (
-            <div className="p-6 text-center text-grey-500 text-sm">
-              Save the signal first to add timings.
-            </div>
-          ) : signalPhases.length === 0 ? (
-            <div className="p-6 text-center">
-              <p className="text-sm text-warning-700 bg-warning-50 border border-warning-200 rounded-md p-3">
-                Phases are required before adding timings. Add phases above first.
-              </p>
-            </div>
-          ) : signalTimings.length === 0 ? (
-            <div className="p-6 text-center text-grey-500 text-sm">
-              <p>No timing data configured.</p>
-              <p className="text-xs text-grey-400 mt-1">Set min/max green, yellow, all-red, walk, and pedestrian clearance for each phase.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-grey-50 border-b border-grey-200">
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Phase</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Min Green</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Max Green</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Yellow</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>All Red</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Walk</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Ped Clr</TableHead>
-                    <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Recall</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {signalTimings.sort((a, b) => a.phase - b.phase).map((timing) => (
-                    <TableRow key={timing.id} className="hover:bg-grey-50">
-                      <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>{timing.phase}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{timing.minGreen ?? '-'}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{timing.maxGreen ?? '-'}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{timing.yellow ?? '-'}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{timing.allRed ?? '-'}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{timing.pedWalk ?? '-'}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{timing.pedClearance ?? '-'}</TableCell>
-                      <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>
-                        {timing.vehRecallType !== 'None' ? timing.vehRecallType : '-'}
-                        {timing.pedRecall ? ' / Ped' : ''}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+          {showTimingImport && !isNewSignal && signalPhases.length > 0 && (
+            <TimingBulkImport
+              signalId={signalId || ""}
+              signalPhases={signalPhases}
+              existingTimings={signalTimings}
+              onClose={() => setShowTimingImport(false)}
+              onImported={() => {
+                const updated = basicTimings.filter(t => t.signalId === signalId);
+                setSignalTimings(updated);
+              }}
+            />
           )}
-        </CardContent>
-      </Card>
+          {/* Basic Timings Section */}
+          <Card>
+            <CardHeader className="bg-grey-50 border-b border-grey-200 px-4 py-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold text-grey-800 flex items-center space-x-2">
+                  <Settings className="w-4 h-4 text-primary-600" />
+                  <span>Basic Timings ({signalTimings.length})</span>
+                </CardTitle>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      if (isNewSignal) {
+                        toast({ title: "Save Signal First", description: "Please save the signal information before adding timings", variant: "destructive" });
+                        return;
+                      }
+                      if (signalPhases.length === 0) {
+                        toast({ title: "Add Phases First", description: "Please add phases before configuring timings", variant: "destructive" });
+                        return;
+                      }
+                      setShowTimingImport((v) => !v);
+                    }}
+                    className="h-7 px-2 text-xs"
+                    disabled={signalPhases.length === 0}
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Bulk Import
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (isNewSignal) {
+                        toast({
+                          title: "Save Signal First",
+                          description: "Please save the signal information before adding timings",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      if (signalPhases.length === 0) {
+                        toast({
+                          title: "Add Phases First",
+                          description: "Please add phases before configuring timings",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      setShowBasicTimingModal(true);
+                    }}
+                    className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
+                    disabled={signalPhases.length === 0}
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Add Timing
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {isNewSignal ? (
+                <div className="p-6 text-center text-grey-500 text-sm">
+                  Save the signal first to add timings.
+                </div>
+              ) : signalPhases.length === 0 ? (
+                <div className="p-6 text-center">
+                  <p className="text-sm text-warning-700 bg-warning-50 border border-warning-200 rounded-md p-3">
+                    Phases are required before adding timings. Add phases above first.
+                  </p>
+                </div>
+              ) : signalTimings.length === 0 ? (
+                <div className="p-6 text-center text-grey-500 text-sm">
+                  <p>No timing data configured.</p>
+                  <p className="text-xs text-grey-400 mt-1">Set min/max green, yellow, all-red, walk, and pedestrian clearance for each phase.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-grey-50 border-b border-grey-200">
+                        <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Phase</TableHead>
+                        <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Min Green</TableHead>
+                        <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Max Green</TableHead>
+                        <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Yellow</TableHead>
+                        <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>All Red</TableHead>
+                        <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Walk</TableHead>
+                        <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Ped Clr</TableHead>
+                        <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: '12px' }}>Recall</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {signalTimings.sort((a, b) => a.phase - b.phase).map((timing) => (
+                        <TableRow key={timing.id} className="hover:bg-grey-50">
+                          <TableCell className="py-1 px-1.5 font-medium" style={{ fontSize: '12px' }}>{timing.phase}</TableCell>
+                          <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{timing.minGreen ?? '-'}</TableCell>
+                          <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{timing.maxGreen ?? '-'}</TableCell>
+                          <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{timing.yellow ?? '-'}</TableCell>
+                          <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{timing.allRed ?? '-'}</TableCell>
+                          <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{timing.pedWalk ?? '-'}</TableCell>
+                          <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>{timing.pedClearance ?? '-'}</TableCell>
+                          <TableCell className="py-1 px-1.5" style={{ fontSize: '12px' }}>
+                            {timing.vehRecallType !== 'None' ? timing.vehRecallType : '-'}
+                            {timing.pedRecall ? ' / Ped' : ''}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
         </TabsContent>
       </Tabs>
@@ -1938,10 +1933,10 @@ export default function SignalDetails() {
                         </Tooltip>
                       </div>
                       <FormControl>
-                        <Input 
-                          {...field} 
-                          type="number" 
-                          min="1" 
+                        <Input
+                          {...field}
+                          type="number"
+                          min="1"
                           max="8"
                           className="h-6 px-2"
                           style={{ fontSize: '12px' }}
@@ -2051,10 +2046,10 @@ export default function SignalDetails() {
                         </Tooltip>
                       </div>
                       <FormControl>
-                        <Input 
-                          {...field} 
-                          type="number" 
-                          min="1" 
+                        <Input
+                          {...field}
+                          type="number"
+                          min="1"
                           max="8"
                           className="h-6 px-2"
                           style={{ fontSize: '12px' }}

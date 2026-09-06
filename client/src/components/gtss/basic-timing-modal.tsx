@@ -1,24 +1,22 @@
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { insertBasicTimingSchema, type InsertBasicTiming, type BasicTiming, type InsertPhase } from "@shared/schema";
-import { useBasicTimings, usePhases } from "@/lib/localStorageHooks";
-import { useGTSSStore } from "@/store/gtss-store";
-import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Trash2, Clock, ClipboardPaste, AlertTriangle, CheckCircle } from "lucide-react";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { getSignalDisplayName } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { useGTSSStore } from "@/store/gtss-store";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertBasicTimingSchema, type BasicTiming, type InsertBasicTiming, type InsertPhase } from "@shared/schema";
+import { getSignalDisplayName, useBasicTimings, usePhases } from "gtss";
+import { AlertTriangle, CheckCircle, ClipboardPaste, Clock, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 
 interface ParsedTimingRow {
   phase: number;
@@ -268,8 +266,8 @@ export default function BasicTimingModal({ timing, onClose, preSelectedSignalId 
       for (const row of gridData) {
         // Check if row has any data
         const hasData = row.minGreen || row.maxGreen || row.yellow || row.allRed ||
-                       row.pedWalk || row.pedClearance || row.lpi ||
-                       row.vehRecall !== "None" || row.pedRecall;
+          row.pedWalk || row.pedClearance || row.lpi ||
+          row.vehRecall !== "None" || row.pedRecall;
 
         if (!hasData) {
           skipped++;
@@ -573,115 +571,115 @@ export default function BasicTimingModal({ timing, onClose, preSelectedSignalId 
                     </TableHeader>
                     <TableBody>
                       {gridData.map((row, index) => (
-                      <TableRow key={row.phase} className={`${index % 2 === 0 ? "bg-white" : "bg-muted/20"} ${selectedForDelete.has(row.phase) ? "bg-red-50" : ""}`}>
-                        <TableCell className="p-1 text-center">
-                          <Checkbox
-                            checked={selectedForDelete.has(row.phase)}
-                            onCheckedChange={() => toggleDeleteSelection(row.phase)}
-                          />
-                        </TableCell>
-                        <TableCell className="text-center font-medium">{row.phase}</TableCell>
-                        <TableCell className="p-1">
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.1"
-                            className="h-8 text-center text-sm"
-                            value={row.minGreen}
-                            onChange={(e) => updateGridCell(index, "minGreen", e.target.value)}
-                            placeholder="-"
-                          />
-                        </TableCell>
-                        <TableCell className="p-1">
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.1"
-                            className="h-8 text-center text-sm"
-                            value={row.maxGreen}
-                            onChange={(e) => updateGridCell(index, "maxGreen", e.target.value)}
-                            placeholder="-"
-                          />
-                        </TableCell>
-                        <TableCell className="p-1">
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.1"
-                            className="h-8 text-center text-sm"
-                            value={row.yellow}
-                            onChange={(e) => updateGridCell(index, "yellow", e.target.value)}
-                            placeholder="-"
-                          />
-                        </TableCell>
-                        <TableCell className="p-1">
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.1"
-                            className="h-8 text-center text-sm"
-                            value={row.allRed}
-                            onChange={(e) => updateGridCell(index, "allRed", e.target.value)}
-                            placeholder="-"
-                          />
-                        </TableCell>
-                        <TableCell className="p-1">
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.1"
-                            className="h-8 text-center text-sm"
-                            value={row.pedWalk}
-                            onChange={(e) => updateGridCell(index, "pedWalk", e.target.value)}
-                            placeholder="-"
-                          />
-                        </TableCell>
-                        <TableCell className="p-1">
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.1"
-                            className="h-8 text-center text-sm"
-                            value={row.pedClearance}
-                            onChange={(e) => updateGridCell(index, "pedClearance", e.target.value)}
-                            placeholder="-"
-                          />
-                        </TableCell>
-                        <TableCell className="p-1">
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.1"
-                            className="h-8 text-center text-sm"
-                            value={row.lpi}
-                            onChange={(e) => updateGridCell(index, "lpi", e.target.value)}
-                            placeholder="-"
-                          />
-                        </TableCell>
-                        <TableCell className="p-1">
-                          <Select
-                            value={row.vehRecall}
-                            onValueChange={(v) => updateGridCell(index, "vehRecall", v)}
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="None">None</SelectItem>
-                              <SelectItem value="Min">Min</SelectItem>
-                              <SelectItem value="Max">Max</SelectItem>
-                              <SelectItem value="Soft">Soft</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell className="p-1 text-center">
-                          <Switch
-                            checked={row.pedRecall}
-                            onCheckedChange={(v) => updateGridCell(index, "pedRecall", v)}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                        <TableRow key={row.phase} className={`${index % 2 === 0 ? "bg-white" : "bg-muted/20"} ${selectedForDelete.has(row.phase) ? "bg-red-50" : ""}`}>
+                          <TableCell className="p-1 text-center">
+                            <Checkbox
+                              checked={selectedForDelete.has(row.phase)}
+                              onCheckedChange={() => toggleDeleteSelection(row.phase)}
+                            />
+                          </TableCell>
+                          <TableCell className="text-center font-medium">{row.phase}</TableCell>
+                          <TableCell className="p-1">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              className="h-8 text-center text-sm"
+                              value={row.minGreen}
+                              onChange={(e) => updateGridCell(index, "minGreen", e.target.value)}
+                              placeholder="-"
+                            />
+                          </TableCell>
+                          <TableCell className="p-1">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              className="h-8 text-center text-sm"
+                              value={row.maxGreen}
+                              onChange={(e) => updateGridCell(index, "maxGreen", e.target.value)}
+                              placeholder="-"
+                            />
+                          </TableCell>
+                          <TableCell className="p-1">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              className="h-8 text-center text-sm"
+                              value={row.yellow}
+                              onChange={(e) => updateGridCell(index, "yellow", e.target.value)}
+                              placeholder="-"
+                            />
+                          </TableCell>
+                          <TableCell className="p-1">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              className="h-8 text-center text-sm"
+                              value={row.allRed}
+                              onChange={(e) => updateGridCell(index, "allRed", e.target.value)}
+                              placeholder="-"
+                            />
+                          </TableCell>
+                          <TableCell className="p-1">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              className="h-8 text-center text-sm"
+                              value={row.pedWalk}
+                              onChange={(e) => updateGridCell(index, "pedWalk", e.target.value)}
+                              placeholder="-"
+                            />
+                          </TableCell>
+                          <TableCell className="p-1">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              className="h-8 text-center text-sm"
+                              value={row.pedClearance}
+                              onChange={(e) => updateGridCell(index, "pedClearance", e.target.value)}
+                              placeholder="-"
+                            />
+                          </TableCell>
+                          <TableCell className="p-1">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              className="h-8 text-center text-sm"
+                              value={row.lpi}
+                              onChange={(e) => updateGridCell(index, "lpi", e.target.value)}
+                              placeholder="-"
+                            />
+                          </TableCell>
+                          <TableCell className="p-1">
+                            <Select
+                              value={row.vehRecall}
+                              onValueChange={(v) => updateGridCell(index, "vehRecall", v)}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="None">None</SelectItem>
+                                <SelectItem value="Min">Min</SelectItem>
+                                <SelectItem value="Max">Max</SelectItem>
+                                <SelectItem value="Soft">Soft</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="p-1 text-center">
+                            <Switch
+                              checked={row.pedRecall}
+                              onCheckedChange={(v) => updateGridCell(index, "pedRecall", v)}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
                     </TableBody>
                   </Table>
                 </div>

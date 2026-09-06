@@ -1,22 +1,21 @@
-import { useState, useMemo, useEffect } from "react";
-import { MapContainer, Marker, Polyline, useMapEvents } from "react-leaflet";
-import MapTileLayers from "@/components/ui/map-tile-layers";
-import L from "leaflet";
-import { useApproaches } from "@/lib/localStorageHooks";
-import { useGTSSStore } from "@/store/gtss-store";
-import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import MapTileLayers from "@/components/ui/map-tile-layers";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Slider } from "@/components/ui/slider";
-import { Plus, Minus, Save, MapPin } from "lucide-react";
-import { getSignalDisplayName, suggestStreetNameForApproach, handleColumnMajorTab } from "@/lib/utils";
-import { StreetNameInput } from "./street-name-input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import { useGTSSStore } from "@/store/gtss-store";
+import { getSignalDisplayName, handleColumnMajorTab, suggestStreetNameForApproach, useApproaches } from "gtss";
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { MapPin, Minus, Plus, Save } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { MapContainer, Marker, Polyline, useMapEvents } from "react-leaflet";
+import { StreetNameInput } from "./street-name-input";
 
 // Fix Leaflet default markers
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -517,323 +516,323 @@ export default function BulkApproachModal({ onClose, preSelectedSignalId, inline
 
   const body = (
     <>
-        <div className="space-y-4">
-          {/* Signal Selector */}
-          <div>
-            <Label className="text-sm font-medium">Signal *</Label>
-            <Select value={selectedSignalId} onValueChange={setSelectedSignalId}>
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select a signal" />
-              </SelectTrigger>
-              <SelectContent>
-                {signals.filter(s => s.latitude && s.longitude).map((signal) => (
-                  <SelectItem key={signal.signalId} value={signal.signalId}>
-                    {getSignalDisplayName(signal, existingApproaches)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {selectedSignal && selectedSignal.latitude && selectedSignal.longitude ? (
-            <>
-              {/* Controls Row */}
-              <div className="flex items-center gap-6 p-3 bg-grey-50 rounded-lg">
-                {/* Number of Approaches */}
-                <div className="flex items-center gap-2">
-                  <Label className="text-sm whitespace-nowrap">Approaches:</Label>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 w-7 p-0"
-                      onClick={() => handleNumApproachesChange(-1)}
-                      disabled={numApproaches <= 1}
-                    >
-                      <Minus className="w-3 h-3" />
-                    </Button>
-                    <Input
-                      type="number"
-                      min="1"
-                      max="16"
-                      value={numApproaches}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value) || 1;
-                        const clamped = Math.max(1, Math.min(16, val));
-                        setNumApproaches(clamped);
-                        if (baseBearing !== null) {
-                          generateApproaches(baseBearing, clamped, angleOffset, true);
-                        }
-                      }}
-                      className="w-12 h-7 text-center text-sm px-1"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 w-7 p-0"
-                      onClick={() => handleNumApproachesChange(1)}
-                      disabled={numApproaches >= 16}
-                    >
-                      <Plus className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Angle Offset */}
-                <div className="flex items-center gap-2 flex-1">
-                  <Label className="text-sm whitespace-nowrap">Rotate All:</Label>
-                  <Slider
-                    value={[angleOffset]}
-                    onValueChange={handleAngleOffsetChange}
-                    min={0}
-                    max={359}
-                    step={1}
-                    className="flex-1"
-                  />
-                  <span className="w-10 text-sm text-right">{angleOffset}°</span>
-                </div>
-              </div>
-
-              {/* Map */}
-              <div className="border border-grey-200 rounded-lg overflow-hidden">
-                <div className="p-2 bg-blue-50 border-b border-blue-200">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-sm text-blue-700">
-                      <MapPin className="w-4 h-4 flex-shrink-0" />
-                      <span>
-                        {clickMode === "oneClick"
-                          ? "1-Click: click the map to snap the nearest approach line to that angle"
-                          : "Click the map to set Approach 1 direction (rotates all approaches)"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={clickMode === "rotateAll" ? "default" : "outline"}
-                        onClick={() => setClickMode("rotateAll")}
-                        className="h-7 px-2 text-xs"
-                      >
-                        Rotate All
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={clickMode === "oneClick" ? "default" : "outline"}
-                        onClick={() => setClickMode("oneClick")}
-                        className="h-7 px-2 text-xs"
-                      >
-                        1-Click
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-                <div className="h-64">
-                  <MapContainer
-                    center={[selectedSignal.latitude, selectedSignal.longitude]}
-                    zoom={17}
-                    scrollWheelZoom={false}
-                    style={{ height: "100%", width: "100%" }}
-                  >
-                    <MapTileLayers />
-                    <MapClickHandler onMapClick={handleMapClick} />
-
-                    {/* Signal marker */}
-                    <Marker position={[selectedSignal.latitude, selectedSignal.longitude]} />
-
-                    {/* Approach direction lines */}
-                    {pendingApproaches.map((approach, idx) => {
-                      const endpoint = getApproachLineEndpoint(
-                        approach.bearing,
-                        selectedSignal.latitude!,
-                        selectedSignal.longitude!
-                      );
-                      return (
-                        <Polyline
-                          key={idx}
-                          positions={[
-                            [selectedSignal.latitude!, selectedSignal.longitude!],
-                            endpoint
-                          ]}
-                          color={approachColors[idx]}
-                          weight={4}
-                          opacity={0.8}
-                        />
-                      );
-                    })}
-                  </MapContainer>
-                </div>
-              </div>
-
-              {/* Approach Details Table */}
-              {pendingApproaches.length > 0 && (
-                <div className="border border-grey-200 rounded-lg overflow-hidden">
-                  {/* Tab / Shift+Tab moves down each column instead of across rows */}
-                  <Table onKeyDown={handleColumnMajorTab}>
-                    <TableHeader>
-                      <TableRow className="bg-grey-50">
-                        <TableHead className="w-12 text-xs"></TableHead>
-                        <TableHead className="w-20 text-xs">ID *</TableHead>
-                        <TableHead className="w-60 text-xs">Angle</TableHead>
-                        <TableHead className="w-48 text-xs">Street Name *</TableHead>
-                        <TableHead className="w-20 text-xs">Speed (mph)</TableHead>
-                        <TableHead className="w-24 text-xs text-center" title="Free Right — right-turn slip lane bypassing the signal. FR-P adds a pedestrian crossing; FR-P-I is an improved traffic-calmed crossing.">FR</TableHead>
-                        <TableHead className="w-16 text-xs text-center" title="Number of free-right lanes">FR Lanes</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {pendingApproaches.map((approach, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell className="py-2">
-                            <div className="flex items-center gap-2">
-                              <div
-                                className="w-3 h-3 rounded-full"
-                                style={{ backgroundColor: approachColors[idx] }}
-                              />
-                              <span className="text-xs text-grey-500">{approach.direction}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-2">
-                            <Input
-                              value={approach.approachId}
-                              onChange={(e) => handleApproachIdChange(idx, e.target.value)}
-                              placeholder="ID"
-                              className="h-8 text-sm w-20"
-                              data-tab-col={0}
-                              data-tab-row={idx}
-                            />
-                          </TableCell>
-                          <TableCell className="py-2">
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="number"
-                                inputMode="numeric"
-                                value={approach.bearing}
-                                onChange={(e) => handleBearingChange(idx, e.target.value)}
-                                className="h-8 text-sm w-16 flex-shrink-0"
-                                title="Enter any number — values are normalized to 0–359° (e.g. 450 → 90, -10 → 350)."
-                                data-tab-col={1}
-                                data-tab-row={idx}
-                              />
-                              <span className="text-xs text-grey-500 flex-shrink-0">°</span>
-                              <Slider
-                                value={[approach.bearing]}
-                                onValueChange={(v) => handleBearingChange(idx, String(v[0]))}
-                                min={0}
-                                max={359}
-                                step={1}
-                                className="flex-1 min-w-0"
-                                aria-label="Approach angle"
-                              />
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-2">
-                            <StreetNameInput
-                              value={approach.streetName}
-                              onChange={(v) => handleStreetNameChange(idx, v)}
-                              suggestions={uniqueStreetNames}
-                              placeholder="Street"
-                              className="h-8 text-sm w-full"
-                              data-tab-col={2}
-                              data-tab-row={idx}
-                            />
-                          </TableCell>
-                          <TableCell className="py-2">
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={approach.postedSpeed || ""}
-                              onChange={(e) => handleSpeedChange(idx, e.target.value)}
-                              placeholder="35"
-                              className="h-8 text-sm w-20"
-                              data-tab-col={3}
-                              data-tab-row={idx}
-                            />
-                          </TableCell>
-                          <TableCell className="py-2">
-                            <Select
-                              value={String(approach.freeRight ?? 0)}
-                              onValueChange={(v) =>
-                                setPendingApproaches(prev => {
-                                  const updated = [...prev];
-                                  updated[idx] = { ...updated[idx], freeRight: parseInt(v, 10) };
-                                  return updated;
-                                })
-                              }
-                            >
-                              <SelectTrigger
-                                className="h-8 text-xs w-24 mx-auto"
-                                data-tab-col={4}
-                                data-tab-row={idx}
-                                title="Free Right — right-turn slip lane bypassing the signal. FR-P adds a pedestrian crossing; FR-P-I is an improved traffic-calmed crossing."
-                              >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="0">None</SelectItem>
-                                <SelectItem value="1">FR</SelectItem>
-                                <SelectItem value="2">FR-P</SelectItem>
-                                <SelectItem value="3">FR-P-I</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell className="py-2">
-                            <Input
-                              type="number"
-                              min="1"
-                              max="9"
-                              value={approach.freeRight ? (approach.freeRightLanes ?? 1) : ""}
-                              disabled={!approach.freeRight}
-                              onChange={(e) =>
-                                setPendingApproaches(prev => {
-                                  const updated = [...prev];
-                                  const n = parseInt(e.target.value, 10);
-                                  updated[idx] = { ...updated[idx], freeRightLanes: Number.isFinite(n) && n >= 1 ? n : 1 };
-                                  return updated;
-                                })
-                              }
-                              className="h-8 text-sm w-14 mx-auto disabled:opacity-50"
-                              data-tab-col={5}
-                              data-tab-row={idx}
-                              title="Number of free-right lanes"
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </>
-          ) : selectedSignalId ? (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-sm text-amber-700">
-                Selected signal does not have coordinates. Please edit the signal to add latitude/longitude first.
-              </p>
-            </div>
-          ) : null}
-
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-2 pt-2 border-t border-grey-200">
-            <Button variant="outline" onClick={onClose} disabled={isProcessing}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveAll}
-              disabled={!selectedSignalId || pendingApproaches.length === 0 || isProcessing}
-              className="bg-primary-600 hover:bg-primary-700"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              {isProcessing
-                ? "Saving..."
-                : isEditMode
-                  ? `Save ${pendingApproaches.length} Approach${pendingApproaches.length !== 1 ? "es" : ""}`
-                  : `Create ${pendingApproaches.length} Approach${pendingApproaches.length !== 1 ? "es" : ""}`
-              }
-            </Button>
-          </div>
+      <div className="space-y-4">
+        {/* Signal Selector */}
+        <div>
+          <Label className="text-sm font-medium">Signal *</Label>
+          <Select value={selectedSignalId} onValueChange={setSelectedSignalId}>
+            <SelectTrigger className="mt-1">
+              <SelectValue placeholder="Select a signal" />
+            </SelectTrigger>
+            <SelectContent>
+              {signals.filter(s => s.latitude && s.longitude).map((signal) => (
+                <SelectItem key={signal.signalId} value={signal.signalId}>
+                  {getSignalDisplayName(signal, existingApproaches)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
+
+        {selectedSignal && selectedSignal.latitude && selectedSignal.longitude ? (
+          <>
+            {/* Controls Row */}
+            <div className="flex items-center gap-6 p-3 bg-grey-50 rounded-lg">
+              {/* Number of Approaches */}
+              <div className="flex items-center gap-2">
+                <Label className="text-sm whitespace-nowrap">Approaches:</Label>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    onClick={() => handleNumApproachesChange(-1)}
+                    disabled={numApproaches <= 1}
+                  >
+                    <Minus className="w-3 h-3" />
+                  </Button>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="16"
+                    value={numApproaches}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 1;
+                      const clamped = Math.max(1, Math.min(16, val));
+                      setNumApproaches(clamped);
+                      if (baseBearing !== null) {
+                        generateApproaches(baseBearing, clamped, angleOffset, true);
+                      }
+                    }}
+                    className="w-12 h-7 text-center text-sm px-1"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    onClick={() => handleNumApproachesChange(1)}
+                    disabled={numApproaches >= 16}
+                  >
+                    <Plus className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Angle Offset */}
+              <div className="flex items-center gap-2 flex-1">
+                <Label className="text-sm whitespace-nowrap">Rotate All:</Label>
+                <Slider
+                  value={[angleOffset]}
+                  onValueChange={handleAngleOffsetChange}
+                  min={0}
+                  max={359}
+                  step={1}
+                  className="flex-1"
+                />
+                <span className="w-10 text-sm text-right">{angleOffset}°</span>
+              </div>
+            </div>
+
+            {/* Map */}
+            <div className="border border-grey-200 rounded-lg overflow-hidden">
+              <div className="p-2 bg-blue-50 border-b border-blue-200">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-sm text-blue-700">
+                    <MapPin className="w-4 h-4 flex-shrink-0" />
+                    <span>
+                      {clickMode === "oneClick"
+                        ? "1-Click: click the map to snap the nearest approach line to that angle"
+                        : "Click the map to set Approach 1 direction (rotates all approaches)"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={clickMode === "rotateAll" ? "default" : "outline"}
+                      onClick={() => setClickMode("rotateAll")}
+                      className="h-7 px-2 text-xs"
+                    >
+                      Rotate All
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={clickMode === "oneClick" ? "default" : "outline"}
+                      onClick={() => setClickMode("oneClick")}
+                      className="h-7 px-2 text-xs"
+                    >
+                      1-Click
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div className="h-64">
+                <MapContainer
+                  center={[selectedSignal.latitude, selectedSignal.longitude]}
+                  zoom={17}
+                  scrollWheelZoom={false}
+                  style={{ height: "100%", width: "100%" }}
+                >
+                  <MapTileLayers />
+                  <MapClickHandler onMapClick={handleMapClick} />
+
+                  {/* Signal marker */}
+                  <Marker position={[selectedSignal.latitude, selectedSignal.longitude]} />
+
+                  {/* Approach direction lines */}
+                  {pendingApproaches.map((approach, idx) => {
+                    const endpoint = getApproachLineEndpoint(
+                      approach.bearing,
+                      selectedSignal.latitude!,
+                      selectedSignal.longitude!
+                    );
+                    return (
+                      <Polyline
+                        key={idx}
+                        positions={[
+                          [selectedSignal.latitude!, selectedSignal.longitude!],
+                          endpoint
+                        ]}
+                        color={approachColors[idx]}
+                        weight={4}
+                        opacity={0.8}
+                      />
+                    );
+                  })}
+                </MapContainer>
+              </div>
+            </div>
+
+            {/* Approach Details Table */}
+            {pendingApproaches.length > 0 && (
+              <div className="border border-grey-200 rounded-lg overflow-hidden">
+                {/* Tab / Shift+Tab moves down each column instead of across rows */}
+                <Table onKeyDown={handleColumnMajorTab}>
+                  <TableHeader>
+                    <TableRow className="bg-grey-50">
+                      <TableHead className="w-12 text-xs"></TableHead>
+                      <TableHead className="w-20 text-xs">ID *</TableHead>
+                      <TableHead className="w-60 text-xs">Angle</TableHead>
+                      <TableHead className="w-48 text-xs">Street Name *</TableHead>
+                      <TableHead className="w-20 text-xs">Speed (mph)</TableHead>
+                      <TableHead className="w-24 text-xs text-center" title="Free Right — right-turn slip lane bypassing the signal. FR-P adds a pedestrian crossing; FR-P-I is an improved traffic-calmed crossing.">FR</TableHead>
+                      <TableHead className="w-16 text-xs text-center" title="Number of free-right lanes">FR Lanes</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingApproaches.map((approach, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="py-2">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: approachColors[idx] }}
+                            />
+                            <span className="text-xs text-grey-500">{approach.direction}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-2">
+                          <Input
+                            value={approach.approachId}
+                            onChange={(e) => handleApproachIdChange(idx, e.target.value)}
+                            placeholder="ID"
+                            className="h-8 text-sm w-20"
+                            data-tab-col={0}
+                            data-tab-row={idx}
+                          />
+                        </TableCell>
+                        <TableCell className="py-2">
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              inputMode="numeric"
+                              value={approach.bearing}
+                              onChange={(e) => handleBearingChange(idx, e.target.value)}
+                              className="h-8 text-sm w-16 flex-shrink-0"
+                              title="Enter any number — values are normalized to 0–359° (e.g. 450 → 90, -10 → 350)."
+                              data-tab-col={1}
+                              data-tab-row={idx}
+                            />
+                            <span className="text-xs text-grey-500 flex-shrink-0">°</span>
+                            <Slider
+                              value={[approach.bearing]}
+                              onValueChange={(v) => handleBearingChange(idx, String(v[0]))}
+                              min={0}
+                              max={359}
+                              step={1}
+                              className="flex-1 min-w-0"
+                              aria-label="Approach angle"
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-2">
+                          <StreetNameInput
+                            value={approach.streetName}
+                            onChange={(v) => handleStreetNameChange(idx, v)}
+                            suggestions={uniqueStreetNames}
+                            placeholder="Street"
+                            className="h-8 text-sm w-full"
+                            data-tab-col={2}
+                            data-tab-row={idx}
+                          />
+                        </TableCell>
+                        <TableCell className="py-2">
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={approach.postedSpeed || ""}
+                            onChange={(e) => handleSpeedChange(idx, e.target.value)}
+                            placeholder="35"
+                            className="h-8 text-sm w-20"
+                            data-tab-col={3}
+                            data-tab-row={idx}
+                          />
+                        </TableCell>
+                        <TableCell className="py-2">
+                          <Select
+                            value={String(approach.freeRight ?? 0)}
+                            onValueChange={(v) =>
+                              setPendingApproaches(prev => {
+                                const updated = [...prev];
+                                updated[idx] = { ...updated[idx], freeRight: parseInt(v, 10) };
+                                return updated;
+                              })
+                            }
+                          >
+                            <SelectTrigger
+                              className="h-8 text-xs w-24 mx-auto"
+                              data-tab-col={4}
+                              data-tab-row={idx}
+                              title="Free Right — right-turn slip lane bypassing the signal. FR-P adds a pedestrian crossing; FR-P-I is an improved traffic-calmed crossing."
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">None</SelectItem>
+                              <SelectItem value="1">FR</SelectItem>
+                              <SelectItem value="2">FR-P</SelectItem>
+                              <SelectItem value="3">FR-P-I</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="py-2">
+                          <Input
+                            type="number"
+                            min="1"
+                            max="9"
+                            value={approach.freeRight ? (approach.freeRightLanes ?? 1) : ""}
+                            disabled={!approach.freeRight}
+                            onChange={(e) =>
+                              setPendingApproaches(prev => {
+                                const updated = [...prev];
+                                const n = parseInt(e.target.value, 10);
+                                updated[idx] = { ...updated[idx], freeRightLanes: Number.isFinite(n) && n >= 1 ? n : 1 };
+                                return updated;
+                              })
+                            }
+                            className="h-8 text-sm w-14 mx-auto disabled:opacity-50"
+                            data-tab-col={5}
+                            data-tab-row={idx}
+                            title="Number of free-right lanes"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </>
+        ) : selectedSignalId ? (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-sm text-amber-700">
+              Selected signal does not have coordinates. Please edit the signal to add latitude/longitude first.
+            </p>
+          </div>
+        ) : null}
+
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-2 pt-2 border-t border-grey-200">
+          <Button variant="outline" onClick={onClose} disabled={isProcessing}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveAll}
+            disabled={!selectedSignalId || pendingApproaches.length === 0 || isProcessing}
+            className="bg-primary-600 hover:bg-primary-700"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {isProcessing
+              ? "Saving..."
+              : isEditMode
+                ? `Save ${pendingApproaches.length} Approach${pendingApproaches.length !== 1 ? "es" : ""}`
+                : `Create ${pendingApproaches.length} Approach${pendingApproaches.length !== 1 ? "es" : ""}`
+            }
+          </Button>
+        </div>
+      </div>
     </>
   );
 

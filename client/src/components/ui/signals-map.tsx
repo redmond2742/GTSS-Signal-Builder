@@ -1,13 +1,13 @@
-import { useEffect, useMemo } from "react";
-import { MapContainer, Marker, Popup, useMap, Polyline } from "react-leaflet";
-import L from "leaflet";
-import { Signal, Approach, Phase } from "@shared/schema";
+import { PhaseDiagram } from "@/components/gtss/phase-diagram-svg";
 import { Button } from "@/components/ui/button";
 import { useGTSSStore } from "@/store/gtss-store";
+import { Approach, Phase, Signal } from "@shared/schema";
+import { getDerivedStreetNames } from "gtss";
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { useEffect, useMemo } from "react";
+import { MapContainer, Marker, Polyline, Popup, useMap } from "react-leaflet";
 import MapTileLayers from "./map-tile-layers";
-import { PhaseDiagram } from "@/components/gtss/phase-diagram-svg";
-import { getDerivedStreetNames } from "@/lib/utils";
 
 // Fix for default markers in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -88,13 +88,13 @@ function MapBounds({ signals }: { signals: Signal[] }) {
     if (signals.length > 0) {
       const validSignals = signals.filter(signal => signal.latitude && signal.longitude);
       if (validSignals.length === 0) return;
-      
+
       const group = new L.FeatureGroup(
-        validSignals.map(signal => 
+        validSignals.map(signal =>
           L.marker([signal.latitude, signal.longitude])
         )
       );
-      
+
       if (validSignals.length === 1) {
         // If only one signal, center on it with reasonable zoom
         map.setView([validSignals[0].latitude, validSignals[0].longitude], 15);
@@ -134,10 +134,10 @@ function SignalPopup({
   const barColor =
     pct === undefined ? ""
       : pct === 100 ? "bg-green-500"
-      : pct >= 75 ? "bg-blue-500"
-      : pct >= 50 ? "bg-amber-500"
-      : pct >= 25 ? "bg-orange-500"
-      : "bg-grey-300";
+        : pct >= 75 ? "bg-blue-500"
+          : pct >= 50 ? "bg-amber-500"
+            : pct >= 25 ? "bg-orange-500"
+              : "bg-grey-300";
   const textColor = pct === 100 ? "text-green-700" : "text-grey-700";
 
   return (
@@ -173,7 +173,7 @@ function SignalPopup({
 
 export default function SignalsMap({ signals, approaches, phases, onSignalSelect, getCompletenessPct, highlightedSignalId, className }: SignalsMapProps) {
   const agency = useGTSSStore((state) => state.agency);
-  
+
   // Use agency coordinates as starting point for map center
   const center: [number, number] = useMemo(() => {
     // First priority: use agency coordinates if available
@@ -199,9 +199,9 @@ export default function SignalsMap({ signals, approaches, phases, onSignalSelect
         key={`map-${signals.length}-${center[0]}-${center[1]}`}
       >
         <MapTileLayers />
-        
+
         <MapBounds signals={signals} />
-        
+
         {signals.filter(signal => signal.latitude && signal.longitude).map((signal) => (
           <Marker
             key={signal.id}

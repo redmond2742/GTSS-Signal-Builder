@@ -1,20 +1,17 @@
-import { useState, useEffect, useRef } from "react";
-import { Phase } from "@shared/schema";
-import { usePhases } from "@/lib/localStorageHooks";
-import { useGTSSStore } from "@/store/gtss-store";
-import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronUp, ChevronDown, AlertTriangle, Trash2, MapPin, Download, Plus } from "lucide-react";
-import SignalsMap from "@/components/ui/signals-map";
 import { Button } from "@/components/ui/button";
-import PhaseModal from "./phase-modal";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import SignalsMap from "@/components/ui/signals-map";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import { useGTSSStore } from "@/store/gtss-store";
+import { Phase } from "@shared/schema";
+import { downloadSvgAsJpg, getSignalDisplayName, phaseDiagramFileName, usePhases } from "gtss";
+import { AlertTriangle, ChevronDown, ChevronUp, Download, MapPin, Plus, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import BulkPhaseModal from "./bulk-phase-modal";
 import PhaseDiagram from "./phase-diagram";
-import { getSignalDisplayName } from "@/lib/utils";
-import { downloadSvgAsJpg, phaseDiagramFileName } from "@/lib/svg-export";
+import PhaseModal from "./phase-modal";
 
 type SortField = 'phase' | 'signalId' | 'movementType' | 'approachId' | 'numOfLanes';
 type SortDirection = 'asc' | 'desc';
@@ -137,18 +134,18 @@ export default function PhasesTable({ triggerAdd, triggerBulk }: PhasesTableProp
   };
 
   const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
-    <TableHead 
+    <TableHead
       className="text-xs font-medium text-grey-500 uppercase tracking-wider cursor-pointer hover:bg-grey-100 transition-colors"
       onClick={() => handleSort(field)}
     >
       <div className="flex items-center justify-between">
         {children}
         <div className="flex flex-col ml-1">
-          <ChevronUp 
-            className={`w-3 h-3 ${sortField === field && sortDirection === 'asc' ? 'text-primary-600' : 'text-grey-300'}`} 
+          <ChevronUp
+            className={`w-3 h-3 ${sortField === field && sortDirection === 'asc' ? 'text-primary-600' : 'text-grey-300'}`}
           />
-          <ChevronDown 
-            className={`w-3 h-3 -mt-1 ${sortField === field && sortDirection === 'desc' ? 'text-primary-600' : 'text-grey-300'}`} 
+          <ChevronDown
+            className={`w-3 h-3 -mt-1 ${sortField === field && sortDirection === 'desc' ? 'text-primary-600' : 'text-grey-300'}`}
           />
         </div>
       </div>

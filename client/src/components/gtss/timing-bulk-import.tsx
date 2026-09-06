@@ -1,12 +1,12 @@
-import { useMemo, useState } from "react";
-import type { BasicTiming, Phase } from "@shared/schema";
-import { useBasicTimings } from "@/lib/localStorageHooks";
-import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import type { BasicTiming, Phase } from "@shared/schema";
+import { useBasicTimings } from "gtss";
 import { Save, X } from "lucide-react";
+import { useMemo, useState } from "react";
 
 // Importable timing fields and how to coerce a pasted cell into a stored value.
 type FieldKind = "phase" | "number" | "recall" | "bool";

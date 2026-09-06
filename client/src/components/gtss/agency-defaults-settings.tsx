@@ -1,21 +1,18 @@
-import { useState, useEffect } from "react";
-import { useAgencyDefaults } from "@/lib/localStorageHooks";
-import { useGTSSStore } from "@/store/gtss-store";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { useGTSSStore } from "@/store/gtss-store";
 import {
   AgencyDefaults,
-  PhaseDirectionStandard,
-  NEMA_DEFAULTS,
   DEFAULT_AGENCY_DEFAULTS,
-  sanitizePhaseDirectionStandard,
-  validatePhaseDirectionStandard,
-} from "@/lib/agencyDefaults";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { RotateCcw, Save, X, Settings, Info } from "lucide-react";
+  NEMA_DEFAULTS,
+  PhaseDirectionStandard,
+  sanitizePhaseDirectionStandard, useAgencyDefaults, validatePhaseDirectionStandard
+} from "gtss";
+import { Info, RotateCcw, Save, Settings, X } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const DIRECTIONS = [
   { key: 'N' as const, label: 'Northbound', abbr: 'NB' },
@@ -301,11 +298,10 @@ export default function AgencyDefaultsSettings() {
                 variant={defaultPhaseCount === count ? "default" : "outline"}
                 size="sm"
                 onClick={() => handlePhaseCountChange(count)}
-                className={`h-9 w-12 text-sm font-semibold ${
-                  defaultPhaseCount === count
-                    ? "bg-primary-600 hover:bg-primary-700 text-white"
-                    : "border-grey-200 text-grey-700 hover:bg-grey-100"
-                }`}
+                className={`h-9 w-12 text-sm font-semibold ${defaultPhaseCount === count
+                  ? "bg-primary-600 hover:bg-primary-700 text-white"
+                  : "border-grey-200 text-grey-700 hover:bg-grey-100"
+                  }`}
               >
                 {count}
               </Button>

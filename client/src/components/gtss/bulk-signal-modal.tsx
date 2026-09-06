@@ -1,16 +1,16 @@
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import MapTileLayers from "@/components/ui/map-tile-layers";
+import { useToast } from "@/hooks/use-toast";
+import { useGTSSStore } from "@/store/gtss-store";
+import { type InsertSignal } from "@shared/schema";
+import { useSignals } from "gtss";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { MapPin, Save, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { MapContainer, Marker, useMapEvents } from "react-leaflet";
-import L from "leaflet";
-import MapTileLayers from "@/components/ui/map-tile-layers";
-import { insertSignalSchema, type InsertSignal, type Signal } from "@shared/schema";
-import { useSignals } from "@/lib/localStorageHooks";
-import { useGTSSStore } from "@/store/gtss-store";
-import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { X, MapPin, Save, Trash2 } from "lucide-react";
-import "leaflet/dist/leaflet.css";
 
 // Fix Leaflet default markers
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -56,12 +56,12 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
       return [agency.latitude, agency.longitude];
     }
     // Default fallback
-    
+
     if (!agency) return [39.8283, -98.5795]; // Center of US
-    
+
     // Map agency names to common locations for better accuracy
     const agencyName = agency.agencyName.toLowerCase();
-    
+
     // Major city mappings based on agency name patterns
     if (agencyName.includes('new york') || agencyName.includes('nyc')) return [40.7589, -73.9851];
     if (agencyName.includes('los angeles') || agencyName.includes('la ')) return [34.0522, -118.2437];
@@ -82,7 +82,7 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
     if (agencyName.includes('miami')) return [25.7617, -80.1918];
     if (agencyName.includes('orlando')) return [28.5383, -81.3792];
     if (agencyName.includes('tampa')) return [27.9506, -82.4572];
-    
+
     // Fallback to timezone-based coordinates
     const timezoneCoords: Record<string, [number, number]> = {
       "America/New_York": [40.7589, -73.9851],
@@ -93,7 +93,7 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
       "America/Anchorage": [61.2181, -149.9003],
       "Pacific/Honolulu": [21.3099, -157.8581],
     };
-    
+
     return timezoneCoords[agency.agencyTimezone] || [39.8283, -98.5795];
   };
 
@@ -124,7 +124,7 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
     }
 
     setIsProcessing(true);
-    
+
     try {
       const signalsToCreate: InsertSignal[] = pendingSignals.map((signal, index) => ({
         signalId: "", // Will be auto-generated
@@ -141,9 +141,9 @@ export default function BulkSignalModal({ onClose }: BulkSignalModalProps) {
         const created = signalHooks.save(signalData);
         // addSignal is already called in the hook, no need to call it again
       }
-      
 
-      
+
+
       onClose();
     } catch (error) {
       toast({

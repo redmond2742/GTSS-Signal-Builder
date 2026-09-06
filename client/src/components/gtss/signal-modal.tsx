@@ -1,19 +1,16 @@
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { insertSignalSchema, type InsertSignal, type Signal } from "@shared/schema";
-import { useSignals } from "@/lib/localStorageHooks";
-import { useGTSSStore } from "@/store/gtss-store";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MapPicker } from "@/components/ui/map";
-import { X, MapPin, Edit3, Trash2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useGTSSStore } from "@/store/gtss-store";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertSignalSchema, type InsertSignal, type Signal } from "@shared/schema";
+import { useSignals } from "gtss";
+import { MapPin, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 
 interface SignalModalProps {
   signal: Signal | null;
@@ -110,7 +107,7 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
             {signal ? "Edit Signal Location" : "Add Signal Location"}
           </DialogTitle>
         </DialogHeader>
-        
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -174,7 +171,7 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
             {/* Location Selection Section */}
             <div className="col-span-2 space-y-4">
               <h3 className="text-lg font-medium text-grey-800 border-b border-grey-200 pb-2">Intersection Location</h3>
-              
+
               <div className="w-full">
                 <div className="flex items-center gap-2 mb-3">
                   <MapPin className="w-4 h-4 text-blue-600" />
@@ -195,7 +192,7 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
                     className="w-full"
                   />
 
-                  
+
                   {/* Editable coordinate fields */}
                   <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-lg border mt-3">
                     <FormField
@@ -247,9 +244,9 @@ export default function SignalModal({ signal, onClose }: SignalModalProps) {
             <div className="flex justify-between space-x-3 pt-4 border-t">
               <div>
                 {signal && (
-                  <Button 
-                    type="button" 
-                    variant="destructive" 
+                  <Button
+                    type="button"
+                    variant="destructive"
                     onClick={() => {
                       if (confirm("Are you sure you want to delete this signal? This action cannot be undone.")) {
                         signalHooks.delete(signal.signalId);

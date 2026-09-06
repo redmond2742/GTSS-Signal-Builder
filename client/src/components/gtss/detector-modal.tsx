@@ -1,20 +1,18 @@
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { insertDetectorSchema, type InsertDetector, type Detector } from "@shared/schema";
-import { useDetectors } from "@/lib/localStorageHooks";
-import { useGTSSStore } from "@/store/gtss-store";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { MapContainer, Marker, Popup } from "react-leaflet";
-import { X, MapPin, Target, Trash2 } from "lucide-react";
-import { getSignalDisplayName } from "@/lib/utils";
 import MapTileLayers from "@/components/ui/map-tile-layers";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { useGTSSStore } from "@/store/gtss-store";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertDetectorSchema, type Detector, type InsertDetector } from "@shared/schema";
+import { getSignalDisplayName, useDetectors } from "gtss";
+import { MapPin, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { MapContainer, Marker, Popup } from "react-leaflet";
 // Removed image import for simplified interface
 
 const compassDirections = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -136,7 +134,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
   const handleZoneClick = (zone: 'stopbar' | 'advance' | 'count', event: React.MouseEvent) => {
     event.preventDefault();
     setSelectedZone(zone);
-    
+
     // Auto-configure detector based on zone
     if (zone === 'stopbar') {
       form.setValue('purpose', 'Stop Bar');
@@ -166,7 +164,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
       } else {
         detectorHooks.save(data);
         toast({
-          title: "Success", 
+          title: "Success",
           description: "Detector created successfully",
         });
         const nextChannel = incrementLastNumber(data.channel);
@@ -251,7 +249,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
             {detector ? "Edit Detector" : "Add Detector"}
           </DialogTitle>
         </DialogHeader>
-        
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Signal ID Selection */}
@@ -262,11 +260,11 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-lg font-medium">Select Signal *</FormLabel>
-                    <Select 
+                    <Select
                       onValueChange={(value) => {
                         field.onChange(value);
                         handleSignalChange(value);
-                      }} 
+                      }}
                       defaultValue={field.value}
                     >
                       <FormControl>
@@ -308,14 +306,14 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
               {(() => {
                 const selectedSignalId = form.watch("signalId");
                 const signalPhases = selectedSignalId ? phases.filter(p => p.signalId === selectedSignalId).sort((a, b) => a.phase - b.phase) : [];
-                
+
                 // Only show phase field if signal has phases
                 if (!selectedSignalId || signalPhases.length === 0) {
                   return (
                     <div className="p-3 bg-warning-50 border border-warning-200 rounded-md">
                       <p className="text-sm text-warning-700">
-                        {!selectedSignalId 
-                          ? "Please select a signal first to see available phases." 
+                        {!selectedSignalId
+                          ? "Please select a signal first to see available phases."
                           : "No phases configured for this signal. Please add phases before creating detectors."
                         }
                       </p>
@@ -330,8 +328,8 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Phase *</FormLabel>
-                        <Select 
-                          onValueChange={(value) => field.onChange(parseInt(value))} 
+                        <Select
+                          onValueChange={(value) => field.onChange(parseInt(value))}
                           defaultValue={field.value?.toString()}
                         >
                           <FormControl>
@@ -445,10 +443,10 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                   <FormItem>
                     <FormLabel>Lane Number</FormLabel>
                     <FormControl>
-                      <Input 
+                      <Input
                         type="text"
-                        placeholder="e.g., 1-3" 
-                        {...field} 
+                        placeholder="e.g., 1-3"
+                        {...field}
                         disabled={!isSignalSelected}
                         value={field.value || ""}
                       />
@@ -522,9 +520,9 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="Detector description" 
-                        {...field} 
+                      <Input
+                        placeholder="Detector description"
+                        {...field}
                         disabled={!isSignalSelected}
                         value={field.value || ""}
                         onChange={(event) => {
@@ -578,9 +576,9 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
             <div className="flex justify-between space-x-3 pt-4 border-t border-grey-200">
               <div>
                 {detector && (
-                  <Button 
-                    type="button" 
-                    variant="destructive" 
+                  <Button
+                    type="button"
+                    variant="destructive"
                     onClick={handleDelete}
                     className="flex items-center space-x-2"
                   >
@@ -603,8 +601,8 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                 <Button type="button" variant="outline" onClick={onClose}>
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="bg-primary-600 hover:bg-primary-700"
                   disabled={isLoading}
                 >

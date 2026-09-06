@@ -1,21 +1,19 @@
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { insertAgencySchema, type InsertAgency, type Agency } from "@shared/schema";
-import { agencyStorage } from "@/lib/localStorage";
-import { useGTSSStore } from "@/store/gtss-store";
-import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MapContainer, Marker, useMapEvents } from "react-leaflet";
-import { MapPin, Shuffle, Target, Crosshair } from "lucide-react";
-import L from "leaflet";
 import MapTileLayers from "@/components/ui/map-tile-layers";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { useGTSSStore } from "@/store/gtss-store";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertAgencySchema, type InsertAgency } from "@shared/schema";
+import { agencyStorage } from "gtss";
+import { Crosshair, MapPin } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { MapContainer, Marker, useMapEvents } from "react-leaflet";
 
 // Map picker component for location selection
 function LocationPicker({ onLocationSelect }: { onLocationSelect: (lat: number, lon: number) => void }) {
@@ -97,7 +95,7 @@ export default function AgencyForm() {
         latitude: agency.latitude || undefined,
         longitude: agency.longitude || undefined,
       });
-      
+
       // Set selected location and map center if agency has coordinates
       if (agency.latitude && agency.longitude) {
         setSelectedLocation({
@@ -139,12 +137,12 @@ export default function AgencyForm() {
     };
 
     const stateCode = stateAbbreviations[state] || state.toUpperCase().substring(0, 2);
-    
+
     // Extract city name from agency name
     const words = agencyName.replace(/department|transportation|traffic|signals?|management|dot|city|county/gi, '')
       .trim().split(/\s+/);
     const cityCode = words[0] ? words[0].substring(0, 3).toUpperCase() : 'AGN';
-    
+
     return `${stateCode}_${cityCode}_001`;
   };
 
@@ -233,7 +231,7 @@ export default function AgencyForm() {
                       Select your agency's location. This will be used as the center point for signal maps.
                     </p>
                   </div>
-                  <Button 
+                  <Button
                     type="button"
                     onClick={handleGetUserLocation}
                     disabled={isGeocodingUserLocation}
@@ -255,9 +253,9 @@ export default function AgencyForm() {
                     key={`agency-map-${mapCenter[0]}-${mapCenter[1]}`}
                   >
                     <MapTileLayers />
-                    
+
                     <LocationPicker onLocationSelect={handleLocationClick} />
-                    
+
                     {selectedLocation && (
                       <Marker position={[selectedLocation.lat, selectedLocation.lon]} />
                     )}
@@ -271,7 +269,7 @@ export default function AgencyForm() {
                         <div>
                           <div className="font-medium text-green-800 text-sm">Selected Location</div>
                           <div className="text-xs text-green-700">
-                            {selectedLocation.city && selectedLocation.state 
+                            {selectedLocation.city && selectedLocation.state
                               ? `${selectedLocation.city}, ${selectedLocation.state}`
                               : selectedLocation.displayName
                             }
@@ -292,103 +290,103 @@ export default function AgencyForm() {
 
               {/* Agency Information Fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="agencyId"
-                render={({ field }) => (
-                  <FormItem className="space-y-1">
-                    <FormLabel className="text-xs font-medium">
-                      Agency ID <span className="text-red-500">*</span>
-                    </FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., TM_001" className="h-7 px-2 text-xs" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-                    <FormField
-                      control={form.control}
-                      name="agencyName"
-                      render={({ field }) => (
-                        <FormItem className="space-y-1">
-                          <FormLabel className="text-xs font-medium">
-                            Agency Name <span className="text-red-500">*</span>
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="e.g., Los Angeles Department of Transportation"
-                              className="h-7 px-2 text-xs"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-              <FormField
-                control={form.control}
-                name="agencyUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Agency URL</FormLabel>
-                    <FormControl>
-                      <Input type="url" placeholder="https://agency-website.com" {...field} value={field.value || ""} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="agencyTimezone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      Timezone <span className="text-red-500">*</span>
-                    </FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                <FormField
+                  control={form.control}
+                  name="agencyId"
+                  render={({ field }) => (
+                    <FormItem className="space-y-1">
+                      <FormLabel className="text-xs font-medium">
+                        Agency ID <span className="text-red-500">*</span>
+                      </FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select timezone" />
-                        </SelectTrigger>
+                        <Input placeholder="e.g., TM_001" className="h-7 px-2 text-xs" {...field} />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="America/New_York">America/New_York</SelectItem>
-                        <SelectItem value="America/Chicago">America/Chicago</SelectItem>
-                        <SelectItem value="America/Denver">America/Denver</SelectItem>
-                        <SelectItem value="America/Los_Angeles">America/Los_Angeles</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="agencyEmail"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Agency Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="agency@domain.com" {...field} value={field.value || ""} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="agencyName"
+                  render={({ field }) => (
+                    <FormItem className="space-y-1">
+                      <FormLabel className="text-xs font-medium">
+                        Agency Name <span className="text-red-500">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="e.g., Los Angeles Department of Transportation"
+                          className="h-7 px-2 text-xs"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="agencyUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Agency URL</FormLabel>
+                      <FormControl>
+                        <Input type="url" placeholder="https://agency-website.com" {...field} value={field.value || ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="agencyTimezone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Timezone <span className="text-red-500">*</span>
+                      </FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select timezone" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="America/New_York">America/New_York</SelectItem>
+                          <SelectItem value="America/Chicago">America/Chicago</SelectItem>
+                          <SelectItem value="America/Denver">America/Denver</SelectItem>
+                          <SelectItem value="America/Los_Angeles">America/Los_Angeles</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="agencyEmail"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Agency Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="agency@domain.com" {...field} value={field.value || ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
 
 
               </div>
 
               <div className="flex justify-end">
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="h-8 px-4 text-xs bg-primary-600 hover:bg-primary-700"
                   disabled={false}
                 >
