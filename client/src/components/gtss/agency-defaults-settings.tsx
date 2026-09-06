@@ -3,13 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { useGTSSStore } from "@/store/gtss-store";
 import {
   AgencyDefaults,
   DEFAULT_AGENCY_DEFAULTS,
   NEMA_DEFAULTS,
   PhaseDirectionStandard,
-  sanitizePhaseDirectionStandard, useAgencyDefaults, validatePhaseDirectionStandard
+  sanitizePhaseDirectionStandard, useAgencyDefaults,
+  useGTSSStore,
+  validatePhaseDirectionStandard
 } from "gtss";
 import { Info, RotateCcw, Save, Settings, X } from "lucide-react";
 import { useEffect, useState } from "react";

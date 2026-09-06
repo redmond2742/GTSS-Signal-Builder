@@ -10,10 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useGTSSStore } from "@/store/gtss-store";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertBasicTimingSchema, type BasicTiming, type InsertBasicTiming, type InsertPhase } from "@shared/schema";
-import { getSignalDisplayName, useBasicTimings, usePhases } from "gtss";
+import { getSignalDisplayName, useBasicTimings, useGTSSStore, usePhases } from "gtss";
 import { AlertTriangle, CheckCircle, ClipboardPaste, Clock, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";

@@ -20,10 +20,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { useGTSSStore } from "@/store/gtss-store";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPhaseSchema, insertSignalSchema, type Approach, type BasicTiming, type Detector, type InsertPhase, type InsertSignal, type Phase, type Signal } from "@shared/schema";
-import { downloadSvgAsJpg, generateAgencyCSV, generateApproachesCSV, generateBasicTimingsCSV, generateDetectionCSV, generatePhasesCSV, generateSignalsCSV, phaseDiagramFileName, suggestStreetNameForApproach, useApproaches, useBasicTimings, useDetectors, usePhases, useSignals } from "gtss";
+import { downloadSvgAsJpg, generateAgencyCSV, generateApproachesCSV, generateBasicTimingsCSV, generateDetectionCSV, generatePhasesCSV, generateSignalsCSV, phaseDiagramFileName, suggestStreetNameForApproach, useApproaches, useBasicTimings, useDetectors, useGTSSStore, usePhases, useSignals } from "gtss";
 import { ArrowLeft, ChevronLeft, ChevronRight, Download, Edit3, FileText, HelpCircle, Lock, MapPin, Navigation, Plus, Settings, Trash2, Unlock } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";

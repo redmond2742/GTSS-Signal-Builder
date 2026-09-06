@@ -4,10 +4,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { MapPicker } from "@/components/ui/map";
 import { useToast } from "@/hooks/use-toast";
-import { useGTSSStore } from "@/store/gtss-store";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertSignalSchema, type InsertSignal, type Signal } from "@shared/schema";
-import { useSignals } from "gtss";
+import { useGTSSStore, useSignals } from "gtss";
 import { MapPin, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";

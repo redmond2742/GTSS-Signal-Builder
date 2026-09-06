@@ -8,8 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { useGTSSStore } from "@/store/gtss-store";
-import { getSignalDisplayName, handleColumnMajorTab, suggestStreetNameForApproach, useApproaches } from "gtss";
+import { getSignalDisplayName, handleColumnMajorTab, suggestStreetNameForApproach, useApproaches, useGTSSStore } from "gtss";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { MapPin, Minus, Plus, Save } from "lucide-react";

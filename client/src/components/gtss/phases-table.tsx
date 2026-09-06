@@ -4,9 +4,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import SignalsMap from "@/components/ui/signals-map";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { useGTSSStore } from "@/store/gtss-store";
 import { Phase } from "@shared/schema";
-import { downloadSvgAsJpg, getSignalDisplayName, phaseDiagramFileName, usePhases } from "gtss";
+import { downloadSvgAsJpg, getSignalDisplayName, phaseDiagramFileName, useGTSSStore, usePhases } from "gtss";
 import { AlertTriangle, ChevronDown, ChevronUp, Download, MapPin, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import BulkPhaseModal from "./bulk-phase-modal";

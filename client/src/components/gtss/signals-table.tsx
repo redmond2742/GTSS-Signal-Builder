@@ -5,9 +5,8 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import SignalsMap from "@/components/ui/signals-map";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { useGTSSStore } from "@/store/gtss-store";
 import { Signal } from "@shared/schema";
-import { getDerivedStreetNames, useSignals } from "gtss";
+import { getDerivedStreetNames, useGTSSStore, useSignals } from "gtss";
 import { ChevronDown, ChevronUp, MapPin, Navigation, Plus, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import BulkSignalModal from "./bulk-signal-modal";

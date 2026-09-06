@@ -2,8 +2,7 @@ import ExportPanel from "@/components/gtss/export-panel";
 import { ImportPanel } from "@/components/gtss/import-panel";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useGTSSStore } from "@/store/gtss-store";
-import { useLoadFromStorage } from "gtss";
+import { useGTSSStore, useLoadFromStorage } from "gtss";
 import { ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
 

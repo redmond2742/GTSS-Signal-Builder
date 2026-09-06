@@ -13,8 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import SignalDetails from "@/pages/signal-details";
-import { useGTSSStore } from "@/store/gtss-store";
-import { clearAllData, cn, useLoadFromStorage } from "gtss";
+import { clearAllData, cn, useGTSSStore, useLoadFromStorage } from "gtss";
 import { ArrowUpDown, Building, Clock, Coffee, Compass, ExternalLink, FolderInput, FolderOutput, HelpCircle, MapPin, Menu, Navigation, Plus, SlidersHorizontal, Target, TrafficCone, Trash2, X } from "lucide-react";
 import { useState } from "react";
 

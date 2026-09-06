@@ -8,8 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useGTSSStore } from "@/store/gtss-store";
-import { evaluateGTSSCompleteness, generateAgencyCSV, generateApproachesCSV, generateBasicTimingsCSV, generateDetectionCSV, generatePhasesCSV, generateSignalsCSV, useExport } from "gtss";
+import { evaluateGTSSCompleteness, generateAgencyCSV, generateApproachesCSV, generateBasicTimingsCSV, generateDetectionCSV, generatePhasesCSV, generateSignalsCSV, useExport, useGTSSStore } from "gtss";
 import { AlertTriangle, CheckCircle, ChevronDown, ChevronRight, Download, Eye, Info, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 

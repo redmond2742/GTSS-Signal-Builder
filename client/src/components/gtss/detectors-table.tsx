@@ -5,9 +5,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import SignalsMap from "@/components/ui/signals-map";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { useGTSSStore } from "@/store/gtss-store";
 import { Detector } from "@shared/schema";
-import { getSignalDisplayName, useDetectors } from "gtss";
+import { getSignalDisplayName, useDetectors, useGTSSStore } from "gtss";
 import { ChevronDown, ChevronUp, Download, MapPin, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import BulkDetectorModal from "./bulk-detector-modal";

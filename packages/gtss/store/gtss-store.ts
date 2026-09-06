@@ -1,6 +1,7 @@
 import { Agency, Approach, BasicTiming, Detector, Phase, Signal } from '@shared/schema';
-import { AgencyDefaults, agencyDefaultsStorage, agencyStorage, approachStorage, basicTimingStorage, detectorStorage, phaseStorage, signalStorage } from 'gtss';
 import { create } from 'zustand';
+import { AgencyDefaults, } from '../agencyDefaults';
+import { agencyDefaultsStorage, agencyStorage, approachStorage, basicTimingStorage, detectorStorage, phaseStorage, signalStorage } from '../localStorage';
 
 interface GTSSStore {
   agency: Agency | null;
