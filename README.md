@@ -346,12 +346,12 @@ gtss-builder/
 │   │   └── App.tsx        # Main application component
 │   └── index.html         # HTML entry point
 ├── server/                # Backend Express server (development only)
-├── shared/                # Shared TypeScript schemas
-│   └── schema.ts          # Drizzle ORM schemas and types
 ├── packages/              # npm packages
-│   ├── gtss/              # gtss package
-│   │   ├── localStorage.ts      # localStorage service
-│   │   └── localStorageHooks.ts # React hooks for localStorage
+│   └── gtss/              # gtss package
+│       ├── localStorage.ts      # localStorage service
+│       ├── localStorageHooks.ts # React hooks for localStorage
+│       └── shared/        # Shared TypeScript schemas
+│           └── schema.ts  # Drizzle ORM schemas and types
 ├── components.json        # shadcn/ui configuration
 ├── tailwind.config.ts     # Tailwind CSS configuration
 ├── vite.config.ts         # Vite build configuration

@@ -34,7 +34,7 @@ The app has a **dual storage architecture**:
 - `packages/gtss/` - Package to be used by other developers
   - `store/gtss-store.ts` - Zustand state management
   - `localStorage.ts` - All localStorage CRUD operations and CSV/TXT export/import functions
-- `shared/schema.ts` - Drizzle ORM schemas defining data types (Agency, Signal, Phase, Detector)
+  - `shared/schema.ts` - Drizzle ORM schemas defining data types (Agency, Signal, Phase, Detector)
 
 ### State Management
 
