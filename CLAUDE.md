@@ -31,7 +31,7 @@ The app has a **dual storage architecture**:
   - `components/ui/` - shadcn/ui base components
   - `pages/gtss-builder.tsx` - Main application view with tab navigation
 - `server/` - Express server (development only, serves Vite in dev mode)
-- `packages/gtss/` - Pacakge to be used by other developers
+- `packages/gtss/` - Package to be used by other developers
   - `store/gtss-store.ts` - Zustand state management
   - `localStorage.ts` - All localStorage CRUD operations and CSV/TXT export/import functions
 - `shared/schema.ts` - Drizzle ORM schemas defining data types (Agency, Signal, Phase, Detector)
