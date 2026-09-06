@@ -1,16 +1,18 @@
 {
-    "name": "gtss",
-    "version": "1.0.0",
-    "main": "./index.ts",
-    "type": "module",
-    "dependencies": {
-        "@tanstack/react-query": "^5.60.5",
-        "clsx": "^2.1.1",
-        "nanoid": "^5.1.5",
-        "react": "^18.3.1",
-        "tailwind-merge": "^2.6.0"
-    },
-    "publishConfig": {
-        "access": "public"
-    }
+  "name": "gtss",
+  "version": "1.0.0",
+  "main": "./index.ts",
+  "type": "module",
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "nanoid": "^5.1.5",
+    "tailwind-merge": "^2.6.0"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.60.5",
+    "react": "^18.3.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }
