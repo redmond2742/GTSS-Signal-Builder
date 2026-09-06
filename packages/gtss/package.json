@@ -1,18 +1,33 @@
 {
-  "name": "gtss",
-  "version": "1.0.0",
-  "main": "./index.ts",
-  "type": "module",
-  "dependencies": {
-    "clsx": "^2.1.1",
-    "nanoid": "^5.1.5",
-    "tailwind-merge": "^2.6.0"
-  },
-  "peerDependencies": {
-    "@tanstack/react-query": "^5.60.5",
-    "react": "^18.3.1"
-  },
-  "publishConfig": {
-    "access": "public"
-  }
+    "name": "gtss",
+    "version": "1.0.0",
+    "type": "module",
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "esbuild index.ts --bundle --format=esm --platform=browser --packages=external --outfile=dist/index.js && tsc -p tsconfig.json",
+        "prepublishOnly": "npm run build"
+    },
+    "dependencies": {
+        "clsx": "^2.1.1",
+        "nanoid": "^5.1.5",
+        "tailwind-merge": "^2.6.0"
+    },
+    "peerDependencies": {
+        "@tanstack/react-query": "^5.60.5",
+        "react": "^18.3.1"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
 }

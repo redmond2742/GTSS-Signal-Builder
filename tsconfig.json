@@ -1,7 +1,7 @@
 {
   "include": [
     "client/src/**/*",
-    "shared/**/*",
+    "packages/gtss/shared/**/*",
     "server/**/*",
     "packages/gtss"
   ],
@@ -37,7 +37,7 @@
         "./client/src/*"
       ],
       "@shared/*": [
-        "./shared/*"
+        "packages/gtss/shared/*"
       ]
     }
   }

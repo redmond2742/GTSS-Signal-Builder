@@ -1,4 +1,4 @@
-import { Signal, Phase, Detector } from "@shared/schema";
+import type { Detector, Phase, Signal } from './shared/schema';
 
 export interface ValidationResult {
   signalId: string;
@@ -21,8 +21,8 @@ export interface ValidationSummary {
 }
 
 export function evaluateGTSSCompleteness(
-  signals: Signal[], 
-  phases: Phase[], 
+  signals: Signal[],
+  phases: Phase[],
   detectors: Detector[]
 ): ValidationSummary {
   const requiredPhaseCount = 8;
@@ -62,8 +62,8 @@ export function evaluateGTSSCompleteness(
   const completeSignals = results.filter(r => r.status === 'complete').length;
   const partialSignals = results.filter(r => r.status === 'partial').length;
   const incompleteSignals = results.filter(r => r.status === 'incomplete').length;
-  
-  const overallCompleteness = signals.length > 0 
+
+  const overallCompleteness = signals.length > 0
     ? Math.round((completeSignals / signals.length) * 100)
     : 0;
 

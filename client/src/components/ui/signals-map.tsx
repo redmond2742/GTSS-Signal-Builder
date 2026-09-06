@@ -1,7 +1,6 @@
 import { PhaseDiagram } from "@/components/gtss/phase-diagram-svg";
 import { Button } from "@/components/ui/button";
-import { Approach, Phase, Signal } from "@shared/schema";
-import { getDerivedStreetNames, useGTSSStore } from "gtss";
+import { Approach, getDerivedStreetNames, Phase, Signal, useGTSSStore } from "gtss";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useMemo } from "react";

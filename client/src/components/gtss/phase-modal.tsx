@@ -7,8 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertPhaseSchema, type InsertPhase, type Phase } from "@shared/schema";
-import { getSignalDisplayName, useGTSSStore, usePhases } from "gtss";
+import { getSignalDisplayName, insertPhaseSchema, useGTSSStore, usePhases, type InsertPhase, type Phase } from "gtss";
 import { Copy, Navigation, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";

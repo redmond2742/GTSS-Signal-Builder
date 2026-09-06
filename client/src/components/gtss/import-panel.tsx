@@ -17,8 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Agency, Approach, BasicTiming, Detector, Phase, Signal } from '@shared/schema';
-import { importData, parseAgencyTXT, parseApproachesTXT, parseBasicTimingsTXT, parseDetectorsTXT, parsePhasesTXT, parseSignalsTXT } from 'gtss';
+import { Agency, Approach, BasicTiming, Detector, importData, parseAgencyTXT, parseApproachesTXT, parseBasicTimingsTXT, parseDetectorsTXT, parsePhasesTXT, parseSignalsTXT, Phase, Signal } from 'gtss';
 import JSZip from 'jszip';
 import { AlertTriangle, CheckCircle, ClipboardPaste, FileText, Upload } from 'lucide-react';
 import { useState } from 'react';

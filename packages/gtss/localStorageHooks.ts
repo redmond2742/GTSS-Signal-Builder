@@ -1,11 +1,3 @@
-import {
-  InsertAgency,
-  InsertApproach,
-  InsertBasicTiming,
-  InsertDetector,
-  InsertPhase,
-  InsertSignal
-} from '@shared/schema';
 import { useEffect } from 'react';
 import { AgencyDefaults } from './agencyDefaults';
 import {
@@ -19,6 +11,14 @@ import {
   phaseStorage,
   signalStorage
 } from './localStorage';
+import {
+  InsertAgency,
+  InsertApproach,
+  InsertBasicTiming,
+  InsertDetector,
+  InsertPhase,
+  InsertSignal
+} from './shared/schema';
 import { useGTSSStore } from './store/gtss-store';
 
 // Custom hooks to replace TanStack Query for localStorage operations

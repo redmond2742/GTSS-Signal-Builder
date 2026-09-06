@@ -1,6 +1,6 @@
-import { Agency, Signal, Phase, Detector, Approach, BasicTiming, InsertAgency, InsertSignal, InsertPhase, InsertDetector, InsertApproach, InsertBasicTiming } from '@shared/schema';
-import { AgencyDefaults, NEMA_DEFAULTS } from './agencyDefaults';
 import { nanoid } from 'nanoid';
+import { AgencyDefaults } from './agencyDefaults';
+import type { Agency, Approach, BasicTiming, Detector, InsertAgency, InsertApproach, InsertBasicTiming, InsertDetector, InsertPhase, InsertSignal, Phase, Signal } from './shared/schema';
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -92,8 +92,8 @@ function isValidInteger(value: string): boolean {
 // Check for prototype pollution attempts
 function hasPrototypePollution(obj: Record<string, unknown>): boolean {
   return Object.prototype.hasOwnProperty.call(obj, '__proto__') ||
-         Object.prototype.hasOwnProperty.call(obj, 'constructor') ||
-         Object.prototype.hasOwnProperty.call(obj, 'prototype');
+    Object.prototype.hasOwnProperty.call(obj, 'constructor') ||
+    Object.prototype.hasOwnProperty.call(obj, 'prototype');
 }
 
 // Helper function to safely parse JSON from localStorage
@@ -1506,7 +1506,7 @@ export function parseBasicTimingsTXT(content: string): BasicTiming[] {
     const allRed = parseOptionalNumber(values[8], 'All red', i + 1);
 
     if (pedWalk === 'error' || pedClearance === 'error' || leadingPedInterval === 'error' ||
-        minGreen === 'error' || maxGreen === 'error' || yellow === 'error' || allRed === 'error') {
+      minGreen === 'error' || maxGreen === 'error' || yellow === 'error' || allRed === 'error') {
       continue;
     }
 
