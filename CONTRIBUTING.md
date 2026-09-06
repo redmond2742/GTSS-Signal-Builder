@@ -24,7 +24,7 @@ Thank you for your interest in contributing to OpenSignal! This document outline
    ```bash
    npm run dev
    ```
-5. Open http://localhost:5000 in your browser
+5. Open http://localhost:5001 in your browser
 
 ## Development Guidelines
 

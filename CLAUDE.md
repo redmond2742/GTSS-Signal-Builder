@@ -9,7 +9,7 @@ GTSS Builder is a web application for configuring traffic signal systems and exp
 ## Build & Development Commands
 
 ```bash
-npm run dev          # Start development server (port 5000)
+npm run dev          # Start development server (port 5001)
 npm run build        # Build for production (outputs to dist/)
 npm run start        # Run production build
 npm run check        # TypeScript type checking

@@ -21,7 +21,7 @@ function createWindow() {
   // In development, load from Vite dev server
   // In production, load from built files
   const startUrl = isDev
-    ? 'http://localhost:5000'
+    ? 'http://localhost:5001'
     : `file://${path.join(__dirname, '../dist/public/index.html')}`;
 
   mainWindow.loadURL(startUrl);
