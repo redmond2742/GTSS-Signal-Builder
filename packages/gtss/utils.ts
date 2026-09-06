@@ -1,7 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import type { KeyboardEvent } from "react";
 import { twMerge } from "tailwind-merge";
-import type { Approach, Signal } from './shared/schema';
+import type { Approach, Signal } from './schema/schema';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))

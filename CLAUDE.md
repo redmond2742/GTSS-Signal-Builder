@@ -34,7 +34,7 @@ The app has a **dual storage architecture**:
 - `packages/gtss/` - Package to be used by other developers
   - `store/gtss-store.ts` - Zustand state management
   - `localStorage.ts` - All localStorage CRUD operations and CSV/TXT export/import functions
-  - `shared/schema.ts` - Drizzle ORM schemas defining data types (Agency, Signal, Phase, Detector)
+  - `schema/schema.ts` - Drizzle ORM schemas defining data types (Agency, Signal, Phase, Detector)
 
 ### State Management
 
@@ -44,7 +44,7 @@ Zustand store (`gtss-store.ts`) manages:
 
 ### Data Models
 
-Four main entities defined in `shared/schema.ts`:
+Four main entities defined in `schema/schema.ts`:
 - **Agency**: Organization info (id, name, timezone, location)
 - **Signal**: Traffic signal locations (signalId, street names, lat/lng)
 - **Phase**: Signal timing phases (phase number, movement type, bearing, overlap flags)
@@ -61,7 +61,7 @@ Data exports as TXT files (CSV format):
 
 ```
 @/     -> client/src/
-@shared/ -> shared/
+@schema/ -> schema/
 @assets/ -> attached_assets/
 ```
 

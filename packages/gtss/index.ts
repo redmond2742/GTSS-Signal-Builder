@@ -3,7 +3,7 @@ export * from "./gtssValidation";
 export * from "./localStorage";
 export * from "./localStorageHooks";
 export * from "./queryClient";
-export * as schema from "./shared/schema";
+
 export * from "./store/gtss-store";
 export * from "./svg-export";
 export * from "./utils";

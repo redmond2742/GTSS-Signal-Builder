@@ -18,7 +18,7 @@ import {
   InsertDetector,
   InsertPhase,
   InsertSignal
-} from './shared/schema';
+} from './schema/schema';
 import { useGTSSStore } from './store/gtss-store';
 
 // Custom hooks to replace TanStack Query for localStorage operations

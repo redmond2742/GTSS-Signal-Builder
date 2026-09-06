@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid';
 import { AgencyDefaults } from './agencyDefaults';
-import type { Agency, Approach, BasicTiming, Detector, InsertAgency, InsertApproach, InsertBasicTiming, InsertDetector, InsertPhase, InsertSignal, Phase, Signal } from './shared/schema';
+import type { Agency, Approach, BasicTiming, Detector, InsertAgency, InsertApproach, InsertBasicTiming, InsertDetector, InsertPhase, InsertSignal, Phase, Signal } from './schema/schema';
 
 // Storage keys
 const STORAGE_KEYS = {

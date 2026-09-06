@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { getSignalDisplayName, insertPhaseSchema, useGTSSStore, usePhases, type InsertPhase, type Phase } from "gtss";
+import { getSignalDisplayName, useGTSSStore, usePhases } from "gtss";
+import { type InsertPhase, insertPhaseSchema, type Phase } from "gtss/schema";
 import { Copy, Navigation, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -30,7 +31,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
       phase: 2,
       signalId: preSelectedSignalId || "",
       movementType: "Through",
-      isPedestrian: true,
+      isPedestrian: 1,
       numOfLanes: 1,
       approachId: undefined,
     },
@@ -45,7 +46,13 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
         phase: phase.phase,
         signalId: phase.signalId,
         movementType: phase.movementType,
-        isPedestrian: phase.isPedestrian ?? phase.movementType === "Through",
+        isPedestrian: typeof phase.isPedestrian === "number"
+          ? phase.isPedestrian
+          : phase.isPedestrian
+            ? 1
+            : phase.movementType === "Through"
+              ? 1
+              : 0,
         numOfLanes: phase.numOfLanes || 1,
         approachId: phase.approachId || undefined,
       });
@@ -54,7 +61,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
 
   useEffect(() => {
     if (!phase && !pedestrianDirty) {
-      form.setValue("isPedestrian", movementType === "Through");
+      form.setValue("isPedestrian", movementType === "Through" ? 1 : 0);
     }
   }, [movementType, pedestrianDirty, phase, form]);
 
@@ -131,7 +138,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
         ...currentData,
         phase: newPhaseNumber,
         movementType: "Left Turn",
-        isPedestrian: false,
+        isPedestrian: 0,
         numOfLanes: 1, // Default to 1 lane as specified
         // Keep same approach reference
       };
@@ -425,8 +432,8 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                       <FormLabel>Pedestrian Phase Enabled</FormLabel>
                       <FormControl>
                         <Switch
-                          checked={field.value || false}
-                          onCheckedChange={field.onChange}
+                          checked={typeof field.value === "number" ? field.value > 0 : Boolean(field.value)}
+                          onCheckedChange={(checked) => field.onChange(checked ? 1 : 0)}
                         />
                       </FormControl>
                       <FormMessage />

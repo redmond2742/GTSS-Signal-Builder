@@ -2,20 +2,21 @@
     "name": "gtss",
     "version": "1.0.0",
     "type": "module",
-    "main": "./dist/index.js",
-    "module": "./dist/index.js",
-    "types": "./dist/index.d.ts",
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
             "import": "./dist/index.js"
+        },
+        "./schema": {
+            "types": "./dist/schema/schema.d.ts",
+            "import": "./dist/schema/schema.js"
         }
     },
     "files": [
         "dist"
     ],
     "scripts": {
-        "build": "esbuild index.ts --bundle --format=esm --platform=browser --packages=external --outfile=dist/index.js && tsc -p tsconfig.json",
+        "build": "esbuild index.ts schema/schema.ts --bundle --format=esm --platform=browser --packages=external --outdir=dist && tsc -p tsconfig.json",
         "prepublishOnly": "npm run build"
     },
     "dependencies": {

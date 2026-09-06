@@ -1,6 +1,6 @@
 import archiver from "archiver";
 import type { Express } from "express";
-import { insertAgencySchema, insertDetectorSchema, insertPhaseSchema, insertSignalSchema } from "gtss";
+import { insertAgencySchema, insertDetectorSchema, insertPhaseSchema, insertSignalSchema } from "gtss/schema";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 

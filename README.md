@@ -350,7 +350,7 @@ gtss-builder/
 │   └── gtss/              # gtss package
 │       ├── localStorage.ts      # localStorage service
 │       ├── localStorageHooks.ts # React hooks for localStorage
-│       └── shared/        # Shared TypeScript schemas
+│       └── schema/        # Shared TypeScript schemas
 │           └── schema.ts  # Drizzle ORM schemas and types
 ├── components.json        # shadcn/ui configuration
 ├── tailwind.config.ts     # Tailwind CSS configuration
