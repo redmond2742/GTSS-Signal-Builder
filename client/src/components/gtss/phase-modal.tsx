@@ -1,19 +1,17 @@
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { insertPhaseSchema, type InsertPhase, type Phase } from "@shared/schema";
-import { usePhases } from "@/lib/localStorageHooks";
-import { useGTSSStore } from "@/store/gtss-store";
-import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Trash2, Copy, Navigation } from "lucide-react";
-import { getSignalDisplayName } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { getSignalDisplayName, useGTSSStore, usePhases } from "gtss";
+import { type InsertPhase, insertPhaseSchema, type Phase } from "gtss/schema";
+import { Copy, Navigation, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 
 interface PhaseModalProps {
   phase: Phase | null;
@@ -33,7 +31,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
       phase: 2,
       signalId: preSelectedSignalId || "",
       movementType: "Through",
-      isPedestrian: true,
+      isPedestrian: 1,
       numOfLanes: 1,
       approachId: undefined,
     },
@@ -48,7 +46,13 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
         phase: phase.phase,
         signalId: phase.signalId,
         movementType: phase.movementType,
-        isPedestrian: phase.isPedestrian ?? phase.movementType === "Through",
+        isPedestrian: typeof phase.isPedestrian === "number"
+          ? phase.isPedestrian
+          : phase.isPedestrian
+            ? 1
+            : phase.movementType === "Through"
+              ? 1
+              : 0,
         numOfLanes: phase.numOfLanes || 1,
         approachId: phase.approachId || undefined,
       });
@@ -57,7 +61,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
 
   useEffect(() => {
     if (!phase && !pedestrianDirty) {
-      form.setValue("isPedestrian", movementType === "Through");
+      form.setValue("isPedestrian", movementType === "Through" ? 1 : 0);
     }
   }, [movementType, pedestrianDirty, phase, form]);
 
@@ -98,7 +102,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
 
   const handleDuplicateToLeftTurn = async () => {
     const currentData = form.getValues();
-    
+
     // Only allow duplication for Through phases
     if (currentData.movementType !== "Through") {
       toast({
@@ -134,18 +138,18 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
         ...currentData,
         phase: newPhaseNumber,
         movementType: "Left Turn",
-        isPedestrian: false,
+        isPedestrian: 0,
         numOfLanes: 1, // Default to 1 lane as specified
         // Keep same approach reference
       };
 
       phaseHooks.save(leftTurnPhase);
-      
+
       toast({
         title: "Success",
         description: `Created left turn phase ${newPhaseNumber} from through phase ${currentData.phase}`,
       });
-      
+
       onClose();
     } catch (error) {
       toast({
@@ -255,7 +259,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
             {phase ? "Edit Phase" : "Add Phase"}
           </DialogTitle>
         </DialogHeader>
-        
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -428,8 +432,8 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                       <FormLabel>Pedestrian Phase Enabled</FormLabel>
                       <FormControl>
                         <Switch
-                          checked={field.value || false}
-                          onCheckedChange={field.onChange}
+                          checked={typeof field.value === "number" ? field.value > 0 : Boolean(field.value)}
+                          onCheckedChange={(checked) => field.onChange(checked ? 1 : 0)}
                         />
                       </FormControl>
                       <FormMessage />
@@ -468,8 +472,8 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                       </span>
                     </Button>
                     {form.watch("movementType") === "Through" && [2, 4, 6, 8].includes(form.watch("phase")) && (
-                      <Button 
-                        type="button" 
+                      <Button
+                        type="button"
                         variant="outline"
                         onClick={handleDuplicateToLeftTurn}
                         disabled={isLoading}
@@ -488,9 +492,9 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
               <div className="flex justify-between space-x-3">
                 <div>
                   {phase && (
-                    <Button 
-                      type="button" 
-                      variant="destructive" 
+                    <Button
+                      type="button"
+                      variant="destructive"
                       onClick={handleDelete}
                       className="flex items-center space-x-2"
                     >
@@ -503,8 +507,8 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                   <Button type="button" variant="outline" onClick={onClose}>
                     Cancel
                   </Button>
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     className="bg-primary-600 hover:bg-primary-700"
                     disabled={isLoading}
                   >

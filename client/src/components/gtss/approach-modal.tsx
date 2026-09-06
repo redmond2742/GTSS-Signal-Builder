@@ -1,20 +1,18 @@
-import { useEffect, useState, useMemo } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { insertApproachSchema, type InsertApproach, type Approach } from "@shared/schema";
-import { useApproaches } from "@/lib/localStorageHooks";
-import { useGTSSStore } from "@/store/gtss-store";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { MapContainer, Marker, Popup, Polyline, useMapEvents } from "react-leaflet";
-import { Trash2, MapPin, Navigation } from "lucide-react";
-import { getSignalDisplayName, suggestStreetNameForApproach } from "@/lib/utils";
-import { StreetNameInput } from "./street-name-input";
 import MapTileLayers from "@/components/ui/map-tile-layers";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { getSignalDisplayName, suggestStreetNameForApproach, useApproaches, useGTSSStore } from "gtss";
+import { type Approach, type InsertApproach, insertApproachSchema } from "gtss/schema";
+import { MapPin, Navigation, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { MapContainer, Marker, Polyline, Popup, useMapEvents } from "react-leaflet";
+import { StreetNameInput } from "./street-name-input";
 
 interface ApproachModalProps {
   approach: Approach | null;

@@ -1,0 +1,38 @@
+{
+    "name": "gtss",
+    "version": "1.0.0",
+    "type": "module",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./schema": {
+            "types": "./dist/schema/schema.d.ts",
+            "import": "./dist/schema/schema.js"
+        }
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "esbuild index.ts schema/schema.ts --bundle --format=esm --platform=browser --packages=external --outdir=dist && tsc -p tsconfig.json",
+        "prepublishOnly": "npm run build"
+    },
+    "dependencies": {
+        "clsx": "^2.1.1",
+        "drizzle-orm": "^0.39.1",
+        "drizzle-zod": "^0.7.0",
+        "nanoid": "^5.1.5",
+        "tailwind-merge": "^2.6.0",
+        "zod": "^3.24.2",
+        "zustand": "^5.0.6"
+    },
+    "peerDependencies": {
+        "@tanstack/react-query": "^5.60.5",
+        "react": "^18.3.1"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}

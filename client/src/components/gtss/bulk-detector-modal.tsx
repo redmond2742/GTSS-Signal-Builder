@@ -1,18 +1,16 @@
-import { useState, useMemo, useEffect, useRef } from "react";
-import { useDetectors } from "@/lib/localStorageHooks";
-import { useGTSSStore } from "@/store/gtss-store";
-import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Switch } from "@/components/ui/switch";
-import { Plus, Save, Trash2, Copy, Lock, Unlock, HelpCircle, AlertTriangle, Download } from "lucide-react";
-import { getSignalDisplayName } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { getSignalDisplayName, useDetectors, useGTSSStore } from "gtss";
+import { AlertTriangle, Copy, Download, HelpCircle, Lock, Plus, Save, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import DetectorDiagram from "./detector-diagram";
 
 // Detector purposes
@@ -608,625 +606,390 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
 
   const body = (
     <>
-        <div className="space-y-4">
-          {!selectedSignalId ? (
-            <div className="p-8 text-center text-grey-500 text-sm">
-              Select a signal to add detectors
-            </div>
-          ) : signalPhases.length === 0 ? (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-sm text-amber-700">
-                This signal has no phases configured. Please add phases first before creating detectors.
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Detector Diagram */}
-              <div className="border border-grey-200 rounded-lg p-3 bg-white">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-grey-700">Detection Layout Preview</span>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <HelpCircle className="w-3 h-3 text-grey-400 cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          <p>Visual representation of detector positions. Stop bar detectors appear near the intersection, advanced detectors further away. Colors indicate technology type.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  {(existingDetectors.length > 0 || pendingDetectors.length > 0) && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleDownloadDiagram}
-                      className="h-7 text-xs"
-                    >
-                      <Download className="w-3 h-3 mr-1" />
-                      Download
-                    </Button>
-                  )}
-                </div>
-                <div className="h-80 flex items-center justify-center">
-                  {existingDetectors.length === 0 && pendingDetectors.length === 0 ? (
-                    <div className="text-sm text-grey-400">Add detectors to see layout preview</div>
-                  ) : (
-                    <DetectorDiagram
-                      detectors={[...existingDetectors, ...pendingDetectors]}
-                      phases={signalPhases}
-                      approaches={signalApproaches}
-                      signal={signals.find(s => s.signalId === selectedSignalId)}
-                      svgRef={detectorSvgRef}
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Static Fields Configuration */}
-              <div className="border border-grey-200 rounded-lg p-4 bg-grey-50">
-                <div className="flex items-center gap-2 mb-3">
-                  <Lock className="w-4 h-4 text-grey-500" />
-                  <span className="text-sm font-medium text-grey-700">Static Fields</span>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className="w-4 h-4 text-grey-400 cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p>Lock fields to apply the same value to all detectors. Unlock to set different values per detector row.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  {/* Purpose */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs">Purpose</Label>
-                      <Switch
-                        checked={staticFields.purpose}
-                        onCheckedChange={() => toggleStaticField('purpose')}
-                        className="scale-75"
-                      />
-                    </div>
-                    <Select
-                      value={staticValues.purpose}
-                      onValueChange={(v) => updateStaticValue('purpose', v)}
-                      disabled={!staticFields.purpose}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {purposeOptions.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Technology Type */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs">Technology</Label>
-                      <Switch
-                        checked={staticFields.technologyType}
-                        onCheckedChange={() => toggleStaticField('technologyType')}
-                        className="scale-75"
-                      />
-                    </div>
-                    <Select
-                      value={staticValues.technologyType}
-                      onValueChange={(v) => updateStaticValue('technologyType', v)}
-                      disabled={!staticFields.technologyType}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {technologyOptions.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Vehicle Type */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs">Vehicle Type</Label>
-                      <Switch
-                        checked={staticFields.vehicleType}
-                        onCheckedChange={() => toggleStaticField('vehicleType')}
-                        className="scale-75"
-                      />
-                    </div>
-                    <Select
-                      value={staticValues.vehicleType}
-                      onValueChange={(v) => updateStaticValue('vehicleType', v)}
-                      disabled={!staticFields.vehicleType}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {vehicleTypeOptions.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Length */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs">Length (ft)</Label>
-                      <Switch
-                        checked={staticFields.length}
-                        onCheckedChange={() => toggleStaticField('length')}
-                        className="scale-75"
-                      />
-                    </div>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      value={staticValues.length ?? ""}
-                      onChange={(e) => updateStaticValue('length', e.target.value ? parseFloat(e.target.value) : undefined)}
-                      disabled={!staticFields.length}
-                      className="h-8 text-xs"
-                      placeholder="6.0"
-                    />
-                  </div>
-
-                  {/* Setback */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs">Setback (ft)</Label>
-                      <Switch
-                        checked={staticFields.stopbarSetbackDist}
-                        onCheckedChange={() => toggleStaticField('stopbarSetbackDist')}
-                        className="scale-75"
-                      />
-                    </div>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      value={staticValues.stopbarSetbackDist ?? ""}
-                      onChange={(e) => updateStaticValue('stopbarSetbackDist', e.target.value ? parseFloat(e.target.value) : undefined)}
-                      disabled={!staticFields.stopbarSetbackDist}
-                      className="h-8 text-xs"
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Quick Add Section */}
-              <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
-                <div className="flex items-center gap-2 mb-3">
-                  <Plus className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-700">Quick Add Detectors</span>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className="w-4 h-4 text-blue-400 cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p>Quickly add multiple detectors for a phase. Channel and lane numbers will auto-increment.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-
-                <div className="flex flex-wrap items-end gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Phase</Label>
-                    <Select
-                      value={selectedPhaseForQuickAdd?.toString() ?? ""}
-                      onValueChange={(v) => setSelectedPhaseForQuickAdd(parseInt(v))}
-                    >
-                      <SelectTrigger className="h-8 w-32 text-xs">
-                        <SelectValue placeholder="Select" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {signalPhases.map(phase => {
-                          const direction = getPhaseDirection(phase.phase);
-                          return (
-                            <SelectItem key={phase.phase} value={phase.phase.toString()}>
-                              Phase {phase.phase} {direction && `(${direction})`}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs">Start Channel</Label>
-                    <Input
-                      value={startingChannel}
-                      onChange={(e) => setStartingChannel(e.target.value)}
-                      className="h-8 w-20 text-xs"
-                      placeholder="1"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs">Start Lane</Label>
-                    <Input
-                      value={startingLane}
-                      onChange={(e) => setStartingLane(e.target.value)}
-                      className="h-8 w-20 text-xs"
-                      placeholder="1"
-                    />
-                  </div>
-
-                  <Button
-                    onClick={handleQuickAdd}
-                    size="sm"
-                    className="h-8 bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Plus className="w-3 h-3 mr-1" />
-                    Add Detectors
-                  </Button>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs">Quantity</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      max="20"
-                      value={quickAddCount}
-                      onChange={(e) => setQuickAddCount(parseInt(e.target.value) || 1)}
-                      className="h-8 w-16 text-xs"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Detectors Table */}
-              <div className="border border-grey-200 rounded-lg overflow-hidden">
-                <div className="p-2 bg-grey-50 border-b border-grey-200 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-grey-700">Detectors</span>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center gap-1 text-amber-600 cursor-help">
-                            <AlertTriangle className="w-3 h-3" />
-                            <span className="text-xs">No commas in description</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          <p>Descriptions cannot contain commas because they are used as delimiters in the export format. Any commas will be automatically removed.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAddDetector()}
-                    className="h-7 text-xs"
-                  >
-                    <Plus className="w-3 h-3 mr-1" />
-                    Add Row
-                  </Button>
-                </div>
-
-                {pendingDetectors.length === 0 ? (
-                  <div className="p-8 text-center text-grey-500 text-sm">
-                    Use Quick Add above or click "Add Row" to start adding detectors
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-grey-50">
-                          <TableHead className="w-20 text-xs py-2">Channel</TableHead>
-                          <TableHead className="w-24 text-xs py-2">Phase</TableHead>
-                          <TableHead className="w-16 text-xs py-2">Lane</TableHead>
-                          {!staticFields.purpose && (
-                            <TableHead className="text-xs py-2">Purpose</TableHead>
-                          )}
-                          {!staticFields.technologyType && (
-                            <TableHead className="text-xs py-2">Technology</TableHead>
-                          )}
-                          {!staticFields.vehicleType && (
-                            <TableHead className="text-xs py-2">Vehicle</TableHead>
-                          )}
-                          {!staticFields.length && (
-                            <TableHead className="w-20 text-xs py-2">Length</TableHead>
-                          )}
-                          {!staticFields.stopbarSetbackDist && (
-                            <TableHead className="w-20 text-xs py-2">Setback</TableHead>
-                          )}
-                          <TableHead className="text-xs py-2">Description</TableHead>
-                          <TableHead className="w-20 text-xs py-2"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {pendingDetectors.map((detector, idx) => (
-                          <TableRow key={idx}>
-                            <TableCell className="py-1.5">
-                              <Input
-                                value={detector.channel}
-                                onChange={(e) => handleDetectorChange(idx, 'channel', e.target.value)}
-                                className="h-7 text-xs"
-                              />
-                            </TableCell>
-                            <TableCell className="py-1.5">
-                              <Select
-                                value={detector.phase.toString()}
-                                onValueChange={(v) => handleDetectorChange(idx, 'phase', parseInt(v))}
-                              >
-                                <SelectTrigger className="h-7 text-xs">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {signalPhases.map(phase => {
-                                    const direction = getPhaseDirection(phase.phase);
-                                    return (
-                                      <SelectItem key={phase.phase} value={phase.phase.toString()}>
-                                        {phase.phase} {direction && `(${direction})`}
-                                      </SelectItem>
-                                    );
-                                  })}
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell className="py-1.5">
-                              <Input
-                                value={detector.lane}
-                                onChange={(e) => handleDetectorChange(idx, 'lane', e.target.value)}
-                                className="h-7 w-14 text-xs"
-                              />
-                            </TableCell>
-                            {!staticFields.purpose && (
-                              <TableCell className="py-1.5">
-                                <Select
-                                  value={detector.purpose}
-                                  onValueChange={(v) => handleDetectorChange(idx, 'purpose', v)}
-                                >
-                                  <SelectTrigger className="h-7 text-xs">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {purposeOptions.map(opt => (
-                                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                            )}
-                            {!staticFields.technologyType && (
-                              <TableCell className="py-1.5">
-                                <Select
-                                  value={detector.technologyType}
-                                  onValueChange={(v) => handleDetectorChange(idx, 'technologyType', v)}
-                                >
-                                  <SelectTrigger className="h-7 text-xs">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {technologyOptions.map(opt => (
-                                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                            )}
-                            {!staticFields.vehicleType && (
-                              <TableCell className="py-1.5">
-                                <Select
-                                  value={detector.vehicleType}
-                                  onValueChange={(v) => handleDetectorChange(idx, 'vehicleType', v)}
-                                >
-                                  <SelectTrigger className="h-7 text-xs">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {vehicleTypeOptions.map(opt => (
-                                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                            )}
-                            {!staticFields.length && (
-                              <TableCell className="py-1.5">
-                                <Input
-                                  type="number"
-                                  step="0.1"
-                                  min="0"
-                                  value={detector.length ?? ""}
-                                  onChange={(e) => handleDetectorChange(idx, 'length', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                  className="h-7 w-16 text-xs"
-                                />
-                              </TableCell>
-                            )}
-                            {!staticFields.stopbarSetbackDist && (
-                              <TableCell className="py-1.5">
-                                <Input
-                                  type="number"
-                                  step="0.1"
-                                  min="0"
-                                  value={detector.stopbarSetbackDist ?? ""}
-                                  onChange={(e) => handleDetectorChange(idx, 'stopbarSetbackDist', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                  className="h-7 w-16 text-xs"
-                                />
-                              </TableCell>
-                            )}
-                            <TableCell className="py-1.5 max-w-[140px]">
-                              <div className="flex items-center gap-1">
-                                <Input
-                                  value={detector.description}
-                                  onChange={(e) => handleDetectorChange(idx, 'description', e.target.value)}
-                                  className="h-7 text-xs w-28"
-                                  placeholder="Auto-generated"
-                                />
-                                {detector.isDescriptionManual && (
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Badge variant="outline" className="text-[10px] px-1 h-5">
-                                          Manual
-                                        </Badge>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Description was manually edited</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="py-1.5">
-                              <div className="flex items-center gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDuplicateDetector(idx)}
-                                  className="h-7 w-7 p-0 text-blue-500 hover:text-blue-700"
-                                  title="Duplicate with incremented channel/lane"
-                                >
-                                  <Copy className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeleteDetector(idx)}
-                                  className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
-                                  title="Delete"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </div>
-
-              {/* Available Phases Reference */}
-              <div className="border border-grey-200 rounded-lg p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-medium text-grey-700">Available Phases</span>
+      <div className="space-y-4">
+        {!selectedSignalId ? (
+          <div className="p-8 text-center text-grey-500 text-sm">
+            Select a signal to add detectors
+          </div>
+        ) : signalPhases.length === 0 ? (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-sm text-amber-700">
+              This signal has no phases configured. Please add phases first before creating detectors.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Detector Diagram */}
+            <div className="border border-grey-200 rounded-lg p-3 bg-white">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-grey-700">Detection Layout Preview</span>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <HelpCircle className="w-3 h-3 text-grey-400 cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs">
-                        <p>Click a phase to add a detector. Channel and lane numbers will auto-increment for the selected phase.</p>
+                        <p>Visual representation of detector positions. Stop bar detectors appear near the intersection, advanced detectors further away. Colors indicate technology type.</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {signalPhases.map(phase => {
-                    const direction = getPhaseDirection(phase.phase);
-                    const detectorsForPhase = pendingDetectors.filter(d => d.phase === phase.phase).length;
-                    return (
-                      <Badge
-                        key={phase.phase}
-                        variant="outline"
-                        className="cursor-pointer hover:bg-grey-100"
-                        onClick={() => handleAddDetector(phase.phase)}
-                      >
-                        Phase {phase.phase} - {phase.movementType} {direction && `(${direction})`}
-                        {detectorsForPhase > 0 && (
-                          <span className="ml-1 bg-blue-100 text-blue-700 px-1 rounded">
-                            {detectorsForPhase}
-                          </span>
-                        )}
-                      </Badge>
-                    );
-                  })}
-                </div>
+                {(existingDetectors.length > 0 || pendingDetectors.length > 0) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDownloadDiagram}
+                    className="h-7 text-xs"
+                  >
+                    <Download className="w-3 h-3 mr-1" />
+                    Download
+                  </Button>
+                )}
+              </div>
+              <div className="h-80 flex items-center justify-center">
+                {existingDetectors.length === 0 && pendingDetectors.length === 0 ? (
+                  <div className="text-sm text-grey-400">Add detectors to see layout preview</div>
+                ) : (
+                  <DetectorDiagram
+                    detectors={[...existingDetectors, ...pendingDetectors]}
+                    phases={signalPhases}
+                    approaches={signalApproaches}
+                    signal={signals.find(s => s.signalId === selectedSignalId)}
+                    svgRef={detectorSvgRef}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Static Fields Configuration */}
+            <div className="border border-grey-200 rounded-lg p-4 bg-grey-50">
+              <div className="flex items-center gap-2 mb-3">
+                <Lock className="w-4 h-4 text-grey-500" />
+                <span className="text-sm font-medium text-grey-700">Static Fields</span>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="w-4 h-4 text-grey-400 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>Lock fields to apply the same value to all detectors. Unlock to set different values per detector row.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
 
-              {/* Existing Detectors Table */}
-              {existingDetectors.length > 0 && (
-                <div className="border border-green-200 rounded-lg overflow-hidden">
-                  <div className="p-2 bg-green-50 border-b border-green-200 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-green-700">Existing Detectors ({existingDetectors.length})</span>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <HelpCircle className="w-3 h-3 text-green-400 cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            <p>These detectors are already saved for this signal. You can edit or delete them here.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                {/* Purpose */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Purpose</Label>
+                    <Switch
+                      checked={staticFields.purpose}
+                      onCheckedChange={() => toggleStaticField('purpose')}
+                      className="scale-75"
+                    />
                   </div>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-green-50">
-                          <TableHead className="w-20 text-xs py-2">Channel</TableHead>
-                          <TableHead className="w-24 text-xs py-2">Phase</TableHead>
-                          <TableHead className="w-16 text-xs py-2">Lane</TableHead>
+                  <Select
+                    value={staticValues.purpose}
+                    onValueChange={(v) => updateStaticValue('purpose', v)}
+                    disabled={!staticFields.purpose}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {purposeOptions.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Technology Type */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Technology</Label>
+                    <Switch
+                      checked={staticFields.technologyType}
+                      onCheckedChange={() => toggleStaticField('technologyType')}
+                      className="scale-75"
+                    />
+                  </div>
+                  <Select
+                    value={staticValues.technologyType}
+                    onValueChange={(v) => updateStaticValue('technologyType', v)}
+                    disabled={!staticFields.technologyType}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {technologyOptions.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Vehicle Type */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Vehicle Type</Label>
+                    <Switch
+                      checked={staticFields.vehicleType}
+                      onCheckedChange={() => toggleStaticField('vehicleType')}
+                      className="scale-75"
+                    />
+                  </div>
+                  <Select
+                    value={staticValues.vehicleType}
+                    onValueChange={(v) => updateStaticValue('vehicleType', v)}
+                    disabled={!staticFields.vehicleType}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vehicleTypeOptions.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Length */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Length (ft)</Label>
+                    <Switch
+                      checked={staticFields.length}
+                      onCheckedChange={() => toggleStaticField('length')}
+                      className="scale-75"
+                    />
+                  </div>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={staticValues.length ?? ""}
+                    onChange={(e) => updateStaticValue('length', e.target.value ? parseFloat(e.target.value) : undefined)}
+                    disabled={!staticFields.length}
+                    className="h-8 text-xs"
+                    placeholder="6.0"
+                  />
+                </div>
+
+                {/* Setback */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Setback (ft)</Label>
+                    <Switch
+                      checked={staticFields.stopbarSetbackDist}
+                      onCheckedChange={() => toggleStaticField('stopbarSetbackDist')}
+                      className="scale-75"
+                    />
+                  </div>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={staticValues.stopbarSetbackDist ?? ""}
+                    onChange={(e) => updateStaticValue('stopbarSetbackDist', e.target.value ? parseFloat(e.target.value) : undefined)}
+                    disabled={!staticFields.stopbarSetbackDist}
+                    className="h-8 text-xs"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Add Section */}
+            <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
+              <div className="flex items-center gap-2 mb-3">
+                <Plus className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-700">Quick Add Detectors</span>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="w-4 h-4 text-blue-400 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>Quickly add multiple detectors for a phase. Channel and lane numbers will auto-increment.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Phase</Label>
+                  <Select
+                    value={selectedPhaseForQuickAdd?.toString() ?? ""}
+                    onValueChange={(v) => setSelectedPhaseForQuickAdd(parseInt(v))}
+                  >
+                    <SelectTrigger className="h-8 w-32 text-xs">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {signalPhases.map(phase => {
+                        const direction = getPhaseDirection(phase.phase);
+                        return (
+                          <SelectItem key={phase.phase} value={phase.phase.toString()}>
+                            Phase {phase.phase} {direction && `(${direction})`}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Start Channel</Label>
+                  <Input
+                    value={startingChannel}
+                    onChange={(e) => setStartingChannel(e.target.value)}
+                    className="h-8 w-20 text-xs"
+                    placeholder="1"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Start Lane</Label>
+                  <Input
+                    value={startingLane}
+                    onChange={(e) => setStartingLane(e.target.value)}
+                    className="h-8 w-20 text-xs"
+                    placeholder="1"
+                  />
+                </div>
+
+                <Button
+                  onClick={handleQuickAdd}
+                  size="sm"
+                  className="h-8 bg-blue-600 hover:bg-blue-700"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add Detectors
+                </Button>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Quantity</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={quickAddCount}
+                    onChange={(e) => setQuickAddCount(parseInt(e.target.value) || 1)}
+                    className="h-8 w-16 text-xs"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Detectors Table */}
+            <div className="border border-grey-200 rounded-lg overflow-hidden">
+              <div className="p-2 bg-grey-50 border-b border-grey-200 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-grey-700">Detectors</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-1 text-amber-600 cursor-help">
+                          <AlertTriangle className="w-3 h-3" />
+                          <span className="text-xs">No commas in description</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>Descriptions cannot contain commas because they are used as delimiters in the export format. Any commas will be automatically removed.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleAddDetector()}
+                  className="h-7 text-xs"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add Row
+                </Button>
+              </div>
+
+              {pendingDetectors.length === 0 ? (
+                <div className="p-8 text-center text-grey-500 text-sm">
+                  Use Quick Add above or click "Add Row" to start adding detectors
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-grey-50">
+                        <TableHead className="w-20 text-xs py-2">Channel</TableHead>
+                        <TableHead className="w-24 text-xs py-2">Phase</TableHead>
+                        <TableHead className="w-16 text-xs py-2">Lane</TableHead>
+                        {!staticFields.purpose && (
                           <TableHead className="text-xs py-2">Purpose</TableHead>
+                        )}
+                        {!staticFields.technologyType && (
                           <TableHead className="text-xs py-2">Technology</TableHead>
+                        )}
+                        {!staticFields.vehicleType && (
+                          <TableHead className="text-xs py-2">Vehicle</TableHead>
+                        )}
+                        {!staticFields.length && (
+                          <TableHead className="w-20 text-xs py-2">Length</TableHead>
+                        )}
+                        {!staticFields.stopbarSetbackDist && (
                           <TableHead className="w-20 text-xs py-2">Setback</TableHead>
-                          <TableHead className="text-xs py-2 max-w-[120px]">Description</TableHead>
-                          <TableHead className="w-12 text-xs py-2"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {existingDetectors.map((detector, idx) => (
-                          <TableRow key={detector.id || idx} className="bg-green-50/30">
-                            <TableCell className="py-1.5">
-                              <Input
-                                value={detector.channel}
-                                onChange={(e) => handleExistingDetectorChange(idx, 'channel', e.target.value)}
-                                className="h-7 text-xs"
-                              />
-                            </TableCell>
-                            <TableCell className="py-1.5">
-                              <Select
-                                value={detector.phase.toString()}
-                                onValueChange={(v) => handleExistingDetectorChange(idx, 'phase', parseInt(v))}
-                              >
-                                <SelectTrigger className="h-7 text-xs">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {signalPhases.map(phase => {
-                                    const direction = getPhaseDirection(phase.phase);
-                                    return (
-                                      <SelectItem key={phase.phase} value={phase.phase.toString()}>
-                                        {phase.phase} {direction && `(${direction})`}
-                                      </SelectItem>
-                                    );
-                                  })}
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell className="py-1.5">
-                              <Input
-                                value={detector.lane}
-                                onChange={(e) => handleExistingDetectorChange(idx, 'lane', e.target.value)}
-                                className="h-7 w-14 text-xs"
-                              />
-                            </TableCell>
+                        )}
+                        <TableHead className="text-xs py-2">Description</TableHead>
+                        <TableHead className="w-20 text-xs py-2"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pendingDetectors.map((detector, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="py-1.5">
+                            <Input
+                              value={detector.channel}
+                              onChange={(e) => handleDetectorChange(idx, 'channel', e.target.value)}
+                              className="h-7 text-xs"
+                            />
+                          </TableCell>
+                          <TableCell className="py-1.5">
+                            <Select
+                              value={detector.phase.toString()}
+                              onValueChange={(v) => handleDetectorChange(idx, 'phase', parseInt(v))}
+                            >
+                              <SelectTrigger className="h-7 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {signalPhases.map(phase => {
+                                  const direction = getPhaseDirection(phase.phase);
+                                  return (
+                                    <SelectItem key={phase.phase} value={phase.phase.toString()}>
+                                      {phase.phase} {direction && `(${direction})`}
+                                    </SelectItem>
+                                  );
+                                })}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="py-1.5">
+                            <Input
+                              value={detector.lane}
+                              onChange={(e) => handleDetectorChange(idx, 'lane', e.target.value)}
+                              className="h-7 w-14 text-xs"
+                            />
+                          </TableCell>
+                          {!staticFields.purpose && (
                             <TableCell className="py-1.5">
                               <Select
                                 value={detector.purpose}
-                                onValueChange={(v) => handleExistingDetectorChange(idx, 'purpose', v)}
+                                onValueChange={(v) => handleDetectorChange(idx, 'purpose', v)}
                               >
                                 <SelectTrigger className="h-7 text-xs">
                                   <SelectValue />
@@ -1238,10 +1001,12 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                                 </SelectContent>
                               </Select>
                             </TableCell>
+                          )}
+                          {!staticFields.technologyType && (
                             <TableCell className="py-1.5">
                               <Select
                                 value={detector.technologyType}
-                                onValueChange={(v) => handleExistingDetectorChange(idx, 'technologyType', v)}
+                                onValueChange={(v) => handleDetectorChange(idx, 'technologyType', v)}
                               >
                                 <SelectTrigger className="h-7 text-xs">
                                   <SelectValue />
@@ -1253,69 +1018,302 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                                 </SelectContent>
                               </Select>
                             </TableCell>
+                          )}
+                          {!staticFields.vehicleType && (
+                            <TableCell className="py-1.5">
+                              <Select
+                                value={detector.vehicleType}
+                                onValueChange={(v) => handleDetectorChange(idx, 'vehicleType', v)}
+                              >
+                                <SelectTrigger className="h-7 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {vehicleTypeOptions.map(opt => (
+                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                          )}
+                          {!staticFields.length && (
+                            <TableCell className="py-1.5">
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                value={detector.length ?? ""}
+                                onChange={(e) => handleDetectorChange(idx, 'length', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                className="h-7 w-16 text-xs"
+                              />
+                            </TableCell>
+                          )}
+                          {!staticFields.stopbarSetbackDist && (
                             <TableCell className="py-1.5">
                               <Input
                                 type="number"
                                 step="0.1"
                                 min="0"
                                 value={detector.stopbarSetbackDist ?? ""}
-                                onChange={(e) => handleExistingDetectorChange(idx, 'stopbarSetbackDist', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                onChange={(e) => handleDetectorChange(idx, 'stopbarSetbackDist', e.target.value ? parseFloat(e.target.value) : undefined)}
                                 className="h-7 w-16 text-xs"
-                                placeholder="0"
                               />
                             </TableCell>
-                            <TableCell className="py-1.5 max-w-[120px]">
+                          )}
+                          <TableCell className="py-1.5 max-w-[140px]">
+                            <div className="flex items-center gap-1">
                               <Input
                                 value={detector.description}
-                                onChange={(e) => handleExistingDetectorChange(idx, 'description', e.target.value)}
-                                className="h-7 text-xs w-24"
+                                onChange={(e) => handleDetectorChange(idx, 'description', e.target.value)}
+                                className="h-7 text-xs w-28"
+                                placeholder="Auto-generated"
                               />
-                            </TableCell>
-                            <TableCell className="py-1.5">
+                              {detector.isDescriptionManual && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Badge variant="outline" className="text-[10px] px-1 h-5">
+                                        Manual
+                                      </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Description was manually edited</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-1.5">
+                            <div className="flex items-center gap-1">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleDeleteExistingDetector(idx)}
+                                onClick={() => handleDuplicateDetector(idx)}
+                                className="h-7 w-7 p-0 text-blue-500 hover:text-blue-700"
+                                title="Duplicate with incremented channel/lane"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteDetector(idx)}
                                 className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
                                 title="Delete"
                               >
                                 <Trash2 className="w-3 h-3" />
                               </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               )}
-            </>
-          )}
+            </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-2 pt-2 border-t border-grey-200">
-            <Button variant="outline" onClick={onClose} disabled={isProcessing}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveAll}
-              disabled={
-                !selectedSignalId ||
-                (pendingDetectors.length === 0 && existingDetectors.length === 0) ||
-                isProcessing
-              }
-              className="bg-primary-600 hover:bg-primary-700"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              {isProcessing
-                ? "Saving..."
-                : pendingDetectors.length > 0
-                  ? `Create ${pendingDetectors.length} Detector${pendingDetectors.length !== 1 ? "s" : ""}`
-                  : "Save Changes"
-              }
-            </Button>
-          </div>
+            {/* Available Phases Reference */}
+            <div className="border border-grey-200 rounded-lg p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-medium text-grey-700">Available Phases</span>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="w-3 h-3 text-grey-400 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>Click a phase to add a detector. Channel and lane numbers will auto-increment for the selected phase.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {signalPhases.map(phase => {
+                  const direction = getPhaseDirection(phase.phase);
+                  const detectorsForPhase = pendingDetectors.filter(d => d.phase === phase.phase).length;
+                  return (
+                    <Badge
+                      key={phase.phase}
+                      variant="outline"
+                      className="cursor-pointer hover:bg-grey-100"
+                      onClick={() => handleAddDetector(phase.phase)}
+                    >
+                      Phase {phase.phase} - {phase.movementType} {direction && `(${direction})`}
+                      {detectorsForPhase > 0 && (
+                        <span className="ml-1 bg-blue-100 text-blue-700 px-1 rounded">
+                          {detectorsForPhase}
+                        </span>
+                      )}
+                    </Badge>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Existing Detectors Table */}
+            {existingDetectors.length > 0 && (
+              <div className="border border-green-200 rounded-lg overflow-hidden">
+                <div className="p-2 bg-green-50 border-b border-green-200 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-green-700">Existing Detectors ({existingDetectors.length})</span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="w-3 h-3 text-green-400 cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>These detectors are already saved for this signal. You can edit or delete them here.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-green-50">
+                        <TableHead className="w-20 text-xs py-2">Channel</TableHead>
+                        <TableHead className="w-24 text-xs py-2">Phase</TableHead>
+                        <TableHead className="w-16 text-xs py-2">Lane</TableHead>
+                        <TableHead className="text-xs py-2">Purpose</TableHead>
+                        <TableHead className="text-xs py-2">Technology</TableHead>
+                        <TableHead className="w-20 text-xs py-2">Setback</TableHead>
+                        <TableHead className="text-xs py-2 max-w-[120px]">Description</TableHead>
+                        <TableHead className="w-12 text-xs py-2"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {existingDetectors.map((detector, idx) => (
+                        <TableRow key={detector.id || idx} className="bg-green-50/30">
+                          <TableCell className="py-1.5">
+                            <Input
+                              value={detector.channel}
+                              onChange={(e) => handleExistingDetectorChange(idx, 'channel', e.target.value)}
+                              className="h-7 text-xs"
+                            />
+                          </TableCell>
+                          <TableCell className="py-1.5">
+                            <Select
+                              value={detector.phase.toString()}
+                              onValueChange={(v) => handleExistingDetectorChange(idx, 'phase', parseInt(v))}
+                            >
+                              <SelectTrigger className="h-7 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {signalPhases.map(phase => {
+                                  const direction = getPhaseDirection(phase.phase);
+                                  return (
+                                    <SelectItem key={phase.phase} value={phase.phase.toString()}>
+                                      {phase.phase} {direction && `(${direction})`}
+                                    </SelectItem>
+                                  );
+                                })}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="py-1.5">
+                            <Input
+                              value={detector.lane}
+                              onChange={(e) => handleExistingDetectorChange(idx, 'lane', e.target.value)}
+                              className="h-7 w-14 text-xs"
+                            />
+                          </TableCell>
+                          <TableCell className="py-1.5">
+                            <Select
+                              value={detector.purpose}
+                              onValueChange={(v) => handleExistingDetectorChange(idx, 'purpose', v)}
+                            >
+                              <SelectTrigger className="h-7 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {purposeOptions.map(opt => (
+                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="py-1.5">
+                            <Select
+                              value={detector.technologyType}
+                              onValueChange={(v) => handleExistingDetectorChange(idx, 'technologyType', v)}
+                            >
+                              <SelectTrigger className="h-7 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {technologyOptions.map(opt => (
+                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="py-1.5">
+                            <Input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              value={detector.stopbarSetbackDist ?? ""}
+                              onChange={(e) => handleExistingDetectorChange(idx, 'stopbarSetbackDist', e.target.value ? parseFloat(e.target.value) : undefined)}
+                              className="h-7 w-16 text-xs"
+                              placeholder="0"
+                            />
+                          </TableCell>
+                          <TableCell className="py-1.5 max-w-[120px]">
+                            <Input
+                              value={detector.description}
+                              onChange={(e) => handleExistingDetectorChange(idx, 'description', e.target.value)}
+                              className="h-7 text-xs w-24"
+                            />
+                          </TableCell>
+                          <TableCell className="py-1.5">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteExistingDetector(idx)}
+                              className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-2 pt-2 border-t border-grey-200">
+          <Button variant="outline" onClick={onClose} disabled={isProcessing}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveAll}
+            disabled={
+              !selectedSignalId ||
+              (pendingDetectors.length === 0 && existingDetectors.length === 0) ||
+              isProcessing
+            }
+            className="bg-primary-600 hover:bg-primary-700"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {isProcessing
+              ? "Saving..."
+              : pendingDetectors.length > 0
+                ? `Create ${pendingDetectors.length} Detector${pendingDetectors.length !== 1 ? "s" : ""}`
+                : "Save Changes"
+            }
+          </Button>
         </div>
+      </div>
     </>
   );
 

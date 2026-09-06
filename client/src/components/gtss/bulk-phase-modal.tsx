@@ -1,19 +1,13 @@
-import { useState, useMemo, useEffect, useRef } from "react";
-import { usePhases } from "@/lib/localStorageHooks";
-import { useGTSSStore } from "@/store/gtss-store";
-import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Save, Trash2, Download, ChevronUp, ChevronDown, Wand2 } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
-import { getSignalDisplayName, handleColumnMajorTab } from "@/lib/utils";
-import { guessPhaseDirectionMapping, isTypicallyThroughPhase } from "@/lib/agencyDefaults";
-import { downloadSvgAsJpg, phaseDiagramFileName } from "@/lib/svg-export";
+import { useToast } from "@/hooks/use-toast";
+import { downloadSvgAsJpg, getSignalDisplayName, guessPhaseDirectionMapping, handleColumnMajorTab, isTypicallyThroughPhase, phaseDiagramFileName, useGTSSStore, usePhases } from "gtss";
+import { ChevronDown, ChevronUp, Download, Plus, Save, Trash2, Wand2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PhaseDiagram, phaseColors } from "./phase-diagram-svg";
 
 interface PendingPhase {
@@ -562,135 +556,134 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
 
   const body = (
     <>
-        <div className="space-y-4">
-          {!selectedSignalId ? (
-            <div className="p-8 text-center text-grey-500 text-sm">
-              Select a signal to view and edit phases
-            </div>
-          ) : signalApproaches.length === 0 ? (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-sm text-amber-700">
-                This signal has no approaches configured. Please add approaches first to set phase directions.
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Phase count + auto-assign toolbar */}
-              <div className="flex flex-wrap items-center gap-3 p-3 bg-grey-50 border border-grey-200 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-grey-700 whitespace-nowrap">Phase count:</span>
-                  <div className="flex gap-1">
-                    {PHASE_COUNT_OPTIONS.map((count) => (
-                      <Button
-                        key={count}
-                        type="button"
-                        variant={targetPhaseCount === count ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setTargetPhaseCount(count)}
-                        className={`h-7 w-9 p-0 text-xs font-semibold ${
-                          targetPhaseCount === count
-                            ? "bg-primary-600 hover:bg-primary-700 text-white"
-                            : "border-grey-200 text-grey-700 hover:bg-grey-100"
+      <div className="space-y-4">
+        {!selectedSignalId ? (
+          <div className="p-8 text-center text-grey-500 text-sm">
+            Select a signal to view and edit phases
+          </div>
+        ) : signalApproaches.length === 0 ? (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-sm text-amber-700">
+              This signal has no approaches configured. Please add approaches first to set phase directions.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Phase count + auto-assign toolbar */}
+            <div className="flex flex-wrap items-center gap-3 p-3 bg-grey-50 border border-grey-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-grey-700 whitespace-nowrap">Phase count:</span>
+                <div className="flex gap-1">
+                  {PHASE_COUNT_OPTIONS.map((count) => (
+                    <Button
+                      key={count}
+                      type="button"
+                      variant={targetPhaseCount === count ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setTargetPhaseCount(count)}
+                      className={`h-7 w-9 p-0 text-xs font-semibold ${targetPhaseCount === count
+                        ? "bg-primary-600 hover:bg-primary-700 text-white"
+                        : "border-grey-200 text-grey-700 hover:bg-grey-100"
                         }`}
-                      >
-                        {count}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 ml-auto">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAutoAssign(false)}
-                    className="h-7 text-xs border-primary-200 text-primary-700 hover:bg-primary-50 flex items-center gap-1"
-                    disabled={signalApproaches.length === 0}
-                    title="Auto-assign approaches to unassigned phases using agency defaults"
-                  >
-                    <Wand2 className="w-3 h-3" />
-                    Auto-assign using Agency Defaults
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAutoAssign(true)}
-                    className="h-7 text-xs border-amber-200 text-amber-700 hover:bg-amber-50 flex items-center gap-1"
-                    disabled={signalApproaches.length === 0}
-                    title="Re-assign all phases (overwrites existing approach assignments)"
-                  >
-                    <Wand2 className="w-3 h-3" />
-                    Re-assign All
-                  </Button>
+                    >
+                      {count}
+                    </Button>
+                  ))}
                 </div>
               </div>
+              <div className="flex items-center gap-2 ml-auto">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleAutoAssign(false)}
+                  className="h-7 text-xs border-primary-200 text-primary-700 hover:bg-primary-50 flex items-center gap-1"
+                  disabled={signalApproaches.length === 0}
+                  title="Auto-assign approaches to unassigned phases using agency defaults"
+                >
+                  <Wand2 className="w-3 h-3" />
+                  Auto-assign using Agency Defaults
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleAutoAssign(true)}
+                  className="h-7 text-xs border-amber-200 text-amber-700 hover:bg-amber-50 flex items-center gap-1"
+                  disabled={signalApproaches.length === 0}
+                  title="Re-assign all phases (overwrites existing approach assignments)"
+                >
+                  <Wand2 className="w-3 h-3" />
+                  Re-assign All
+                </Button>
+              </div>
+            </div>
 
-              {/* Phase Diagram - centered */}
-              <div className="border border-grey-200 rounded-lg p-2">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-grey-500">Phase Diagram</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDownloadImage}
-                    className="h-6 text-xs px-2"
-                    disabled={pendingPhases.length === 0}
-                  >
-                    <Download className="w-3 h-3 mr-1" />
-                    Download JPG
-                  </Button>
-                </div>
-                <div className="h-72 max-w-md mx-auto">
-                  <PhaseDiagram
-                    phases={pendingPhases}
-                    approaches={signalApproaches}
-                    intersectionName={intersectionName}
-                    intersectionId={selectedSignalId}
-                    svgRef={svgRef}
-                  />
-                </div>
+            {/* Phase Diagram - centered */}
+            <div className="border border-grey-200 rounded-lg p-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-grey-500">Phase Diagram</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadImage}
+                  className="h-6 text-xs px-2"
+                  disabled={pendingPhases.length === 0}
+                >
+                  <Download className="w-3 h-3 mr-1" />
+                  Download JPG
+                </Button>
+              </div>
+              <div className="h-72 max-w-md mx-auto">
+                <PhaseDiagram
+                  phases={pendingPhases}
+                  approaches={signalApproaches}
+                  intersectionName={intersectionName}
+                  intersectionId={selectedSignalId}
+                  svgRef={svgRef}
+                />
+              </div>
+            </div>
+
+            {/* Full-width Phases Table */}
+            <div className="border border-grey-200 rounded-lg overflow-hidden">
+              <div className="p-2 bg-grey-50 border-b border-grey-200 flex items-center justify-between">
+                <span className="text-xs font-medium text-grey-700">Phases</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddPhase}
+                  className="h-7 text-xs"
+                  disabled={signalApproaches.length === 0}
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add Phase
+                </Button>
               </div>
 
-              {/* Full-width Phases Table */}
-              <div className="border border-grey-200 rounded-lg overflow-hidden">
-                <div className="p-2 bg-grey-50 border-b border-grey-200 flex items-center justify-between">
-                  <span className="text-xs font-medium text-grey-700">Phases</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleAddPhase}
-                    className="h-7 text-xs"
-                    disabled={signalApproaches.length === 0}
-                  >
-                    <Plus className="w-3 h-3 mr-1" />
-                    Add Phase
-                  </Button>
+              {pendingPhases.length === 0 ? (
+                <div className="p-8 text-center text-grey-500 text-sm">
+                  Click "Add Phase" to start building your phases
                 </div>
-
-                {pendingPhases.length === 0 ? (
-                  <div className="p-8 text-center text-grey-500 text-sm">
-                    Click "Add Phase" to start building your phases
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    {/* Tab / Shift+Tab moves down each column instead of across rows */}
-                    <Table onKeyDown={handleColumnMajorTab}>
-                      <TableHeader>
-                        <TableRow className="bg-grey-50">
-                          <SortableHeader field="phase" className="w-24">Phase</SortableHeader>
-                          <SortableHeader field="approachId">Approach</SortableHeader>
-                          <SortableHeader field="movementType">Movement</SortableHeader>
-                          <SortableHeader field="numOfLanes" className="w-16">Lanes</SortableHeader>
-                          <SortableHeader field="isPedestrian" className="w-20 text-center">Ped</SortableHeader>
-                          <TableHead className="w-20 text-xs py-2 text-center" title="Measured crosswalk length in feet. Blank = auto-estimate in phases.txt (LE-# from lanes, TE-# from ped clearance time; shorter wins).">CW ft</TableHead>
-                          <TableHead className="w-12 text-xs py-2"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {getSortedPhases().map((phase, visualRow) => {
-                          const idx = pendingPhases.findIndex(p => p.id === phase.id && p.phase === phase.phase && p.approachId === phase.approachId);
-                          return (
+              ) : (
+                <div className="overflow-x-auto">
+                  {/* Tab / Shift+Tab moves down each column instead of across rows */}
+                  <Table onKeyDown={handleColumnMajorTab}>
+                    <TableHeader>
+                      <TableRow className="bg-grey-50">
+                        <SortableHeader field="phase" className="w-24">Phase</SortableHeader>
+                        <SortableHeader field="approachId">Approach</SortableHeader>
+                        <SortableHeader field="movementType">Movement</SortableHeader>
+                        <SortableHeader field="numOfLanes" className="w-16">Lanes</SortableHeader>
+                        <SortableHeader field="isPedestrian" className="w-20 text-center">Ped</SortableHeader>
+                        <TableHead className="w-20 text-xs py-2 text-center" title="Measured crosswalk length in feet. Blank = auto-estimate in phases.txt (LE-# from lanes, TE-# from ped clearance time; shorter wins).">CW ft</TableHead>
+                        <TableHead className="w-12 text-xs py-2"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {getSortedPhases().map((phase, visualRow) => {
+                        const idx = pendingPhases.findIndex(p => p.id === phase.id && p.phase === phase.phase && p.approachId === phase.approachId);
+                        return (
                           <TableRow key={idx}>
                             <TableCell className="py-1.5">
                               <div className="flex items-center gap-2">
@@ -809,36 +802,36 @@ export default function BulkPhaseModal({ onClose, preSelectedSignalId, inline = 
                               </Button>
                             </TableCell>
                           </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-2 pt-2 border-t border-grey-200">
-            <Button variant="outline" onClick={onClose} disabled={isProcessing}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveAll}
-              disabled={!selectedSignalId || pendingPhases.length === 0 || isProcessing}
-              className="bg-primary-600 hover:bg-primary-700"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              {isProcessing
-                ? "Saving..."
-                : isEditMode
-                  ? `Save ${pendingPhases.length} Phase${pendingPhases.length !== 1 ? "s" : ""}`
-                  : `Create ${pendingPhases.length} Phase${pendingPhases.length !== 1 ? "s" : ""}`
-              }
-            </Button>
-          </div>
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-2 pt-2 border-t border-grey-200">
+          <Button variant="outline" onClick={onClose} disabled={isProcessing}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveAll}
+            disabled={!selectedSignalId || pendingPhases.length === 0 || isProcessing}
+            className="bg-primary-600 hover:bg-primary-700"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {isProcessing
+              ? "Saving..."
+              : isEditMode
+                ? `Save ${pendingPhases.length} Phase${pendingPhases.length !== 1 ? "s" : ""}`
+                : `Create ${pendingPhases.length} Phase${pendingPhases.length !== 1 ? "s" : ""}`
+            }
+          </Button>
         </div>
+      </div>
     </>
   );
 

@@ -1,17 +1,14 @@
-import { useState, useEffect, useRef } from "react";
-import { Approach } from "@shared/schema";
-import { useApproaches } from "@/lib/localStorageHooks";
-import { useGTSSStore } from "@/store/gtss-store";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronUp, ChevronDown, MapPin, Plus } from "lucide-react";
 import SignalsMap, { approachColors } from "@/components/ui/signals-map";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Approach, getSignalDisplayName, useApproaches, useGTSSStore } from "gtss";
+import { ChevronDown, ChevronUp, MapPin, Plus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import ApproachModal from "./approach-modal";
 import BulkApproachModal from "./bulk-approach-modal";
-import { getSignalDisplayName } from "@/lib/utils";
 
 type SortField = 'signalId' | 'approachId' | 'streetName' | 'compassBearing' | 'postedSpeed';
 type SortDirection = 'asc' | 'desc';

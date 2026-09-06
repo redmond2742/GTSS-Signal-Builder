@@ -1,5 +1,5 @@
-import { type Agency, type InsertAgency, type Signal, type InsertSignal, type Phase, type InsertPhase, type Detector, type InsertDetector, type GTSSData } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { type Agency, type Detector, type GTSSData, type InsertAgency, type InsertDetector, type InsertPhase, type InsertSignal, type Phase, type Signal } from "gtss";
 
 export interface IStorage {
   // Agency methods
@@ -64,8 +64,8 @@ export class MemStorage implements IStorage {
 
   async createSignal(signalData: InsertSignal): Promise<Signal> {
     const id = randomUUID();
-    const signal: Signal = { 
-      id, 
+    const signal: Signal = {
+      id,
       ...signalData,
       cabinetType: signalData.cabinetType || null,
       cabinetLat: signalData.cabinetLat || null,
@@ -128,8 +128,8 @@ export class MemStorage implements IStorage {
 
   async createPhase(phaseData: InsertPhase): Promise<Phase> {
     const id = randomUUID();
-    const phase: Phase = { 
-      id, 
+    const phase: Phase = {
+      id,
       ...phaseData,
       isPedestrian: phaseData.isPedestrian ?? false,
       channelOutput: phaseData.channelOutput || null,
@@ -166,8 +166,8 @@ export class MemStorage implements IStorage {
 
   async createDetector(detectorData: InsertDetector): Promise<Detector> {
     const id = randomUUID();
-    const detector: Detector = { 
-      id, 
+    const detector: Detector = {
+      id,
       ...detectorData,
       description: detectorData.description || null,
       vehicleType: detectorData.vehicleType || null,

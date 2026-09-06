@@ -1,17 +1,14 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import { BasicTiming } from "@shared/schema";
-import { useBasicTimings } from "@/lib/localStorageHooks";
-import { useGTSSStore } from "@/store/gtss-store";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronUp, ChevronDown, MapPin, Plus, Download } from "lucide-react";
 import SignalsMap from "@/components/ui/signals-map";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { BasicTiming, getSignalDisplayName, useBasicTimings, useGTSSStore } from "gtss";
+import { ChevronDown, ChevronUp, Download, MapPin, Plus } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import BasicTimingModal from "./basic-timing-modal";
 import PhaseDiagram from "./phase-diagram";
-import { getSignalDisplayName } from "@/lib/utils";
 
 type SortField = 'phase' | 'minGreen' | 'maxGreen' | 'yellow' | 'allRed' | 'vehRecallType';
 type SortDirection = 'asc' | 'desc';

@@ -341,16 +341,17 @@ gtss-builder/
 │   │   │   ├── ui/        # Base UI components (shadcn/ui)
 │   │   │   └── gtss/      # Domain-specific components
 │   │   ├── hooks/         # Custom React hooks
-│   │   ├── lib/           # Utilities and configurations
-│   │   │   ├── localStorage.ts      # localStorage service
-│   │   │   └── localStorageHooks.ts # React hooks for localStorage
 │   │   ├── pages/         # Application pages
 │   │   ├── store/         # Zustand state management
 │   │   └── App.tsx        # Main application component
 │   └── index.html         # HTML entry point
 ├── server/                # Backend Express server (development only)
-├── shared/                # Shared TypeScript schemas
-│   └── schema.ts          # Drizzle ORM schemas and types
+├── packages/              # npm packages
+│   └── gtss/              # gtss package
+│       ├── localStorage.ts      # localStorage service
+│       ├── localStorageHooks.ts # React hooks for localStorage
+│       └── schema/        # Shared TypeScript schemas
+│           └── schema.ts  # Drizzle ORM schemas and types
 ├── components.json        # shadcn/ui configuration
 ├── tailwind.config.ts     # Tailwind CSS configuration
 ├── vite.config.ts         # Vite build configuration

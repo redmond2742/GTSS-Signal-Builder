@@ -42,10 +42,10 @@ Thank you for your interest in contributing to OpenSignal! This document outline
 - Follow the existing pattern for form handling with React Hook Form + Zod
 
 ### Data Management
-- All data operations should use the localStorage service (`client/src/lib/localStorage.ts`)
-- Create corresponding React hooks in `client/src/lib/localStorageHooks.ts`
+- All data operations should use the localStorage service (`packages/gtss/localStorage.ts`)
+- Create corresponding React hooks in `packages/gtss/localStorageHooks.ts`
 - Update Zustand store for UI state management
-- Maintain type safety with shared schemas in `shared/schema.ts`
+- Maintain type safety with shared schemas in `packages/gtss/schema/schema.ts`
 
 ### Testing Your Changes
 - Test functionality across different browsers (Chrome, Firefox, Safari, Edge)

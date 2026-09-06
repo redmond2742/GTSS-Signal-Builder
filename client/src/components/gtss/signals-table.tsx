@@ -1,20 +1,15 @@
-import { useState, useEffect, useRef } from "react";
-import { Signal } from "@shared/schema";
-import { useSignals } from "@/lib/localStorageHooks";
-import { useGTSSStore } from "@/store/gtss-store";
-import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Edit, Trash2, Map, List, Navigation, ChevronUp, ChevronDown, Eye, MapPin, Edit3, Search, X } from "lucide-react";
-import SignalModal from "./signal-modal";
-import BulkSignalModal from "./bulk-signal-modal";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import SignalsMap from "@/components/ui/signals-map";
-import { getDerivedStreetNames } from "@/lib/utils";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import { getDerivedStreetNames, Signal, useGTSSStore, useSignals } from "gtss";
+import { ChevronDown, ChevronUp, MapPin, Navigation, Plus, Search, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import BulkSignalModal from "./bulk-signal-modal";
+import SignalModal from "./signal-modal";
 
 
 
@@ -208,18 +203,18 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
   };
 
   const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
-    <TableHead 
+    <TableHead
       className="text-xs font-medium text-grey-500 uppercase tracking-wider cursor-pointer hover:bg-grey-100 transition-colors py-1.5 px-2"
       onClick={() => handleSort(field)}
     >
       <div className="flex items-center justify-between">
         {children}
         <div className="flex flex-col ml-1">
-          <ChevronUp 
-            className={`w-2 h-2 ${sortField === field && sortDirection === 'asc' ? 'text-primary-600' : 'text-grey-300'}`} 
+          <ChevronUp
+            className={`w-2 h-2 ${sortField === field && sortDirection === 'asc' ? 'text-primary-600' : 'text-grey-300'}`}
           />
-          <ChevronDown 
-            className={`w-2 h-2 -mt-0.5 ${sortField === field && sortDirection === 'desc' ? 'text-primary-600' : 'text-grey-300'}`} 
+          <ChevronDown
+            className={`w-2 h-2 -mt-0.5 ${sortField === field && sortDirection === 'desc' ? 'text-primary-600' : 'text-grey-300'}`}
           />
         </div>
       </div>
@@ -269,141 +264,141 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
           className="bg-grey-200 hover:bg-primary-300 transition-colors"
         />
         <ResizablePanel defaultSize={65} minSize={20} className="flex flex-col min-h-0">
-      <Card className="rounded-none border-0 flex flex-col h-full min-h-0">
-        <CardHeader className="bg-grey-50 border-b border-grey-200 p-3 flex-shrink-0">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="text-sm font-medium text-grey-700 whitespace-nowrap">
-                {isFiltering
-                  ? `${visibleSignals.length} of ${signals.length} signal${signals.length !== 1 ? 's' : ''}`
-                  : `${signals.length} signal${signals.length !== 1 ? 's' : ''}`}
-              </span>
-            </div>
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-grey-400 pointer-events-none" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by ID or street name…"
-                className="h-8 pl-8 pr-8 text-sm"
-                data-testid="input-signal-search"
-              />
-              {isFiltering && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-grey-400 hover:text-grey-600"
-                  aria-label="Clear search"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <Button
-                onClick={() => setShowBulkModal(true)}
-                variant="outline"
-                className="h-8 px-3 text-xs border-primary-200 text-primary-700 hover:bg-primary-50 flex items-center gap-1"
-              >
-                <Navigation className="w-3 h-3" />
-                <span>Add Multiple</span>
-              </Button>
-              <Button
-                onClick={handleAdd}
-                className="h-8 px-3 text-xs bg-primary-600 hover:bg-primary-700 flex items-center gap-1"
-              >
-                <Plus className="w-3 h-3" />
-                <span>Add Signal</span>
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0 flex-1 min-h-0 overflow-auto">
-          <div className="w-full">
-            {/* Signals Table */}
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="sticky top-0 z-10 bg-grey-50 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]">
-                  <TableRow className="bg-grey-50 border-b border-grey-200">
-                    <SortableHeader field="signalId">Signal ID</SortableHeader>
-                    <SortableHeader field="streetName1">Street 1</SortableHeader>
-                    <SortableHeader field="streetName2">Street 2</SortableHeader>
-                    <SortableHeader field="completeness">% Complete</SortableHeader>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {visibleSignals.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-xs text-grey-500">
-                        <div className="flex flex-col items-center space-y-2">
-                          {isFiltering ? (
-                            <>
-                              <Search className="w-8 h-8 text-grey-300" />
-                              <p>No signals match "{searchQuery.trim()}"</p>
-                              <p className="text-grey-400">Try a different ID or street name</p>
-                            </>
-                          ) : (
-                            <>
-                              <MapPin className="w-8 h-8 text-grey-300" />
-                              <p>No traffic signals configured</p>
-                              <p className="text-grey-400">Add your first signal to get started</p>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    visibleSignals.map((signal) => (
-                      <TableRow
-                        key={signal.id}
-                        className="hover:bg-grey-50 cursor-pointer transition-colors"
-                        onClick={() => navigateToSignalDetails(signal.signalId)}
-                        onMouseEnter={() => setHoveredSignalId(signal.signalId)}
-                        onMouseLeave={() => setHoveredSignalId(prev => prev === signal.signalId ? null : prev)}
-                        data-testid={`row-signal-${signal.signalId}`}
-                      >
-                        <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">{signal.signalId}</TableCell>
-                        <TableCell className="text-grey-600 text-xs py-1.5 px-2">
-                          {getDerivedStreetNames(signal.signalId, approaches).streetName1 || signal.streetName1 || '-'}
-                        </TableCell>
-                        <TableCell className="text-grey-600 text-xs py-1.5 px-2">
-                          {getDerivedStreetNames(signal.signalId, approaches).streetName2 || signal.streetName2 || '-'}
-                        </TableCell>
-                        <TableCell className="text-xs py-1.5 px-2">
-                          {(() => {
-                            const pct = getCompletenessPct(signal.signalId);
-                            const has = (arr: { signalId: string }[]) => arr.some(x => x.signalId === signal.signalId);
-                            const parts = [
-                              `${has(approaches) ? '✓' : '·'} approaches`,
-                              `${has(phases) ? '✓' : '·'} phases`,
-                              `${has(detectors) ? '✓' : '·'} detectors`,
-                              `${has(basicTimings) ? '✓' : '·'} timings`,
-                            ].join('\n');
-                            const barColor =
-                              pct === 100 ? 'bg-green-500'
-                              : pct >= 75 ? 'bg-blue-500'
-                              : pct >= 50 ? 'bg-amber-500'
-                              : pct >= 25 ? 'bg-orange-500'
-                              : 'bg-grey-300';
-                            const textColor = pct === 100 ? 'text-green-700' : 'text-grey-700';
-                            return (
-                              <div className="flex items-center gap-2" title={parts}>
-                                <div className="w-20 h-1.5 bg-grey-200 rounded-full overflow-hidden flex-shrink-0">
-                                  <div className={`h-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
-                                </div>
-                                <span className={`font-mono text-[11px] w-9 text-right ${textColor}`}>{pct}%</span>
-                              </div>
-                            );
-                          })()}
-                        </TableCell>
-                      </TableRow>
-                    ))
+          <Card className="rounded-none border-0 flex flex-col h-full min-h-0">
+            <CardHeader className="bg-grey-50 border-b border-grey-200 p-3 flex-shrink-0">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-sm font-medium text-grey-700 whitespace-nowrap">
+                    {isFiltering
+                      ? `${visibleSignals.length} of ${signals.length} signal${signals.length !== 1 ? 's' : ''}`
+                      : `${signals.length} signal${signals.length !== 1 ? 's' : ''}`}
+                  </span>
+                </div>
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-grey-400 pointer-events-none" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search by ID or street name…"
+                    className="h-8 pl-8 pr-8 text-sm"
+                    data-testid="input-signal-search"
+                  />
+                  {isFiltering && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-grey-400 hover:text-grey-600"
+                      aria-label="Clear search"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   )}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Button
+                    onClick={() => setShowBulkModal(true)}
+                    variant="outline"
+                    className="h-8 px-3 text-xs border-primary-200 text-primary-700 hover:bg-primary-50 flex items-center gap-1"
+                  >
+                    <Navigation className="w-3 h-3" />
+                    <span>Add Multiple</span>
+                  </Button>
+                  <Button
+                    onClick={handleAdd}
+                    className="h-8 px-3 text-xs bg-primary-600 hover:bg-primary-700 flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Add Signal</span>
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0 flex-1 min-h-0 overflow-auto">
+              <div className="w-full">
+                {/* Signals Table */}
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 z-10 bg-grey-50 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]">
+                      <TableRow className="bg-grey-50 border-b border-grey-200">
+                        <SortableHeader field="signalId">Signal ID</SortableHeader>
+                        <SortableHeader field="streetName1">Street 1</SortableHeader>
+                        <SortableHeader field="streetName2">Street 2</SortableHeader>
+                        <SortableHeader field="completeness">% Complete</SortableHeader>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {visibleSignals.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-8 text-xs text-grey-500">
+                            <div className="flex flex-col items-center space-y-2">
+                              {isFiltering ? (
+                                <>
+                                  <Search className="w-8 h-8 text-grey-300" />
+                                  <p>No signals match "{searchQuery.trim()}"</p>
+                                  <p className="text-grey-400">Try a different ID or street name</p>
+                                </>
+                              ) : (
+                                <>
+                                  <MapPin className="w-8 h-8 text-grey-300" />
+                                  <p>No traffic signals configured</p>
+                                  <p className="text-grey-400">Add your first signal to get started</p>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        visibleSignals.map((signal) => (
+                          <TableRow
+                            key={signal.id}
+                            className="hover:bg-grey-50 cursor-pointer transition-colors"
+                            onClick={() => navigateToSignalDetails(signal.signalId)}
+                            onMouseEnter={() => setHoveredSignalId(signal.signalId)}
+                            onMouseLeave={() => setHoveredSignalId(prev => prev === signal.signalId ? null : prev)}
+                            data-testid={`row-signal-${signal.signalId}`}
+                          >
+                            <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">{signal.signalId}</TableCell>
+                            <TableCell className="text-grey-600 text-xs py-1.5 px-2">
+                              {getDerivedStreetNames(signal.signalId, approaches).streetName1 || signal.streetName1 || '-'}
+                            </TableCell>
+                            <TableCell className="text-grey-600 text-xs py-1.5 px-2">
+                              {getDerivedStreetNames(signal.signalId, approaches).streetName2 || signal.streetName2 || '-'}
+                            </TableCell>
+                            <TableCell className="text-xs py-1.5 px-2">
+                              {(() => {
+                                const pct = getCompletenessPct(signal.signalId);
+                                const has = (arr: { signalId: string }[]) => arr.some(x => x.signalId === signal.signalId);
+                                const parts = [
+                                  `${has(approaches) ? '✓' : '·'} approaches`,
+                                  `${has(phases) ? '✓' : '·'} phases`,
+                                  `${has(detectors) ? '✓' : '·'} detectors`,
+                                  `${has(basicTimings) ? '✓' : '·'} timings`,
+                                ].join('\n');
+                                const barColor =
+                                  pct === 100 ? 'bg-green-500'
+                                    : pct >= 75 ? 'bg-blue-500'
+                                      : pct >= 50 ? 'bg-amber-500'
+                                        : pct >= 25 ? 'bg-orange-500'
+                                          : 'bg-grey-300';
+                                const textColor = pct === 100 ? 'text-green-700' : 'text-grey-700';
+                                return (
+                                  <div className="flex items-center gap-2" title={parts}>
+                                    <div className="w-20 h-1.5 bg-grey-200 rounded-full overflow-hidden flex-shrink-0">
+                                      <div className={`h-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
+                                    </div>
+                                    <span className={`font-mono text-[11px] w-9 text-right ${textColor}`}>{pct}%</span>
+                                  </div>
+                                );
+                              })()}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </ResizablePanel>
       </ResizablePanelGroup>
 
@@ -413,7 +408,7 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
           onClose={handleModalClose}
         />
       )}
-      
+
       {showBulkModal && (
         <BulkSignalModal
           onClose={() => setShowBulkModal(false)}

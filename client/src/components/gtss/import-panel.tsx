@@ -1,17 +1,4 @@
-import { useState } from 'react';
-import JSZip from 'jszip';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, FileText, AlertTriangle, CheckCircle, ClipboardPaste } from 'lucide-react';
-import { parseAgencyTXT, parseSignalsTXT, parseApproachesTXT, parsePhasesTXT, parseDetectorsTXT, parseBasicTimingsTXT, importData } from '@/lib/localStorage';
-import { Agency, Signal, Approach, Phase, Detector, BasicTiming } from '@shared/schema';
-import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +9,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { Agency, Approach, BasicTiming, Detector, importData, parseAgencyTXT, parseApproachesTXT, parseBasicTimingsTXT, parseDetectorsTXT, parsePhasesTXT, parseSignalsTXT, Phase, Signal } from 'gtss';
+import JSZip from 'jszip';
+import { AlertTriangle, CheckCircle, ClipboardPaste, FileText, Upload } from 'lucide-react';
+import { useState } from 'react';
 
 type FileData = {
   name: string;
@@ -287,9 +286,8 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
             {/* File Upload Area */}
             <div>
               <div
-                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                  dragActive ? 'border-primary bg-primary/5' : 'border-gray-300'
-                }`}
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${dragActive ? 'border-primary bg-primary/5' : 'border-gray-300'
+                  }`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
@@ -486,7 +484,7 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
               <AlertDialogDescription>
                 {importMode === 'replace' ? (
                   <>
-                    <strong className="text-destructive">Warning:</strong> This will replace all existing data with the imported data. 
+                    <strong className="text-destructive">Warning:</strong> This will replace all existing data with the imported data.
                     This action cannot be undone.
                   </>
                 ) : (

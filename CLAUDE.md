@@ -21,7 +21,7 @@ npm run db:push      # Push Drizzle schema to database (if using server-side sto
 ### Data Flow
 
 The app has a **dual storage architecture**:
-- **Primary (client-side)**: Browser localStorage via `client/src/lib/localStorage.ts` - all data persists locally
+- **Primary (client-side)**: Browser localStorage via `packages/gtss/localStorage.ts` - all data persists locally
 - **Server-side (development only)**: Express API routes exist in `server/` but the production app runs entirely client-side
 
 ### Key Directories
@@ -29,11 +29,12 @@ The app has a **dual storage architecture**:
 - `client/src/` - React frontend application
   - `components/gtss/` - Domain-specific components (agency-form, signal-modal, phase-modal, etc.)
   - `components/ui/` - shadcn/ui base components
-  - `store/gtss-store.ts` - Zustand state management
-  - `lib/localStorage.ts` - All localStorage CRUD operations and CSV/TXT export/import functions
   - `pages/gtss-builder.tsx` - Main application view with tab navigation
 - `server/` - Express server (development only, serves Vite in dev mode)
-- `shared/schema.ts` - Drizzle ORM schemas defining data types (Agency, Signal, Phase, Detector)
+- `packages/gtss/` - Package to be used by other developers
+  - `store/gtss-store.ts` - Zustand state management
+  - `localStorage.ts` - All localStorage CRUD operations and CSV/TXT export/import functions
+  - `schema/schema.ts` - Drizzle ORM schemas defining data types (Agency, Signal, Phase, Detector)
 
 ### State Management
 
@@ -43,7 +44,7 @@ Zustand store (`gtss-store.ts`) manages:
 
 ### Data Models
 
-Four main entities defined in `shared/schema.ts`:
+Four main entities defined in `schema/schema.ts`:
 - **Agency**: Organization info (id, name, timezone, location)
 - **Signal**: Traffic signal locations (signalId, street names, lat/lng)
 - **Phase**: Signal timing phases (phase number, movement type, bearing, overlap flags)
@@ -60,7 +61,7 @@ Data exports as TXT files (CSV format):
 
 ```
 @/     -> client/src/
-@shared/ -> shared/
+@schema/ -> schema/
 @assets/ -> attached_assets/
 ```
 

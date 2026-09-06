@@ -1,25 +1,25 @@
 import { useEffect } from 'react';
-import { useGTSSStore } from '@/store/gtss-store';
+import { AgencyDefaults } from './agencyDefaults';
 import {
-  agencyStorage,
   agencyDefaultsStorage,
-  signalStorage,
+  agencyStorage,
   approachStorage,
-  phaseStorage,
-  detectorStorage,
   basicTimingStorage,
+  detectorStorage,
+  exportAsIndividualFiles,
   exportAsZip,
-  exportAsIndividualFiles
+  phaseStorage,
+  signalStorage
 } from './localStorage';
 import {
   InsertAgency,
-  InsertSignal,
   InsertApproach,
-  InsertPhase,
+  InsertBasicTiming,
   InsertDetector,
-  InsertBasicTiming
-} from '@shared/schema';
-import { AgencyDefaults } from './agencyDefaults';
+  InsertPhase,
+  InsertSignal
+} from './schema/schema';
+import { useGTSSStore } from './store/gtss-store';
 
 // Custom hooks to replace TanStack Query for localStorage operations
 

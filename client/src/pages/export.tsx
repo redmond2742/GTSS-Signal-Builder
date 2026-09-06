@@ -1,16 +1,15 @@
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useLocation } from "wouter";
 import ExportPanel from "@/components/gtss/export-panel";
 import { ImportPanel } from "@/components/gtss/import-panel";
-import { useLoadFromStorage } from "@/lib/localStorageHooks";
-import { useGTSSStore } from "@/store/gtss-store";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useGTSSStore, useLoadFromStorage } from "gtss";
+import { ArrowLeft } from "lucide-react";
+import { useLocation } from "wouter";
 
 export default function ExportPage() {
   const [, navigate] = useLocation();
   const { loadFromStorage } = useGTSSStore();
-  
+
   // Load data from localStorage on mount
   useLoadFromStorage();
 
@@ -42,11 +41,11 @@ export default function ExportPage() {
             <TabsTrigger value="export" data-testid="tab-export">Export</TabsTrigger>
             <TabsTrigger value="import" data-testid="tab-import">Import</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="export" className="mt-3 sm:mt-4">
             <ExportPanel />
           </TabsContent>
-          
+
           <TabsContent value="import" className="mt-3 sm:mt-4">
             <ImportPanel onImportComplete={loadFromStorage} />
           </TabsContent>

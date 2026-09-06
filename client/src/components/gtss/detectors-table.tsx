@@ -1,22 +1,19 @@
-import { useState, useEffect, useRef } from "react";
-import { Detector } from "@shared/schema";
-import { useDetectors } from "@/lib/localStorageHooks";
-import { useGTSSStore } from "@/store/gtss-store";
-import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, ChevronUp, ChevronDown, MapPin, Download } from "lucide-react";
 import SignalsMap from "@/components/ui/signals-map";
-import { getSignalDisplayName } from "@/lib/utils";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import { Detector, getSignalDisplayName, useDetectors, useGTSSStore } from "gtss";
+import { ChevronDown, ChevronUp, Download, MapPin, Plus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import BulkDetectorModal from "./bulk-detector-modal";
 import DetectorDiagram from "./detector-diagram";
+import DetectorModal from "./detector-modal";
 
 type SortField = 'signalId' | 'channel' | 'phase' | 'technologyType' | 'purpose';
 type SortDirection = 'asc' | 'desc';
-import DetectorModal from "./detector-modal";
-import BulkDetectorModal from "./bulk-detector-modal";
 
 interface DetectorsTableProps {
   triggerAdd?: number;
@@ -212,18 +209,18 @@ export default function DetectorsTable({ triggerAdd, triggerBulk }: DetectorsTab
   };
 
   const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
-    <TableHead 
+    <TableHead
       className="text-xs font-medium text-grey-500 uppercase tracking-wider cursor-pointer hover:bg-grey-100 transition-colors py-1.5 px-2"
       onClick={() => handleSort(field)}
     >
       <div className="flex items-center justify-between">
         {children}
         <div className="flex flex-col ml-1">
-          <ChevronUp 
-            className={`w-3 h-3 ${sortField === field && sortDirection === 'asc' ? 'text-primary-600' : 'text-grey-300'}`} 
+          <ChevronUp
+            className={`w-3 h-3 ${sortField === field && sortDirection === 'asc' ? 'text-primary-600' : 'text-grey-300'}`}
           />
-          <ChevronDown 
-            className={`w-3 h-3 -mt-1 ${sortField === field && sortDirection === 'desc' ? 'text-primary-600' : 'text-grey-300'}`} 
+          <ChevronDown
+            className={`w-3 h-3 -mt-1 ${sortField === field && sortDirection === 'desc' ? 'text-primary-600' : 'text-grey-300'}`}
           />
         </div>
       </div>
@@ -344,7 +341,7 @@ export default function DetectorsTable({ triggerAdd, triggerBulk }: DetectorsTab
                   </TableRow>
                 ) : (
                   getSortedDetectors().map((detector) => (
-                    <TableRow 
+                    <TableRow
                       key={detector.id}
                       className="cursor-pointer hover:bg-gray-50 transition-colors"
                       onClick={() => handleRowClick(detector)}
