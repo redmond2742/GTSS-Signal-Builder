@@ -4,8 +4,11 @@
     {
       "name": "dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 5000,
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 5001,
       "autoPort": true
     }
   ]
