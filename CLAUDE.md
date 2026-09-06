@@ -21,7 +21,7 @@ npm run db:push      # Push Drizzle schema to database (if using server-side sto
 ### Data Flow
 
 The app has a **dual storage architecture**:
-- **Primary (client-side)**: Browser localStorage via `client/src/lib/localStorage.ts` - all data persists locally
+- **Primary (client-side)**: Browser localStorage via `packages/gtss/localStorage.ts` - all data persists locally
 - **Server-side (development only)**: Express API routes exist in `server/` but the production app runs entirely client-side
 
 ### Key Directories
