@@ -1,8 +1,8 @@
 // server/index.ts
-import express2 from "express";
-import helmet from "helmet";
 import cors from "cors";
+import express2 from "express";
 import rateLimit from "express-rate-limit";
+import helmet from "helmet";
 
 // server/routes.ts
 import { createServer } from "http";
@@ -618,7 +618,7 @@ app.use(helmet({
   // Required for external resources
 }));
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(",") || ["http://localhost:5000", "http://localhost:3000"],
+  origin: process.env.ALLOWED_ORIGINS?.split(",") || ["http://localhost:5001", "http://localhost:3000"],
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"]
@@ -674,7 +674,7 @@ app.use((req, res, next) => {
   } else {
     serveStatic(app);
   }
-  const port = parseInt(process.env.PORT || "5000", 10);
+  const port = parseInt(process.env.PORT || "5001", 10);
   server.listen({
     port,
     host: "0.0.0.0",
