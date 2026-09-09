@@ -5,6 +5,8 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 
 // server/routes.ts
+import archiver from "archiver";
+import { insertAgencySchema, insertDetectorSchema, insertPhaseSchema, insertSignalSchema } from "gtss/schema";
 import { createServer } from "http";
 
 // server/storage.ts
@@ -162,133 +164,7 @@ var MemStorage = class {
 };
 var storage = new MemStorage();
 
-// shared/schema.ts
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, real, boolean, integer } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
-var agencies = pgTable("agencies", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  agencyId: text("agency_id").notNull().unique(),
-  agencyName: text("agency_name").notNull(),
-  agencyUrl: text("agency_url"),
-  agencyTimezone: text("agency_timezone").notNull(),
-  agencyLanguage: text("agency_language").default("en"),
-  agencyEmail: text("agency_email"),
-  latitude: real("latitude"),
-  longitude: real("longitude")
-});
-var signals = pgTable("signals", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  signalId: text("signal_id").notNull().unique(),
-  agencyId: text("agency_id").notNull(),
-  streetName1: text("street_name_1").notNull(),
-  streetName2: text("street_name_2").notNull(),
-  latitude: real("latitude").notNull(),
-  longitude: real("longitude").notNull()
-});
-var approaches = pgTable("approaches", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  approachId: text("approach_id").notNull(),
-  signalId: text("signal_id").notNull(),
-  streetName: text("street_name").notNull(),
-  compassBearing: integer("compass_bearing"),
-  postedSpeed: integer("posted_speed"),
-  // FR — Free Right: the approach has a right-turn slip lane that bypasses
-  // the signal. Drawn on the phase diagram as a quarter-circle lane peeling
-  // off to the right before the intersection.
-  //   0 = none
-  //   1 = FR     (slip lane, no pedestrian crossing)
-  //   2 = FR-P   (slip lane WITH a pedestrian crossing across its middle)
-  //   3 = FR-P-I (improved: traffic-calmed lane with a shark's-teeth yield
-  //               line before a ladder-style crosswalk)
-  freeRight: integer("free_right").default(0),
-  // Number of free-right lanes. In approaches.txt this prefixes the FR code
-  // as "<n>-FR", "<n>-FR-P", etc. (a bare "FR" / "FR-P" implies 1 lane).
-  freeRightLanes: integer("free_right_lanes").default(1)
-});
-var phases = pgTable("phases", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  phase: integer("phase").notNull(),
-  signalId: text("signal_id").notNull(),
-  movementType: text("movement_type").notNull(),
-  // Pedestrian crossing mode for the phase:
-  //   0 = none
-  //   1 = single crosswalk on the assigned approach (legacy "true")
-  //   2 = two crosswalks (assigned approach AND its 180° opposite)
-  //   3 = single crosswalk on the 180° opposite approach
-  //   4 = single diagonal crosswalk
-  //   5 = single diagonal crosswalk on the other diagonal (90° rotated)
-  //   6 = both diagonals shown simultaneously (full scramble "X")
-  //   7 = all four crosswalks AND both diagonals (full all-directions scramble)
-  // When movementType === 'Pedestrian' the same integer drives the rendering
-  // (no auto-scramble override).
-  isPedestrian: integer("is_pedestrian").default(0),
-  numOfLanes: integer("num_of_lanes").default(1),
-  approachId: text("approach_id"),
-  // Measured crosswalk length in feet for the phase's pedestrian crossing.
-  // Null means "not measured" — phases.txt then carries an estimate instead:
-  //   LE-#  lane-estimated distance (12 ft × lanes on the crossed approach)
-  //   TE-#  time-estimated distance (ped clearance × 3.5 ft/s walking speed)
-  // The shorter available estimate is exported; a measured value overrides both.
-  crosswalkLength: integer("crosswalk_length")
-});
-var detectors = pgTable("detectors", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  channel: text("channel").notNull(),
-  signalId: text("signal_id").notNull(),
-  phase: integer("phase").notNull(),
-  description: text("description"),
-  purpose: text("purpose").notNull(),
-  vehicleType: text("vehicle_type"),
-  lane: text("lane"),
-  technologyType: text("technology_type").notNull(),
-  length: real("length"),
-  stopbarSetbackDist: real("stopbar_setback_dist")
-});
-var basicTimings = pgTable("basic_timings", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  phase: integer("phase").notNull(),
-  signalId: text("signal_id").notNull(),
-  pedWalk: real("ped_walk"),
-  pedClearance: real("ped_clearance"),
-  leadingPedInterval: real("leading_ped_interval"),
-  minGreen: real("min_green"),
-  maxGreen: real("max_green"),
-  yellow: real("yellow"),
-  allRed: real("all_red"),
-  vehRecallType: text("veh_recall_type").default("None"),
-  pedRecall: boolean("ped_recall").default(false)
-});
-var insertAgencySchema = createInsertSchema(agencies).omit({
-  id: true
-}).extend({
-  agencyLanguage: z.string().optional()
-});
-var insertSignalSchema = createInsertSchema(signals).omit({
-  id: true
-}).extend({
-  signalId: z.string().optional()
-});
-var insertApproachSchema = createInsertSchema(approaches).omit({
-  id: true
-}).extend({
-  approachId: z.string().optional()
-});
-var insertPhaseSchema = createInsertSchema(phases).omit({
-  id: true
-});
-var insertDetectorSchema = createInsertSchema(detectors).omit({
-  id: true
-});
-var insertBasicTimingSchema = createInsertSchema(basicTimings).omit({
-  id: true
-}).extend({
-  vehRecallType: z.enum(["None", "Min", "Max", "Soft"]).optional()
-});
-
 // server/routes.ts
-import archiver from "archiver";
 async function registerRoutes(app2) {
   app2.get("/api/agency", async (req, res) => {
     try {
@@ -309,8 +185,8 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/signals", async (req, res) => {
     try {
-      const signals2 = await storage.getSignals();
-      res.json(signals2);
+      const signals = await storage.getSignals();
+      res.json(signals);
     } catch (error) {
       res.status(500).json({ message: "Failed to get signals" });
     }
@@ -350,8 +226,8 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/phases", async (req, res) => {
     try {
-      const phases2 = await storage.getPhases();
-      res.json(phases2);
+      const phases = await storage.getPhases();
+      res.json(phases);
     } catch (error) {
       res.status(500).json({ message: "Failed to get phases" });
     }
@@ -386,8 +262,8 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/detectors", async (req, res) => {
     try {
-      const detectors2 = await storage.getDetectors();
-      res.json(detectors2);
+      const detectors = await storage.getDetectors();
+      res.json(detectors);
     } catch (error) {
       res.status(500).json({ message: "Failed to get detectors" });
     }
@@ -452,14 +328,14 @@ function generateAgencyCSV(agency) {
 `;
   return headers + row;
 }
-function generateSignalsCSV(signals2) {
+function generateSignalsCSV(signals) {
   const headers = "SignalID,AgencyID,Street_Name1,Street_Name2,Cnt_lat,Cnt_lon,Control_Type,Cabinet_Type,Cabinet_Lat,Cabinet_Lon,has_BatteryBackup,has_CCTV\n";
-  const rows = signals2.map(
+  const rows = signals.map(
     (s) => `${s.signalId},${s.agencyId},"${s.streetName1}","${s.streetName2}",${s.cntLat},${s.cntLon},"${s.controlType}","${s.cabinetType || ""}",${s.cabinetLat || ""},${s.cabinetLon || ""},${s.hasBatteryBackup},${s.hasCctv}`
   ).join("\n");
   return headers + (rows ? rows + "\n" : "");
 }
-function generatePhasesCSV(phases2) {
+function generatePhasesCSV(phases) {
   const movementTypeMap = {
     "Through": "T",
     "Left Turn": "L",
@@ -472,15 +348,15 @@ function generatePhasesCSV(phases2) {
     "Pedestrian": "PED"
   };
   const headers = "Phase,SignalID,Movement_Type,is_pedestrian,channel_output,Compass_Bearing,Posted_Speed_Limit,vehicle_detection_ids,ped_audible_enabled\n";
-  const rows = phases2.map((p) => {
+  const rows = phases.map((p) => {
     const shorthandMovementType = movementTypeMap[p.movementType] || p.movementType;
     return `${p.phase},${p.signalId},"${shorthandMovementType}",${p.isPedestrian},"${p.channelOutput || ""}",${p.compassBearing || ""},${p.postedSpeedLimit || ""},"${p.vehicleDetectionIds || ""}",${p.pedAudibleEnabled}`;
   }).join("\n");
   return headers + (rows ? rows + "\n" : "");
 }
-function generateDetectionCSV(detectors2) {
+function generateDetectionCSV(detectors) {
   const headers = "SignalID,Detector_Channel,Phase,Description,Purpose,Vehicle_Type,Lane,Det_Technology_Type,Length,Stopbar_Setback\n";
-  const rows = detectors2.map(
+  const rows = detectors.map(
     (d) => `${d.signalId},"${d.detectorChannel}",${d.phase},"${d.description || ""}","${d.purpose}","${d.vehicleType || ""}","${d.lane || ""}","${d.detTechnologyType}",${d.length || ""},${d.stopbarSetback ?? ""}`
   ).join("\n");
   return headers + (rows ? rows + "\n" : "");
@@ -493,10 +369,10 @@ import path2 from "path";
 import { createServer as createViteServer, createLogger } from "vite";
 
 // vite.config.ts
-import { defineConfig } from "vite";
+import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import react from "@vitejs/plugin-react";
 import path from "path";
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+import { defineConfig } from "vite";
 var vite_config_default = defineConfig({
   plugins: [
     react(),
@@ -510,7 +386,7 @@ var vite_config_default = defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path.resolve(import.meta.dirname, "shared"),
+      "@schema": path.resolve(import.meta.dirname, "schema"),
       "@assets": path.resolve(import.meta.dirname, "attached_assets")
     }
   },
@@ -678,7 +554,7 @@ app.use((req, res, next) => {
   server.listen({
     port,
     host: "0.0.0.0",
-    reusePort: true
+    reusePort: false
   }, () => {
     log(`serving on port ${port}`);
   });
