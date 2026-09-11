@@ -25,6 +25,8 @@ var MemStorage = class {
       ...agencyData,
       agencyUrl: agencyData.agencyUrl || null,
       agencyLanguage: agencyData.agencyLanguage || null,
+      // Extra fields may be present in incoming data; keep them but cast to the
+      // declared `Agency` type for the in-memory store.
       contactPerson: agencyData.contactPerson || null,
       contactEmail: agencyData.contactEmail || null
     };
@@ -99,7 +101,8 @@ var MemStorage = class {
     const phase = {
       id,
       ...phaseData,
-      isPedestrian: phaseData.isPedestrian ?? false,
+      // coerce potential boolean values into numeric schema where appropriate
+      isPedestrian: phaseData.isPedestrian ?? null,
       channelOutput: phaseData.channelOutput || null,
       compassBearing: phaseData.compassBearing || null,
       postedSpeedLimit: phaseData.postedSpeedLimit || null,
@@ -136,7 +139,7 @@ var MemStorage = class {
       vehicleType: detectorData.vehicleType || null,
       lane: detectorData.lane || null,
       length: detectorData.length || null,
-      stopbarSetback: detectorData.stopbarSetback ?? null
+      stopbarSetbackDist: detectorData.stopbarSetback ?? null
     };
     this.detectors.set(id, detector);
     return detector;
@@ -158,7 +161,11 @@ var MemStorage = class {
       agency: this.agency,
       signals: Array.from(this.signals.values()),
       phases: Array.from(this.phases.values()),
-      detectors: Array.from(this.detectors.values())
+      detectors: Array.from(this.detectors.values()),
+      // In-memory store may not maintain approaches/basicTimings; return empty
+      // arrays to satisfy the GTSSData type.
+      approaches: [],
+      basicTimings: []
     };
   }
 };
