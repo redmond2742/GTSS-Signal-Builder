@@ -1,18 +1,31 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import MapTileLayers from "@/components/ui/map-tile-layers";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { getSignalDisplayName, useDetectors, useGTSSStore, useMapScrollZoom } from "gtss";
 import { type Detector, type InsertDetector, insertDetectorSchema } from "gtss/schema";
-import { approachColorFor } from "./approach-colors";
 import { MapPin, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { MapContainer, Marker, Popup } from "react-leaflet";
+import { approachColorFor } from "./approach-colors";
 // Removed image import for simplified interface
 
 const compassDirections = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -79,14 +92,20 @@ interface DetectorModalProps {
   preSelectedSignalId?: string;
 }
 
-export default function DetectorModal({ detector, onClose, preSelectedSignalId }: DetectorModalProps) {
+export default function DetectorModal({
+  detector,
+  onClose,
+  preSelectedSignalId,
+}: DetectorModalProps) {
   const mapScrollZoom = useMapScrollZoom();
-  const { signals, phases, approaches } = useGTSSStore();
+  const { signals, phases, approaches, agency } = useGTSSStore();
   const { toast } = useToast();
   const detectorHooks = useDetectors();
-  const [selectedZone, setSelectedZone] = useState<'stopbar' | 'advance' | 'count' | null>(null);
-  const [selectedSignalId, setSelectedSignalId] = useState<string>(detector?.signalId || preSelectedSignalId || "");
-  const [lockedValues, setLockedValues] = useState({ length: false, stopbarSetback: false });
+  // const [, setSelectedZone] = useState<'stopbar' | 'advance' | 'count' | null>(null);
+  const [selectedSignalId, setSelectedSignalId] = useState<string>(
+    detector?.signalId || preSelectedSignalId || "",
+  );
+  const [, setLockedValues] = useState({ length: false, stopbarSetback: false });
   const [isDescriptionDirty, setIsDescriptionDirty] = useState(Boolean(detector?.description));
   const [hasCreatedDetector, setHasCreatedDetector] = useState(false);
 
@@ -106,6 +125,10 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
       approachId: null,
     },
   });
+
+  const isMetric = agency?.agencyIsMetric ?? false;
+  //  const speedUnit = isMetric ? "km/h" : "mph";
+  const lengthUnit = isMetric ? "m" : "feet";
 
   useEffect(() => {
     if (detector) {
@@ -132,15 +155,15 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
   }, [detector, form]);
 
   // Update available phases when signal ID changes
-  const availablePhases = phases.filter(phase => phase.signalId === selectedSignalId);
+  //const availablePhases = phases.filter(phase => phase.signalId === selectedSignalId);
   const isSignalSelected = selectedSignalId && selectedSignalId !== "";
 
   // Handle signal ID change - update map location
   const handleSignalChange = (signalId: string) => {
     setSelectedSignalId(signalId);
-    form.setValue('signalId', signalId);
+    form.setValue("signalId", signalId);
   };
-
+  /*
   const handleZoneClick = (zone: 'stopbar' | 'advance' | 'count', event: React.MouseEvent) => {
     event.preventDefault();
     setSelectedZone(zone);
@@ -149,20 +172,20 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
     if (zone === 'stopbar') {
       form.setValue('purpose', 'Stop Bar');
       if (!lockedValues.stopbarSetback) form.setValue('stopbarSetbackDist', 0);
-      if (!lockedValues.length) form.setValue('length', 6.0);
+      if (!lockedValues.length) form.setValue('length', isMetric ? 1.8 : 6.0);
     } else if (zone === 'advance') {
       form.setValue('purpose', 'Advanced Loop');
-      if (!lockedValues.stopbarSetback) form.setValue('stopbarSetbackDist', 250.0);
-      if (!lockedValues.length) form.setValue('length', 25.0);
+      if (!lockedValues.stopbarSetback) form.setValue('stopbarSetbackDist', isMetric ? 76.0 : 250.0);
+      if (!lockedValues.length) form.setValue('length', isMetric ? 7.6 : 25.0);
     } else {
       form.setValue('purpose', 'Count Detector');
       // Count detectors report volume rather than calling a phase, so drop the
       // phase and let the approach locate them.
       form.setValue('phase', null);
-      if (!lockedValues.stopbarSetback) form.setValue('stopbarSetbackDist', 500.0);
-      if (!lockedValues.length) form.setValue('length', 6.0);
+      if (!lockedValues.stopbarSetback) form.setValue('stopbarSetbackDist', isMetric ? 152.0 : 500.0);
+      if (!lockedValues.length) form.setValue('length', isMetric ? 1.8 : 6.0);
     }
-  };
+  };*/
 
   const onSubmit = async (data: InsertDetector) => {
     setIsLoading(true);
@@ -186,7 +209,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
         form.setValue("lane", nextLane);
         setHasCreatedDetector(true);
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: detector ? "Failed to update detector" : "Failed to create detector",
@@ -220,7 +243,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
       const nextLane = incrementAllNumbers(data.lane ?? "");
       form.setValue("channel", nextChannel);
       form.setValue("lane", nextLane);
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to create adjacent lane detector",
@@ -247,23 +270,29 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
     // Bearing comes from the detector's own approach when it has one (the only
     // source for a phase-less count detector), otherwise from the phase's.
     const approachId = watchedApproachId || selectedPhase?.approachId || null;
-    const approach = approachId
-      ? approaches.find((a) => a.approachId === approachId)
-      : null;
+    const approach = approachId ? approaches.find((a) => a.approachId === approachId) : null;
     const direction = bearingToDirection(approach?.compassBearing ?? null);
     const formattedPurpose = formatPurposeForDescription(watchedPurpose ?? "");
     const laneValue = watchedLane?.toString().trim() ?? "";
     const description = buildDetectorDescription(direction, formattedPurpose, laneValue);
     form.setValue("description", description);
-  }, [form, isDescriptionDirty, phases, approaches, selectedSignalId, watchedApproachId, watchedLane, watchedPhase, watchedPurpose]);
+  }, [
+    form,
+    isDescriptionDirty,
+    phases,
+    approaches,
+    selectedSignalId,
+    watchedApproachId,
+    watchedLane,
+    watchedPhase,
+    watchedPurpose,
+  ]);
 
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-screen overflow-auto">
         <DialogHeader>
-          <DialogTitle>
-            {detector ? "Edit Detector" : "Add Detector"}
-          </DialogTitle>
+          <DialogTitle>{detector ? "Edit Detector" : "Add Detector"}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -321,7 +350,11 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
 
               {(() => {
                 const selectedSignalId = form.watch("signalId");
-                const signalPhases = selectedSignalId ? phases.filter(p => p.signalId === selectedSignalId).sort((a, b) => a.phase - b.phase) : [];
+                const signalPhases = selectedSignalId
+                  ? phases
+                      .filter((p) => p.signalId === selectedSignalId)
+                      .sort((a, b) => a.phase - b.phase)
+                  : [];
 
                 if (!selectedSignalId) {
                   return (
@@ -357,11 +390,14 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                               const approach = phase.approachId
                                 ? approaches.find((a) => a.approachId === phase.approachId)
                                 : null;
-                              const direction = bearingToDirection(approach?.compassBearing ?? null);
+                              const direction = bearingToDirection(
+                                approach?.compassBearing ?? null,
+                              );
                               const bearingLabel = direction ? ` (${direction})` : "";
                               return (
                                 <SelectItem key={phase.id} value={phase.phase.toString()}>
-                                  Phase {phase.phase} - {phase.movementType}{bearingLabel}
+                                  Phase {phase.phase} - {phase.movementType}
+                                  {bearingLabel}
                                 </SelectItem>
                               );
                             })}
@@ -385,12 +421,16 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                 control={form.control}
                 name="approachId"
                 render={({ field }) => {
-                  const signalApproaches = approaches.filter(a => a.signalId === selectedSignalId);
+                  const signalApproaches = approaches.filter(
+                    (a) => a.signalId === selectedSignalId,
+                  );
                   return (
                     <FormItem>
                       <FormLabel>Approach</FormLabel>
                       <Select
-                        onValueChange={(value) => field.onChange(value === NO_APPROACH ? null : value)}
+                        onValueChange={(value) =>
+                          field.onChange(value === NO_APPROACH ? null : value)
+                        }
                         value={field.value || NO_APPROACH}
                         disabled={!isSignalSelected}
                       >
@@ -419,7 +459,10 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                                     className="inline-block w-2.5 h-2.5 rounded-sm flex-shrink-0"
                                     style={{ backgroundColor: color ?? "transparent" }}
                                   />
-                                  <span>{name}{bearingLabel}</span>
+                                  <span>
+                                    {name}
+                                    {bearingLabel}
+                                  </span>
                                 </span>
                               </SelectItem>
                             );
@@ -443,7 +486,11 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Purpose *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!isSignalSelected}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      disabled={!isSignalSelected}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select purpose" />
@@ -468,7 +515,11 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Technology Type *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!isSignalSelected}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      disabled={!isSignalSelected}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select technology" />
@@ -493,7 +544,11 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Vehicle Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value || undefined} disabled={!isSignalSelected}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value || undefined}
+                      disabled={!isSignalSelected}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select vehicle type" />
@@ -540,7 +595,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                 name="length"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Length (feet)</FormLabel>
+                    <FormLabel>{`Length (${lengthUnit})`}</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -553,7 +608,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                           const value = e.target.value;
                           field.onChange(value ? parseFloat(value) : undefined);
                           // Lock the value when manually changed
-                          setLockedValues(prev => ({ ...prev, length: true }));
+                          setLockedValues((prev) => ({ ...prev, length: true }));
                         }}
                         value={field.value || ""}
                       />
@@ -568,7 +623,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                 name="stopbarSetbackDist"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Stopbar Setback (feet)</FormLabel>
+                    <FormLabel>{`Stopbar Setback (${lengthUnit})`}</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -580,7 +635,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                           const value = e.target.value;
                           field.onChange(value !== "" ? parseFloat(value) : undefined);
                           // Lock the value when manually changed
-                          setLockedValues(prev => ({ ...prev, stopbarSetbackDist: true }));
+                          setLockedValues((prev) => ({ ...prev, stopbarSetbackDist: true }));
                         }}
                         value={field.value !== null && field.value !== undefined ? field.value : ""}
                       />
@@ -626,7 +681,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                 </h3>
                 <div className="h-64 rounded-lg overflow-hidden border">
                   {(() => {
-                    const selectedSignal = signals.find(s => s.signalId === selectedSignalId);
+                    const selectedSignal = signals.find((s) => s.signalId === selectedSignalId);
                     return selectedSignal ? (
                       <MapContainer
                         key={selectedSignalId} // Force remount when signal changes
@@ -636,7 +691,9 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                         style={{ height: "100%", width: "100%" }}
                       >
                         <MapTileLayers />
-                        <Marker position={[selectedSignal.latitude || 0, selectedSignal.longitude || 0]}>
+                        <Marker
+                          position={[selectedSignal.latitude || 0, selectedSignal.longitude || 0]}
+                        >
                           <Popup>
                             <div className="text-center">
                               <div className="font-medium">{selectedSignal.signalId}</div>
@@ -686,7 +743,7 @@ export default function DetectorModal({ detector, onClose, preSelectedSignalId }
                   className="bg-primary-600 hover:bg-primary-700"
                   disabled={isLoading}
                 >
-                  {isLoading ? "Saving..." : (detector ? "Save Changes" : "Create Detector")}
+                  {isLoading ? "Saving..." : detector ? "Save Changes" : "Create Detector"}
                 </Button>
               </div>
             </div>

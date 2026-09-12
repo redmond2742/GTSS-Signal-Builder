@@ -99,7 +99,9 @@ export default function BulkApproachModal({
   inline = false,
 }: BulkApproachModalProps) {
   const mapScrollZoom = useMapScrollZoom();
-  const { signals, approaches: existingApproaches } = useGTSSStore();
+  const { signals, approaches: existingApproaches, agency } = useGTSSStore();
+  const isMetric = agency?.agencyIsMetric ?? false;
+  const speedUnit = isMetric ? "km/h" : "mph";
   const { toast } = useToast();
   const approachHooks = useApproaches();
 
@@ -715,7 +717,7 @@ export default function BulkApproachModal({
                       <TableHead className="w-20 text-xs">ID *</TableHead>
                       <TableHead className="w-60 text-xs">Angle</TableHead>
                       <TableHead className="w-48 text-xs">Street Name *</TableHead>
-                      <TableHead className="w-20 text-xs">Speed (mph)</TableHead>
+                      <TableHead className="w-20 text-xs">{`Speed (${speedUnit})`}</TableHead>
                       <TableHead
                         className="w-24 text-xs text-center"
                         title="Free Right — right-turn slip lane bypassing the signal. FR-P adds a pedestrian crossing; FR-P-I is an improved traffic-calmed crossing."
@@ -791,10 +793,10 @@ export default function BulkApproachModal({
                           <Input
                             type="number"
                             min="0"
-                            max="100"
+                            max="200"
                             value={approach.postedSpeed || ""}
                             onChange={(e) => handleSpeedChange(idx, e.target.value)}
-                            placeholder="35"
+                            placeholder={isMetric ? "50" : "35"}
                             className="h-8 text-sm w-20"
                             data-tab-col={3}
                             data-tab-row={idx}

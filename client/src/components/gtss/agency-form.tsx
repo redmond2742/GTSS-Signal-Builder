@@ -10,6 +10,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import MapTileLayers from "@/components/ui/map-tile-layers";
 import {
   Select,
@@ -158,6 +159,7 @@ export default function AgencyForm() {
       agencyUrl: "http://",
       agencyTimezone: "America/Los_Angeles",
       agencyEmail: "",
+      agencyIsMetric: false,
       latitude: undefined,
       longitude: undefined,
     },
@@ -175,6 +177,7 @@ export default function AgencyForm() {
             agencyUrl: normalizeAgencyUrl(editAgency.agencyUrl || ""),
             agencyTimezone: editAgency.agencyTimezone,
             agencyEmail: editAgency.agencyEmail || "",
+            agencyIsMetric: editAgency.agencyIsMetric ?? false,
             latitude: editAgency.latitude || undefined,
             longitude: editAgency.longitude || undefined,
           });
@@ -197,6 +200,7 @@ export default function AgencyForm() {
           agencyUrl: "http://",
           agencyTimezone: "America/Los_Angeles",
           agencyEmail: "",
+          agencyIsMetric: false,
           latitude: undefined,
           longitude: undefined,
         });
@@ -222,6 +226,7 @@ export default function AgencyForm() {
     const saveData = {
       ...data,
       agencyUrl: normalizeAgencyUrl(data.agencyUrl || ""),
+      agencyIsMetric: data.agencyIsMetric ?? false,
       latitude: selectedLocation?.lat || data.latitude,
       longitude: selectedLocation?.lon || data.longitude,
     };
@@ -820,6 +825,27 @@ export default function AgencyForm() {
                               value={field.value || ""}
                             />
                           </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="agencyIsMetric"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center space-x-3">
+                          <FormControl>
+                            <Checkbox
+                              checked={!!field.value}
+                              onCheckedChange={(v) => field.onChange(Boolean(v))}
+                            />
+                          </FormControl>
+                          <div>
+                            <FormLabel className="m-0">Use metric units</FormLabel>
+                            <div className="text-xs text-grey-500">
+                              Speeds in km/h, distances in meters
+                            </div>
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )}

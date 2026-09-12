@@ -167,6 +167,10 @@ export default function SignalDetails() {
     tempNewSignalLocation,
     setTempNewSignalLocation,
   } = useGTSSStore();
+  const isMetric = agency?.agencyIsMetric ?? false;
+  const lengthUnit = isMetric ? "m" : "feet";
+
+  const speedUnit = isMetric ? "km/h" : "mph";
   const signalId = currentSignalId;
   const isNewSignal = signalId === null;
   const signalHooks = useSignals();
@@ -1582,7 +1586,7 @@ export default function SignalDetails() {
                                 : "-"}
                             </TableCell>
                             <TableCell className="py-1 px-1.5" style={{ fontSize: "12px" }}>
-                              {approach.postedSpeed ? `${approach.postedSpeed} mph` : "-"}
+                              {approach.postedSpeed ? `${approach.postedSpeed} ${speedUnit}` : "-"}
                             </TableCell>
                             <TableCell className="py-1 px-1.5" style={{ fontSize: "12px" }}>
                               {approach.freeRight === 3
@@ -2697,7 +2701,7 @@ export default function SignalDetails() {
                     <FormItem className="space-y-0.5">
                       <div className="flex items-center space-x-1">
                         <FormLabel className="font-medium" style={{ fontSize: "12px" }}>
-                          Crosswalk Length (ft)
+                          Crosswalk Length (${lengthUnit})
                         </FormLabel>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -2705,10 +2709,10 @@ export default function SignalDetails() {
                           </TooltipTrigger>
                           <TooltipContent>
                             <p className="text-xs">
-                              Measured crosswalk distance in feet. Leave blank to auto-estimate in
-                              phases.txt: LE-# from the full street width (approach + departure
-                              lanes, 12 ft/lane) or TE-# from ped clearance time (3.5 ft/s) — the
-                              shorter is used. A measured value overrides both.
+                              Measured crosswalk distance in ${lengthUnit}. Leave blank to
+                              auto-estimate in phases.txt: LE-# from the full street width (approach
+                              + departure lanes, 12 ft/lane) or TE-# from ped clearance time (3.5
+                              ft/s) — the shorter is used. A measured value overrides both.
                             </p>
                           </TooltipContent>
                         </Tooltip>

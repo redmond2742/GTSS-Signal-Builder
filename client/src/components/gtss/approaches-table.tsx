@@ -2,18 +2,31 @@ import { approachColorFor } from "@/components/gtss/approach-colors";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import SignalsMap from "@/components/ui/signals-map";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getSignalDisplayName, useApproaches, useGTSSStore } from "gtss";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { getSignalDisplayName, useGTSSStore } from "gtss";
 import { Approach } from "gtss/schema";
 import { ChevronDown, ChevronUp, MapPin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import ApproachModal from "./approach-modal";
 import BulkApproachModal from "./bulk-approach-modal";
 
-type SortField = 'signalId' | 'approachId' | 'streetName' | 'compassBearing' | 'postedSpeed';
-type SortDirection = 'asc' | 'desc';
+type SortField = "signalId" | "approachId" | "streetName" | "compassBearing" | "postedSpeed";
+type SortDirection = "asc" | "desc";
 
 interface ApproachesTableProps {
   triggerAdd?: number;
@@ -24,9 +37,12 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
   const [editingApproach, setEditingApproach] = useState<Approach | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
-  const [sortField, setSortField] = useState<SortField>('approachId');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const { approaches, signals, selectedSignalIdForTables, setSelectedSignalIdForTables } = useGTSSStore();
+  const [sortField, setSortField] = useState<SortField>("approachId");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const { approaches, signals, selectedSignalIdForTables, setSelectedSignalIdForTables, agency } =
+    useGTSSStore();
+  const isMetric = agency?.agencyIsMetric ?? false;
+  const speedUnit = isMetric ? "km/h" : "mph";
   const { deepLinkTarget, setDeepLinkTarget } = useGTSSStore();
 
   // Use shared signal selection from store
@@ -42,8 +58,8 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
 
   // If the app was deep-linked to a specific approach, open it
   useEffect(() => {
-    if (deepLinkTarget?.type === 'approach' && deepLinkTarget.id) {
-      const approach = approaches.find(a => a.id === deepLinkTarget.id);
+    if (deepLinkTarget?.type === "approach" && deepLinkTarget.id) {
+      const approach = approaches.find((a) => a.id === deepLinkTarget.id);
       if (approach) {
         setSelectedSignalId(approach.signalId);
         setEditingApproach(approach);
@@ -51,10 +67,9 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
         setDeepLinkTarget({ type: null, id: null });
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deepLinkTarget, approaches]);
 
-  const approachHooks = useApproaches();
+  // const approachHooks = useApproaches();
 
   // Handle triggers from parent component. Capture initial values so the
   // modal doesn't auto-open when the table re-mounts after navigation.
@@ -75,14 +90,14 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
 
   // Filter approaches by selected signal
   const filteredApproaches = selectedSignalId
-    ? approaches.filter(approach => approach.signalId === selectedSignalId)
+    ? approaches.filter((approach) => approach.signalId === selectedSignalId)
     : [];
-
+  /*
   const handleEdit = (approach: Approach) => {
     setEditingApproach(approach);
     setShowModal(true);
   };
-
+*/
   const handleAdd = () => {
     setEditingApproach(null);
     setShowModal(true);
@@ -95,10 +110,10 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortDirection('asc');
+      setSortDirection("asc");
     }
   };
 
@@ -113,8 +128,8 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
     const bParts = b.split(/(\d+)/);
 
     for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
-      const aPart = aParts[i] || '';
-      const bPart = bParts[i] || '';
+      const aPart = aParts[i] || "";
+      const bPart = bParts[i] || "";
 
       const aNum = parseInt(aPart, 10);
       const bNum = parseInt(bPart, 10);
@@ -130,43 +145,48 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
 
   const getSortedApproaches = () => {
     return [...filteredApproaches].sort((a, b) => {
-      let comparison = 0;
+      let comparison;
 
       switch (sortField) {
-        case 'signalId':
+        case "signalId":
           comparison = naturalCompare(a.signalId, b.signalId);
           break;
-        case 'approachId':
+        case "approachId":
           comparison = naturalCompare(a.approachId, b.approachId);
           break;
-        case 'streetName':
+        case "streetName":
           comparison = a.streetName.localeCompare(b.streetName);
           break;
-        case 'compassBearing':
+        case "compassBearing":
           comparison = (a.compassBearing || 0) - (b.compassBearing || 0);
           break;
-        case 'postedSpeed':
+        case "postedSpeed":
           comparison = (a.postedSpeed || 0) - (b.postedSpeed || 0);
           break;
         default:
           comparison = naturalCompare(a.approachId, b.approachId);
+          break;
       }
 
-      return sortDirection === 'asc' ? comparison : -comparison;
+      if (sortDirection === "asc") {
+        return comparison;
+      } else {
+        return -comparison;
+      }
     });
   };
 
   const getBearingDirection = (bearing: number | null) => {
-    if (bearing === null) return '';
-    if (bearing >= 337.5 || bearing < 22.5) return 'N';
-    if (bearing >= 22.5 && bearing < 67.5) return 'NE';
-    if (bearing >= 67.5 && bearing < 112.5) return 'E';
-    if (bearing >= 112.5 && bearing < 157.5) return 'SE';
-    if (bearing >= 157.5 && bearing < 202.5) return 'S';
-    if (bearing >= 202.5 && bearing < 247.5) return 'SW';
-    if (bearing >= 247.5 && bearing < 292.5) return 'W';
-    if (bearing >= 292.5 && bearing < 337.5) return 'NW';
-    return '';
+    if (bearing === null) return "";
+    if (bearing >= 337.5 || bearing < 22.5) return "N";
+    if (bearing >= 22.5 && bearing < 67.5) return "NE";
+    if (bearing >= 67.5 && bearing < 112.5) return "E";
+    if (bearing >= 112.5 && bearing < 157.5) return "SE";
+    if (bearing >= 157.5 && bearing < 202.5) return "S";
+    if (bearing >= 202.5 && bearing < 247.5) return "SW";
+    if (bearing >= 247.5 && bearing < 292.5) return "W";
+    if (bearing >= 292.5 && bearing < 337.5) return "NW";
+    return "";
   };
 
   const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
@@ -178,10 +198,10 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
         {children}
         <div className="flex flex-col ml-1">
           <ChevronUp
-            className={`w-3 h-3 ${sortField === field && sortDirection === 'asc' ? 'text-primary-600' : 'text-grey-300'}`}
+            className={`w-3 h-3 ${sortField === field && sortDirection === "asc" ? "text-primary-600" : "text-grey-300"}`}
           />
           <ChevronDown
-            className={`w-3 h-3 -mt-1 ${sortField === field && sortDirection === 'desc' ? 'text-primary-600' : 'text-grey-300'}`}
+            className={`w-3 h-3 -mt-1 ${sortField === field && sortDirection === "desc" ? "text-primary-600" : "text-grey-300"}`}
           />
         </div>
       </div>
@@ -206,7 +226,11 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
           ) : (
             <div className="w-full h-full relative z-0">
               {selectedSignalId ? (
-                <SignalsMap signals={signals.filter(s => s.signalId === selectedSignalId)} approaches={filteredApproaches} className="w-full h-full" />
+                <SignalsMap
+                  signals={signals.filter((s) => s.signalId === selectedSignalId)}
+                  approaches={filteredApproaches}
+                  className="w-full h-full"
+                />
               ) : (
                 <div className="w-full h-full bg-grey-100 flex items-center justify-center">
                   <MapPin className="w-6 h-6 text-grey-400" />
@@ -215,7 +239,10 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
             </div>
           )}
         </ResizablePanel>
-        <ResizableHandle withHandle className="bg-grey-200 hover:bg-primary-300 transition-colors" />
+        <ResizableHandle
+          withHandle
+          className="bg-grey-200 hover:bg-primary-300 transition-colors"
+        />
         <ResizablePanel defaultSize={60} minSize={20} className="flex flex-col min-h-0">
           <Card className="rounded-none border-0 flex flex-col h-full min-h-0">
             <CardHeader className="bg-grey-50 p-0" />
@@ -238,7 +265,10 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
                     </Select>
                   </div>
                   {selectedSignalId && (
-                    <span className="text-xs text-grey-600 whitespace-nowrap">({filteredApproaches.length} approach{filteredApproaches.length !== 1 ? 'es' : ''})</span>
+                    <span className="text-xs text-grey-600 whitespace-nowrap">
+                      ({filteredApproaches.length} approach
+                      {filteredApproaches.length !== 1 ? "es" : ""})
+                    </span>
                   )}
                 </div>
               )}
@@ -249,7 +279,7 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
                       <SortableHeader field="approachId">Approach ID</SortableHeader>
                       <SortableHeader field="streetName">Street Name</SortableHeader>
                       <SortableHeader field="compassBearing">Bearing</SortableHeader>
-                      <SortableHeader field="postedSpeed">Speed (mph)</SortableHeader>
+                      <SortableHeader field="postedSpeed">{`Speed (${speedUnit})`}</SortableHeader>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -262,7 +292,8 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
                     ) : filteredApproaches.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={4} className="text-center py-4 text-xs text-grey-500">
-                          No approaches configured for this signal. Add your first approach to get started.
+                          No approaches configured for this signal. Add your first approach to get
+                          started.
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -277,8 +308,12 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
                               className="cursor-pointer hover:bg-gray-50 transition-colors"
                               onClick={() => handleRowClick(approach)}
                             >
-                              <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">{approach.approachId}</TableCell>
-                              <TableCell className="text-grey-600 text-xs py-1.5 px-2">{approach.streetName}</TableCell>
+                              <TableCell className="font-medium text-grey-900 text-xs py-1.5 px-2">
+                                {approach.approachId}
+                              </TableCell>
+                              <TableCell className="text-grey-600 text-xs py-1.5 px-2">
+                                {approach.streetName}
+                              </TableCell>
                               <TableCell className="py-1.5 px-2">
                                 {approach.compassBearing !== null && color ? (
                                   <Badge
@@ -286,7 +321,8 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
                                     className="text-xs py-0 px-1.5 h-4 text-white"
                                     style={{ backgroundColor: color }}
                                   >
-                                    {approach.compassBearing}° {getBearingDirection(approach.compassBearing)}
+                                    {approach.compassBearing}°{" "}
+                                    {getBearingDirection(approach.compassBearing)}
                                   </Badge>
                                 ) : (
                                   <span className="text-grey-400 text-xs">-</span>
@@ -294,8 +330,11 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
                               </TableCell>
                               <TableCell className="py-1.5 px-2">
                                 {approach.postedSpeed !== null ? (
-                                  <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs py-0 px-1.5 h-4">
-                                    {approach.postedSpeed} mph
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-green-100 text-green-800 text-xs py-0 px-1.5 h-4"
+                                  >
+                                    {approach.postedSpeed} ${speedUnit}
                                   </Badge>
                                 ) : (
                                   <span className="text-grey-400 text-xs">-</span>

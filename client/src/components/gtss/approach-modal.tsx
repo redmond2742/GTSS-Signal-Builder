@@ -55,7 +55,7 @@ export default function ApproachModal({
   preSelectedSignalId,
 }: ApproachModalProps) {
   const mapScrollZoom = useMapScrollZoom();
-  const { signals, approaches } = useGTSSStore();
+  const { signals, approaches, agency } = useGTSSStore();
   const { toast } = useToast();
   const approachHooks = useApproaches();
   const [isLoading, setIsLoading] = useState(false);
@@ -69,9 +69,10 @@ export default function ApproachModal({
       compassBearing: undefined,
       postedSpeed: undefined,
       freeRight: 0,
-      freeRightLanes: 1,
     },
   });
+  const isMetric = agency?.agencyIsMetric ?? false;
+  const speedUnit = isMetric ? "km/h" : "mph";
 
   useEffect(() => {
     if (approach) {
@@ -231,20 +232,22 @@ export default function ApproachModal({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Signal *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
+                    <FormControl>
+                      <Select value={field.value || ""} onValueChange={field.onChange}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select signal" />
+                          <SelectValue placeholder="Select a signal" />
                         </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {signals.map((signal) => (
-                          <SelectItem key={signal.signalId} value={signal.signalId}>
-                            {getSignalDisplayName(signal, approaches)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                        <SelectContent>
+                          {signals
+                            .filter((s) => s.latitude && s.longitude)
+                            .map((signal) => (
+                              <SelectItem key={signal.signalId} value={signal.signalId}>
+                                {getSignalDisplayName(signal, approaches)}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -294,7 +297,7 @@ export default function ApproachModal({
                 name="postedSpeed"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Posted Speed (mph)</FormLabel>
+                    <FormLabel>Posted Speed (${speedUnit})</FormLabel>
                     <FormControl>
                       <Input
                         type="number"

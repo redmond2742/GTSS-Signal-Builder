@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, real, boolean, integer } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, real, text, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -13,6 +13,7 @@ export const agencies = pgTable("agencies", {
   agencyTimezone: text("agency_timezone").notNull(),
   agencyLanguage: text("agency_language").default("en"),
   agencyEmail: text("agency_email"),
+  agencyIsMetric: boolean("agency_ismetric").default(false),
   latitude: real("latitude"),
   longitude: real("longitude"),
 });
@@ -75,7 +76,7 @@ export const phases = pgTable("phases", {
   isPedestrian: integer("is_pedestrian").default(0),
   numOfLanes: integer("num_of_lanes").default(1),
   approachId: text("approach_id"),
-  // Measured crosswalk length in feet for the phase's pedestrian crossing.
+  // Measured crosswalk length for the phase's pedestrian crossing.
   // Null means "not measured" — phases.txt then carries an estimate instead:
   //   LE-#  lane-estimated distance (12 ft × lanes on the crossed approach)
   //   TE-#  time-estimated distance (ped clearance × 3.5 ft/s walking speed)
@@ -98,7 +99,7 @@ export const detectors = pgTable("detectors", {
   lane: text("lane"),
   technologyType: text("technology_type").notNull(),
   length: real("length"),
-  // Feet from the stop bar, signed: POSITIVE upstream (approaching the stop
+  // Distance from the stop bar, signed: POSITIVE upstream (approaching the stop
   // bar), NEGATIVE downstream (past it, on the departure side).
   stopbarSetbackDist: real("stopbar_setback_dist"),
   // Approach this detector sits on. Required to place a detector that has no
@@ -130,6 +131,7 @@ export const insertAgencySchema = createInsertSchema(agencies)
   })
   .extend({
     agencyLanguage: z.string().optional(),
+    agencyIsMetric: z.boolean().optional(),
   });
 
 export const insertSignalSchema = createInsertSchema(signals)

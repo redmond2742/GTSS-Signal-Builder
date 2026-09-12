@@ -95,6 +95,7 @@ export default function BulkPhaseModal({
     approaches: allApproaches,
     phases: existingPhases,
     agencyDefaults,
+    agency,
   } = useGTSSStore();
   const { toast } = useToast();
   const phaseHooks = usePhases();
@@ -107,6 +108,8 @@ export default function BulkPhaseModal({
   const [targetPhaseCount, setTargetPhaseCount] = useState<number>(
     agencyDefaults?.defaultPhaseCount ?? 8,
   );
+  const isMetric = agency?.agencyIsMetric ?? false;
+  const lengthUnit = isMetric ? "m" : "feet";
 
   // Sorting state. Default is `null` so the table preserves insertion order
   // — editing a row's phase number won't make it jump positions. The user
@@ -738,7 +741,7 @@ export default function BulkPhaseModal({
                         </SortableHeader>
                         <TableHead
                           className="w-20 text-xs py-2 text-center"
-                          title="Measured crosswalk length in feet. Blank = auto-estimate in phases.txt (LE-# from lanes, TE-# from ped clearance time; shorter wins)."
+                          title={`Measured crosswalk length in ${lengthUnit}. Blank = auto-estimate in phases.txt (LE-# from lanes, TE-# from ped clearance time; shorter wins).`}
                         >
                           CW ft
                         </TableHead>
@@ -888,7 +891,7 @@ export default function BulkPhaseModal({
                                 className="h-7 text-xs w-16 mx-auto"
                                 data-tab-col={6}
                                 data-tab-row={visualRow}
-                                title="Measured crosswalk length in feet. Blank = auto-estimate (LE/TE) in phases.txt."
+                                title={`Measured crosswalk length in ${lengthUnit}. Blank = auto-estimate (LE/TE) in phases.txt.`}
                               />
                             </TableCell>
                             <TableCell className="py-1.5">

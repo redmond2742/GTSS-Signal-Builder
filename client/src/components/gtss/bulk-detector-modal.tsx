@@ -3,9 +3,22 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { getSignalDisplayName, useDetectors, useGTSSStore } from "gtss";
@@ -118,8 +131,20 @@ interface BulkDetectorModalProps {
   inline?: boolean;
 }
 
-export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline = false }: BulkDetectorModalProps) {
-  const { signals, approaches, phases, detectors: existingDetectorsFromStore } = useGTSSStore();
+export default function BulkDetectorModal({
+  onClose,
+  preSelectedSignalId,
+  inline = false,
+}: BulkDetectorModalProps) {
+  const {
+    signals,
+    approaches,
+    phases,
+    detectors: existingDetectorsFromStore,
+    agency,
+  } = useGTSSStore();
+  const isMetric = agency?.agencyIsMetric ?? false;
+  const lengthUnit = isMetric ? "m" : "ft";
   const { toast } = useToast();
   const detectorHooks = useDetectors();
 
@@ -155,20 +180,20 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
 
   // Get phases for selected signal
   const signalPhases = useMemo(() => {
-    return phases.filter(p => p.signalId === selectedSignalId).sort((a, b) => a.phase - b.phase);
+    return phases.filter((p) => p.signalId === selectedSignalId).sort((a, b) => a.phase - b.phase);
   }, [phases, selectedSignalId]);
 
   // Get approaches for selected signal
   const signalApproaches = useMemo(() => {
-    return approaches.filter(a => a.signalId === selectedSignalId);
+    return approaches.filter((a) => a.signalId === selectedSignalId);
   }, [approaches, selectedSignalId]);
 
   // Get direction for a phase
   const getPhaseDirection = (phaseNum: number | null): string => {
     if (phaseNum === null) return "";
-    const phase = signalPhases.find(p => p.phase === phaseNum);
+    const phase = signalPhases.find((p) => p.phase === phaseNum);
     if (!phase?.approachId) return "";
-    const approach = signalApproaches.find(a => a.approachId === phase.approachId);
+    const approach = signalApproaches.find((a) => a.approachId === phase.approachId);
     return bearingToDirection(approach?.compassBearing ?? null);
   };
 
@@ -187,7 +212,10 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
           className="inline-block w-2.5 h-2.5 rounded-sm flex-shrink-0"
           style={{ backgroundColor: color ?? "transparent" }}
         />
-        <span>{approach.approachId}{bearingLabel}</span>
+        <span>
+          {approach.approachId}
+          {bearingLabel}
+        </span>
       </span>
     );
   };
@@ -195,7 +223,7 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
   // Direction for a row: its own approach wins, otherwise the phase's.
   const getRowDirection = (det: { phase: number | null; approachId: string | null }): string => {
     if (det.approachId) {
-      const approach = signalApproaches.find(a => a.approachId === det.approachId);
+      const approach = signalApproaches.find((a) => a.approachId === det.approachId);
       if (approach) return bearingToDirection(approach.compassBearing ?? null);
     }
     return getPhaseDirection(det.phase);
@@ -204,47 +232,53 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
   // Auto-update descriptions when static purpose changes
   useEffect(() => {
     if (staticFields.purpose) {
-      setPendingDetectors(prev => prev.map(det => {
-        if (det.isDescriptionManual) return det;
-        const direction = getRowDirection(det);
-        const formattedPurpose = formatPurposeForDescription(staticValues.purpose);
-        return {
-          ...det,
-          description: buildDescription(direction, formattedPurpose, det.lane),
-        };
-      }));
+      setPendingDetectors((prev) =>
+        prev.map((det) => {
+          if (det.isDescriptionManual) return det;
+          const direction = getRowDirection(det);
+          const formattedPurpose = formatPurposeForDescription(staticValues.purpose);
+          return {
+            ...det,
+            description: buildDescription(direction, formattedPurpose, det.lane),
+          };
+        }),
+      );
     }
   }, [staticValues.purpose, staticFields.purpose]);
 
   // Toggle static field
   const toggleStaticField = (field: keyof StaticFields) => {
-    setStaticFields(prev => ({ ...prev, [field]: !prev[field] }));
+    setStaticFields((prev) => ({ ...prev, [field]: !prev[field] }));
 
     // If toggling to static, apply static value to all detectors
     if (!staticFields[field]) {
-      setPendingDetectors(prev => prev.map(det => ({
-        ...det,
-        [field]: staticValues[field as keyof typeof staticValues],
-      })));
+      setPendingDetectors((prev) =>
+        prev.map((det) => ({
+          ...det,
+          [field]: staticValues[field as keyof typeof staticValues],
+        })),
+      );
     }
   };
 
   // Update static value
-  const updateStaticValue = (field: keyof typeof staticValues, value: any) => {
-    setStaticValues(prev => ({ ...prev, [field]: value }));
+  const updateStaticValue = (field: keyof typeof staticValues, value: string) => {
+    setStaticValues((prev) => ({ ...prev, [field]: value }));
 
     // If field is static, apply to all detectors
     if (staticFields[field as keyof StaticFields]) {
-      setPendingDetectors(prev => prev.map(det => {
-        const updated = { ...det, [field]: value };
-        // Update description if purpose changed and not manually set
-        if (field === 'purpose' && !det.isDescriptionManual) {
-          const direction = getRowDirection(det);
-          const formattedPurpose = formatPurposeForDescription(value);
-          updated.description = buildDescription(direction, formattedPurpose, det.lane);
-        }
-        return updated;
-      }));
+      setPendingDetectors((prev) =>
+        prev.map((det) => {
+          const updated = { ...det, [field]: value };
+          // Update description if purpose changed and not manually set
+          if (field === "purpose" && !det.isDescriptionManual) {
+            const direction = getRowDirection(det);
+            const formattedPurpose = formatPurposeForDescription(value);
+            updated.description = buildDescription(direction, formattedPurpose, det.lane);
+          }
+          return updated;
+        }),
+      );
     }
   };
 
@@ -252,18 +286,21 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
   const handleAddDetector = (phaseNum?: number) => {
     const targetPhase = phaseNum ?? signalPhases[0]?.phase ?? 1;
     const direction = getPhaseDirection(targetPhase);
-    const formattedPurpose = formatPurposeForDescription(staticFields.purpose ? staticValues.purpose : "Stop Bar");
+    const formattedPurpose = formatPurposeForDescription(
+      staticFields.purpose ? staticValues.purpose : "Stop Bar",
+    );
 
     // Next channel simply continues the sequence from the last row added.
     // Channels are NOT forced to be unique — the same detector number can
     // legitimately repeat on another lane — so this is a convenience default,
     // not a constraint, and the field stays freely editable.
-    const nextChannel = pendingDetectors.length > 0
-      ? incrementLastNumber(pendingDetectors[pendingDetectors.length - 1].channel)
-      : startingChannel;
+    const nextChannel =
+      pendingDetectors.length > 0
+        ? incrementLastNumber(pendingDetectors[pendingDetectors.length - 1].channel)
+        : startingChannel;
 
     // Calculate next lane for this phase
-    const samePhaseDetectors = pendingDetectors.filter(d => d.phase === targetPhase);
+    const samePhaseDetectors = pendingDetectors.filter((d) => d.phase === targetPhase);
     let nextLane = startingLane;
     if (samePhaseDetectors.length > 0) {
       const lastLane = samePhaseDetectors[samePhaseDetectors.length - 1].lane;
@@ -284,7 +321,7 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
       isDescriptionManual: false,
     };
 
-    setPendingDetectors(prev => [...prev, newDetector]);
+    setPendingDetectors((prev) => [...prev, newDetector]);
   };
 
   // Quick add multiple detectors for a phase
@@ -299,7 +336,9 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
     }
 
     const direction = getPhaseDirection(selectedPhaseForQuickAdd);
-    const formattedPurpose = formatPurposeForDescription(staticFields.purpose ? staticValues.purpose : "Stop Bar");
+    const formattedPurpose = formatPurposeForDescription(
+      staticFields.purpose ? staticValues.purpose : "Stop Bar",
+    );
 
     const newDetectors: PendingDetector[] = [];
     let currentChannel = startingChannel;
@@ -315,7 +354,9 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
         approachId: null,
         lane: currentLane,
         purpose: staticFields.purpose ? staticValues.purpose : "Stop Bar",
-        technologyType: staticFields.technologyType ? staticValues.technologyType : "Inductance Loop",
+        technologyType: staticFields.technologyType
+          ? staticValues.technologyType
+          : "Inductance Loop",
         vehicleType: staticFields.vehicleType ? staticValues.vehicleType : "Vehicle",
         length: staticFields.length ? staticValues.length : 6.0,
         stopbarSetbackDist: staticFields.stopbarSetbackDist ? staticValues.stopbarSetbackDist : 0,
@@ -327,7 +368,7 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
       currentLane = incrementLastNumber(currentLane);
     }
 
-    setPendingDetectors(prev => [...prev, ...newDetectors]);
+    setPendingDetectors((prev) => [...prev, ...newDetectors]);
 
     // Update starting values for next quick add
     setStartingChannel(currentChannel);
@@ -335,33 +376,41 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
 
     toast({
       title: "Detectors Added",
-      description: `Added ${quickAddCount} detector${quickAddCount > 1 ? 's' : ''} for Phase ${selectedPhaseForQuickAdd}`,
+      description: `Added ${quickAddCount} detector${quickAddCount > 1 ? "s" : ""} for Phase ${selectedPhaseForQuickAdd}`,
     });
   };
 
   // Update detector field
-  const handleDetectorChange = (index: number, field: keyof PendingDetector, value: any) => {
-    setPendingDetectors(prev => {
+  const handleDetectorChange = (index: number, field: keyof PendingDetector, value: string) => {
+    setPendingDetectors((prev) => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
 
       // Auto-update description if not manually set
-      if (!updated[index].isDescriptionManual && (field === 'phase' || field === 'lane')) {
+      if (!updated[index].isDescriptionManual && (field === "phase" || field === "lane")) {
         const direction = getRowDirection(updated[index]);
         const purpose = staticFields.purpose ? staticValues.purpose : updated[index].purpose;
         const formattedPurpose = formatPurposeForDescription(purpose);
-        updated[index].description = buildDescription(direction, formattedPurpose, updated[index].lane);
+        updated[index].description = buildDescription(
+          direction,
+          formattedPurpose,
+          updated[index].lane,
+        );
       }
 
       // If purpose is not static and changed, update description
-      if (field === 'purpose' && !staticFields.purpose && !updated[index].isDescriptionManual) {
+      if (field === "purpose" && !staticFields.purpose && !updated[index].isDescriptionManual) {
         const direction = getRowDirection(updated[index]);
         const formattedPurpose = formatPurposeForDescription(value);
-        updated[index].description = buildDescription(direction, formattedPurpose, updated[index].lane);
+        updated[index].description = buildDescription(
+          direction,
+          formattedPurpose,
+          updated[index].lane,
+        );
       }
 
       // Mark description as manual if user edited it
-      if (field === 'description') {
+      if (field === "description") {
         updated[index].isDescriptionManual = true;
         updated[index].description = sanitizeDescription(value);
       }
@@ -372,7 +421,7 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
 
   // Delete detector row
   const handleDeleteDetector = (index: number) => {
-    setPendingDetectors(prev => prev.filter((_, i) => i !== index));
+    setPendingDetectors((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Duplicate detector with incremented channel and lane
@@ -394,17 +443,21 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
       isDescriptionManual: false,
     };
 
-    setPendingDetectors(prev => [...prev, newDetector]);
+    setPendingDetectors((prev) => [...prev, newDetector]);
   };
 
   // Update existing detector field
-  const handleExistingDetectorChange = (index: number, field: keyof PendingDetector, value: any) => {
-    setExistingDetectors(prev => {
+  const handleExistingDetectorChange = (
+    index: number,
+    field: keyof PendingDetector,
+    value: string,
+  ) => {
+    setExistingDetectors((prev) => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
 
       // Mark description as manual if user edited it
-      if (field === 'description') {
+      if (field === "description") {
         updated[index].isDescriptionManual = true;
         updated[index].description = sanitizeDescription(value);
       }
@@ -418,7 +471,7 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
     const detector = existingDetectors[index];
     if (detector.id && confirm(`Delete detector ${detector.channel}?`)) {
       detectorHooks.delete(detector.id);
-      setExistingDetectors(prev => prev.filter((_, i) => i !== index));
+      setExistingDetectors((prev) => prev.filter((_, i) => i !== index));
       toast({
         title: "Deleted",
         description: `Detector ${detector.channel} deleted`,
@@ -453,20 +506,26 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
     // appear on more than one row. Only a row that repeats channel + phase +
     // lane exactly looks like a slip, and even that is just flagged — the save
     // goes through either way.
-    const rowIdentity = (d: { channel: string; phase: number | null; approachId: string | null; lane: string | null }) =>
-      `${(d.channel ?? '').trim()}|${d.phase ?? ''}|${d.approachId ?? ''}|${(d.lane ?? '').trim()}`;
+    const rowIdentity = (d: {
+      channel: string;
+      phase: number | null;
+      approachId: string | null;
+      lane: string | null;
+    }) =>
+      `${(d.channel ?? "").trim()}|${d.phase ?? ""}|${d.approachId ?? ""}|${(d.lane ?? "").trim()}`;
     const seenRows = new Set<string>();
     const repeatedChannels = new Set<string>();
-    [...existingDetectors, ...pendingDetectors].forEach(d => {
+    [...existingDetectors, ...pendingDetectors].forEach((d) => {
       const key = rowIdentity(d);
-      if (seenRows.has(key)) repeatedChannels.add((d.channel ?? '').trim());
+      if (seenRows.has(key)) repeatedChannels.add((d.channel ?? "").trim());
       else seenRows.add(key);
     });
     // Only one toast is ever on screen at a time, so this rides along with the
     // success message below rather than firing its own.
-    const repeatNote = repeatedChannels.size > 0
-      ? ` Channel ${Array.from(repeatedChannels).join(", ")} repeats the same phase, approach and lane.`
-      : "";
+    const repeatNote =
+      repeatedChannels.size > 0
+        ? ` Channel ${Array.from(repeatedChannels).join(", ")} repeats the same phase, approach and lane.`
+        : "";
 
     setIsProcessing(true);
 
@@ -508,18 +567,22 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
       }
 
       const createdCount = pendingDetectors.length;
-      const updatedCount = existingDetectors.filter(d => d.id).length;
+      const updatedCount = existingDetectors.filter((d) => d.id).length;
       const summary = [
         createdCount > 0 ? `Created ${createdCount} detector${createdCount !== 1 ? "s" : ""}` : "",
-        updatedCount > 0 ? `${createdCount > 0 ? "updated" : "Updated"} ${updatedCount} existing` : "",
-      ].filter(Boolean).join(", ");
+        updatedCount > 0
+          ? `${createdCount > 0 ? "updated" : "Updated"} ${updatedCount} existing`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(", ");
       toast({
         title: "Success",
         description: `${summary}.${repeatNote}`,
       });
 
       onClose();
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to save detectors",
@@ -542,8 +605,8 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
     // Load existing detectors for this signal
     if (selectedSignalId) {
       const signalDetectors = existingDetectorsFromStore
-        .filter(d => d.signalId === selectedSignalId)
-        .map(d => ({
+        .filter((d) => d.signalId === selectedSignalId)
+        .map((d) => ({
           id: d.id,
           channel: d.channel,
           phase: d.phase ?? null,
@@ -561,7 +624,7 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
 
       // Set starting channel to be after existing detectors
       if (signalDetectors.length > 0) {
-        const maxChannel = Math.max(...signalDetectors.map(d => parseInt(d.channel) || 0));
+        const maxChannel = Math.max(...signalDetectors.map((d) => parseInt(d.channel) || 0));
         setStartingChannel(String(maxChannel + 1));
       }
     } else {
@@ -576,12 +639,12 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
     const svgElement = detectorSvgRef.current;
 
     // Get the viewBox dimensions to capture the full SVG
-    const viewBox = svgElement.getAttribute('viewBox');
+    const viewBox = svgElement.getAttribute("viewBox");
     let svgWidth = 400;
     let svgHeight = 440;
 
     if (viewBox) {
-      const [, , width, height] = viewBox.split(' ').map(Number);
+      const [, , width, height] = viewBox.split(" ").map(Number);
       svgWidth = width;
       svgHeight = height;
     }
@@ -605,20 +668,22 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, svgWidth, svgHeight);
 
-      const signal = signals.find(s => s.signalId === selectedSignalId);
-      const fileName = signal
-        ? `detector-layout-${signal.signalId}.jpg`
-        : "detector-layout.jpg";
+      const signal = signals.find((s) => s.signalId === selectedSignalId);
+      const fileName = signal ? `detector-layout-${signal.signalId}.jpg` : "detector-layout.jpg";
 
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = fileName;
-        link.click();
-        URL.revokeObjectURL(url);
-      }, "image/jpeg", 0.95);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) return;
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = fileName;
+          link.click();
+          URL.revokeObjectURL(url);
+        },
+        "image/jpeg",
+        0.95,
+      );
 
       URL.revokeObjectURL(svgUrl);
     };
@@ -656,7 +721,8 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
         ) : signalPhases.length === 0 ? (
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-sm text-amber-700">
-              This signal has no phases configured. Please add phases first before creating detectors.
+              This signal has no phases configured. Please add phases first before creating
+              detectors.
             </p>
           </div>
         ) : (
@@ -665,14 +731,20 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
             <div className="border border-grey-200 rounded-lg p-3 bg-white">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-grey-700">Detection Layout Preview</span>
+                  <span className="text-sm font-medium text-grey-700">
+                    Detection Layout Preview
+                  </span>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <HelpCircle className="w-3 h-3 text-grey-400 cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs">
-                        <p>Visual representation of detector positions. Stop bar detectors appear near the intersection, advanced detectors further away. Colors indicate technology type.</p>
+                        <p>
+                          Visual representation of detector positions. Stop bar detectors appear
+                          near the intersection, advanced detectors further away. Colors indicate
+                          technology type.
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -697,7 +769,7 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                     detectors={[...existingDetectors, ...pendingDetectors]}
                     phases={signalPhases}
                     approaches={signalApproaches}
-                    signal={signals.find(s => s.signalId === selectedSignalId)}
+                    signal={signals.find((s) => s.signalId === selectedSignalId)}
                     svgRef={detectorSvgRef}
                   />
                 )}
@@ -715,7 +787,10 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                       <HelpCircle className="w-4 h-4 text-grey-400 cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
-                      <p>Lock fields to apply the same value to all detectors. Unlock to set different values per detector row.</p>
+                      <p>
+                        Lock fields to apply the same value to all detectors. Unlock to set
+                        different values per detector row.
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -728,21 +803,23 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                     <Label className="text-xs">Purpose</Label>
                     <Switch
                       checked={staticFields.purpose}
-                      onCheckedChange={() => toggleStaticField('purpose')}
+                      onCheckedChange={() => toggleStaticField("purpose")}
                       className="scale-75"
                     />
                   </div>
                   <Select
                     value={staticValues.purpose}
-                    onValueChange={(v) => updateStaticValue('purpose', v)}
+                    onValueChange={(v) => updateStaticValue("purpose", v)}
                     disabled={!staticFields.purpose}
                   >
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {purposeOptions.map(opt => (
-                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      {purposeOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -754,21 +831,23 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                     <Label className="text-xs">Technology</Label>
                     <Switch
                       checked={staticFields.technologyType}
-                      onCheckedChange={() => toggleStaticField('technologyType')}
+                      onCheckedChange={() => toggleStaticField("technologyType")}
                       className="scale-75"
                     />
                   </div>
                   <Select
                     value={staticValues.technologyType}
-                    onValueChange={(v) => updateStaticValue('technologyType', v)}
+                    onValueChange={(v) => updateStaticValue("technologyType", v)}
                     disabled={!staticFields.technologyType}
                   >
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {technologyOptions.map(opt => (
-                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      {technologyOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -780,21 +859,23 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                     <Label className="text-xs">Vehicle Type</Label>
                     <Switch
                       checked={staticFields.vehicleType}
-                      onCheckedChange={() => toggleStaticField('vehicleType')}
+                      onCheckedChange={() => toggleStaticField("vehicleType")}
                       className="scale-75"
                     />
                   </div>
                   <Select
                     value={staticValues.vehicleType}
-                    onValueChange={(v) => updateStaticValue('vehicleType', v)}
+                    onValueChange={(v) => updateStaticValue("vehicleType", v)}
                     disabled={!staticFields.vehicleType}
                   >
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {vehicleTypeOptions.map(opt => (
-                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      {vehicleTypeOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -803,10 +884,10 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                 {/* Length */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs">Length (ft)</Label>
+                    <Label className="text-xs">{`Length (${lengthUnit})`}</Label>
                     <Switch
                       checked={staticFields.length}
-                      onCheckedChange={() => toggleStaticField('length')}
+                      onCheckedChange={() => toggleStaticField("length")}
                       className="scale-75"
                     />
                   </div>
@@ -815,20 +896,25 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                     step="0.1"
                     min="0"
                     value={staticValues.length ?? ""}
-                    onChange={(e) => updateStaticValue('length', e.target.value ? parseFloat(e.target.value) : undefined)}
+                    onChange={(e) =>
+                      updateStaticValue(
+                        "length",
+                        e.target.value ? parseFloat(e.target.value).toString() : "0",
+                      )
+                    }
                     disabled={!staticFields.length}
                     className="h-8 text-xs"
-                    placeholder="6.0"
+                    placeholder={isMetric ? "1.8" : "6.0"}
                   />
                 </div>
 
                 {/* Setback */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs">Setback (ft)</Label>
+                    <Label className="text-xs">{`Setback (${lengthUnit})`}</Label>
                     <Switch
                       checked={staticFields.stopbarSetbackDist}
-                      onCheckedChange={() => toggleStaticField('stopbarSetbackDist')}
+                      onCheckedChange={() => toggleStaticField("stopbarSetbackDist")}
                       className="scale-75"
                     />
                   </div>
@@ -837,7 +923,12 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                     step="0.1"
                     min="0"
                     value={staticValues.stopbarSetbackDist ?? ""}
-                    onChange={(e) => updateStaticValue('stopbarSetbackDist', e.target.value ? parseFloat(e.target.value) : undefined)}
+                    onChange={(e) =>
+                      updateStaticValue(
+                        "stopbarSetbackDist",
+                        e.target.value ? parseFloat(e.target.value).toString() : "0",
+                      )
+                    }
                     disabled={!staticFields.stopbarSetbackDist}
                     className="h-8 text-xs"
                     placeholder="0"
@@ -857,7 +948,10 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                       <HelpCircle className="w-4 h-4 text-blue-400 cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
-                      <p>Quickly add multiple detectors for a phase. Channel and lane numbers will auto-increment.</p>
+                      <p>
+                        Quickly add multiple detectors for a phase. Channel and lane numbers will
+                        auto-increment.
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -874,7 +968,7 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                       <SelectValue placeholder="Select" />
                     </SelectTrigger>
                     <SelectContent>
-                      {signalPhases.map(phase => {
+                      {signalPhases.map((phase) => {
                         const direction = getPhaseDirection(phase.phase);
                         return (
                           <SelectItem key={phase.phase} value={phase.phase.toString()}>
@@ -943,7 +1037,10 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                         </div>
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs">
-                        <p>Descriptions cannot contain commas because they are used as delimiters in the export format. Any commas will be automatically removed.</p>
+                        <p>
+                          Descriptions cannot contain commas because they are used as delimiters in
+                          the export format. Any commas will be automatically removed.
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -997,7 +1094,7 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                           <TableCell className="py-1.5">
                             <Input
                               value={detector.channel}
-                              onChange={(e) => handleDetectorChange(idx, 'channel', e.target.value)}
+                              onChange={(e) => handleDetectorChange(idx, "channel", e.target.value)}
                               className="h-7 text-xs"
                             />
                           </TableCell>
@@ -1005,7 +1102,11 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                             <Select
                               value={detector.phase === null ? NO_PHASE : detector.phase.toString()}
                               onValueChange={(v) =>
-                                handleDetectorChange(idx, 'phase', v === NO_PHASE ? null : parseInt(v))
+                                handleDetectorChange(
+                                  idx,
+                                  "phase",
+                                  v === NO_PHASE ? "0" : parseInt(v).toString(),
+                                )
                               }
                             >
                               <SelectTrigger className="h-7 text-xs">
@@ -1013,7 +1114,7 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value={NO_PHASE}>None</SelectItem>
-                                {signalPhases.map(phase => {
+                                {signalPhases.map((phase) => {
                                   const direction = getPhaseDirection(phase.phase);
                                   return (
                                     <SelectItem key={phase.phase} value={phase.phase.toString()}>
@@ -1028,7 +1129,11 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                             <Select
                               value={detector.approachId || NO_APPROACH}
                               onValueChange={(v) =>
-                                handleDetectorChange(idx, 'approachId', v === NO_APPROACH ? null : v)
+                                handleDetectorChange(
+                                  idx,
+                                  "approachId",
+                                  v === NO_APPROACH ? "0" : v.toString(),
+                                )
                               }
                             >
                               <SelectTrigger className="h-7 text-xs">
@@ -1036,7 +1141,7 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value={NO_APPROACH}>None</SelectItem>
-                                {signalApproaches.map(approach => (
+                                {signalApproaches.map((approach) => (
                                   <SelectItem key={approach.approachId} value={approach.approachId}>
                                     {approachOptionLabel(approach)}
                                   </SelectItem>
@@ -1047,7 +1152,7 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                           <TableCell className="py-1.5">
                             <Input
                               value={detector.lane}
-                              onChange={(e) => handleDetectorChange(idx, 'lane', e.target.value)}
+                              onChange={(e) => handleDetectorChange(idx, "lane", e.target.value)}
                               className="h-7 w-14 text-xs"
                             />
                           </TableCell>
@@ -1055,14 +1160,16 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                             <TableCell className="py-1.5">
                               <Select
                                 value={detector.purpose}
-                                onValueChange={(v) => handleDetectorChange(idx, 'purpose', v)}
+                                onValueChange={(v) => handleDetectorChange(idx, "purpose", v)}
                               >
                                 <SelectTrigger className="h-7 text-xs">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {purposeOptions.map(opt => (
-                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                  {purposeOptions.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
@@ -1072,14 +1179,18 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                             <TableCell className="py-1.5">
                               <Select
                                 value={detector.technologyType}
-                                onValueChange={(v) => handleDetectorChange(idx, 'technologyType', v)}
+                                onValueChange={(v) =>
+                                  handleDetectorChange(idx, "technologyType", v)
+                                }
                               >
                                 <SelectTrigger className="h-7 text-xs">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {technologyOptions.map(opt => (
-                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                  {technologyOptions.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
@@ -1089,14 +1200,16 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                             <TableCell className="py-1.5">
                               <Select
                                 value={detector.vehicleType}
-                                onValueChange={(v) => handleDetectorChange(idx, 'vehicleType', v)}
+                                onValueChange={(v) => handleDetectorChange(idx, "vehicleType", v)}
                               >
                                 <SelectTrigger className="h-7 text-xs">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {vehicleTypeOptions.map(opt => (
-                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                  {vehicleTypeOptions.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
@@ -1109,7 +1222,13 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                                 step="0.1"
                                 min="0"
                                 value={detector.length ?? ""}
-                                onChange={(e) => handleDetectorChange(idx, 'length', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                onChange={(e) =>
+                                  handleDetectorChange(
+                                    idx,
+                                    "length",
+                                    e.target.value ? parseFloat(e.target.value).toString() : "0",
+                                  )
+                                }
                                 className="h-7 w-16 text-xs"
                               />
                             </TableCell>
@@ -1121,7 +1240,13 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                                 step="0.1"
                                 min="0"
                                 value={detector.stopbarSetbackDist ?? ""}
-                                onChange={(e) => handleDetectorChange(idx, 'stopbarSetbackDist', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                onChange={(e) =>
+                                  handleDetectorChange(
+                                    idx,
+                                    "stopbarSetbackDist",
+                                    e.target.value ? parseFloat(e.target.value).toString() : "0",
+                                  )
+                                }
                                 className="h-7 w-16 text-xs"
                               />
                             </TableCell>
@@ -1130,7 +1255,9 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                             <div className="flex items-center gap-1">
                               <Input
                                 value={detector.description}
-                                onChange={(e) => handleDetectorChange(idx, 'description', e.target.value)}
+                                onChange={(e) =>
+                                  handleDetectorChange(idx, "description", e.target.value)
+                                }
                                 className="h-7 text-xs w-28"
                                 placeholder="Auto-generated"
                               />
@@ -1190,15 +1317,20 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                       <HelpCircle className="w-3 h-3 text-grey-400 cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
-                      <p>Click a phase to add a detector. Channel and lane numbers will auto-increment for the selected phase.</p>
+                      <p>
+                        Click a phase to add a detector. Channel and lane numbers will
+                        auto-increment for the selected phase.
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               </div>
               <div className="flex flex-wrap gap-2">
-                {signalPhases.map(phase => {
+                {signalPhases.map((phase) => {
                   const direction = getPhaseDirection(phase.phase);
-                  const detectorsForPhase = pendingDetectors.filter(d => d.phase === phase.phase).length;
+                  const detectorsForPhase = pendingDetectors.filter(
+                    (d) => d.phase === phase.phase,
+                  ).length;
                   return (
                     <Badge
                       key={phase.phase}
@@ -1223,14 +1355,19 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
               <div className="border border-green-200 rounded-lg overflow-hidden">
                 <div className="p-2 bg-green-50 border-b border-green-200 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-green-700">Existing Detectors ({existingDetectors.length})</span>
+                    <span className="text-xs font-medium text-green-700">
+                      Existing Detectors ({existingDetectors.length})
+                    </span>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <HelpCircle className="w-3 h-3 text-green-400 cursor-help" />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
-                          <p>These detectors are already saved for this signal. You can edit or delete them here.</p>
+                          <p>
+                            These detectors are already saved for this signal. You can edit or
+                            delete them here.
+                          </p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -1257,7 +1394,9 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                           <TableCell className="py-1.5">
                             <Input
                               value={detector.channel}
-                              onChange={(e) => handleExistingDetectorChange(idx, 'channel', e.target.value)}
+                              onChange={(e) =>
+                                handleExistingDetectorChange(idx, "channel", e.target.value)
+                              }
                               className="h-7 text-xs"
                             />
                           </TableCell>
@@ -1265,7 +1404,11 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                             <Select
                               value={detector.phase === null ? NO_PHASE : detector.phase.toString()}
                               onValueChange={(v) =>
-                                handleExistingDetectorChange(idx, 'phase', v === NO_PHASE ? null : parseInt(v))
+                                handleExistingDetectorChange(
+                                  idx,
+                                  "phase",
+                                  v === NO_PHASE ? "0" : parseInt(v).toString(),
+                                )
                               }
                             >
                               <SelectTrigger className="h-7 text-xs">
@@ -1273,7 +1416,7 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value={NO_PHASE}>None</SelectItem>
-                                {signalPhases.map(phase => {
+                                {signalPhases.map((phase) => {
                                   const direction = getPhaseDirection(phase.phase);
                                   return (
                                     <SelectItem key={phase.phase} value={phase.phase.toString()}>
@@ -1288,7 +1431,11 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                             <Select
                               value={detector.approachId || NO_APPROACH}
                               onValueChange={(v) =>
-                                handleExistingDetectorChange(idx, 'approachId', v === NO_APPROACH ? null : v)
+                                handleExistingDetectorChange(
+                                  idx,
+                                  "approachId",
+                                  v === NO_APPROACH ? "0" : v.toString(),
+                                )
                               }
                             >
                               <SelectTrigger className="h-7 text-xs">
@@ -1296,7 +1443,7 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value={NO_APPROACH}>None</SelectItem>
-                                {signalApproaches.map(approach => (
+                                {signalApproaches.map((approach) => (
                                   <SelectItem key={approach.approachId} value={approach.approachId}>
                                     {approachOptionLabel(approach)}
                                   </SelectItem>
@@ -1307,21 +1454,25 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                           <TableCell className="py-1.5">
                             <Input
                               value={detector.lane}
-                              onChange={(e) => handleExistingDetectorChange(idx, 'lane', e.target.value)}
+                              onChange={(e) =>
+                                handleExistingDetectorChange(idx, "lane", e.target.value)
+                              }
                               className="h-7 w-14 text-xs"
                             />
                           </TableCell>
                           <TableCell className="py-1.5">
                             <Select
                               value={detector.purpose}
-                              onValueChange={(v) => handleExistingDetectorChange(idx, 'purpose', v)}
+                              onValueChange={(v) => handleExistingDetectorChange(idx, "purpose", v)}
                             >
                               <SelectTrigger className="h-7 text-xs">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {purposeOptions.map(opt => (
-                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                {purposeOptions.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
@@ -1329,14 +1480,18 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                           <TableCell className="py-1.5">
                             <Select
                               value={detector.technologyType}
-                              onValueChange={(v) => handleExistingDetectorChange(idx, 'technologyType', v)}
+                              onValueChange={(v) =>
+                                handleExistingDetectorChange(idx, "technologyType", v)
+                              }
                             >
                               <SelectTrigger className="h-7 text-xs">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {technologyOptions.map(opt => (
-                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                {technologyOptions.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
@@ -1347,7 +1502,13 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                               step="0.1"
                               min="0"
                               value={detector.stopbarSetbackDist ?? ""}
-                              onChange={(e) => handleExistingDetectorChange(idx, 'stopbarSetbackDist', e.target.value ? parseFloat(e.target.value) : undefined)}
+                              onChange={(e) =>
+                                handleExistingDetectorChange(
+                                  idx,
+                                  "stopbarSetbackDist",
+                                  e.target.value ? parseFloat(e.target.value).toString() : "0",
+                                )
+                              }
                               className="h-7 w-16 text-xs"
                               placeholder="0"
                             />
@@ -1355,7 +1516,9 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
                           <TableCell className="py-1.5 max-w-[120px]">
                             <Input
                               value={detector.description}
-                              onChange={(e) => handleExistingDetectorChange(idx, 'description', e.target.value)}
+                              onChange={(e) =>
+                                handleExistingDetectorChange(idx, "description", e.target.value)
+                              }
                               className="h-7 text-xs w-24"
                             />
                           </TableCell>
@@ -1399,8 +1562,7 @@ export default function BulkDetectorModal({ onClose, preSelectedSignalId, inline
               ? "Saving..."
               : pendingDetectors.length > 0
                 ? `Create ${pendingDetectors.length} Detector${pendingDetectors.length !== 1 ? "s" : ""}`
-                : "Save Changes"
-            }
+                : "Save Changes"}
           </Button>
         </div>
       </div>

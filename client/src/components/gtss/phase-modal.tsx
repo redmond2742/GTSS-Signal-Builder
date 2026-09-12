@@ -1,9 +1,22 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,7 +33,9 @@ interface PhaseModalProps {
 }
 
 export default function PhaseModal({ phase, onClose, preSelectedSignalId }: PhaseModalProps) {
-  const { signals, approaches } = useGTSSStore();
+  const { signals, approaches, agency } = useGTSSStore();
+  const isMetric = agency?.agencyIsMetric ?? false;
+  const speedUnit = isMetric ? "km/h" : "mph";
   const { toast } = useToast();
   const phaseHooks = usePhases();
   const [isLoading, setIsLoading] = useState(false);
@@ -46,13 +61,14 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
         phase: phase.phase,
         signalId: phase.signalId,
         movementType: phase.movementType,
-        isPedestrian: typeof phase.isPedestrian === "number"
-          ? phase.isPedestrian
-          : phase.isPedestrian
-            ? 1
-            : phase.movementType === "Through"
+        isPedestrian:
+          typeof phase.isPedestrian === "number"
+            ? phase.isPedestrian
+            : phase.isPedestrian
               ? 1
-              : 0,
+              : phase.movementType === "Through"
+                ? 1
+                : 0,
         numOfLanes: phase.numOfLanes || 1,
         approachId: phase.approachId || undefined,
       });
@@ -82,7 +98,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
         });
       }
       onClose();
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: phase ? "Failed to update phase" : "Failed to create phase",
@@ -151,7 +167,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
       });
 
       onClose();
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to duplicate phase",
@@ -196,7 +212,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
       });
 
       onClose();
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to duplicate phase",
@@ -212,7 +228,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
       2: 5,
       4: 7,
       6: 1,
-      8: 3
+      8: 3,
     };
     return phaseMapping[phaseNumber];
   };
@@ -226,38 +242,41 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
 
   // Convert compass bearing to direction name
   const getBearingDirection = (bearing: number | null | undefined): string => {
-    if (bearing === undefined || bearing === null) return '';
-    if (bearing >= 337.5 || bearing < 22.5) return 'N';
-    if (bearing >= 22.5 && bearing < 67.5) return 'NE';
-    if (bearing >= 67.5 && bearing < 112.5) return 'E';
-    if (bearing >= 112.5 && bearing < 157.5) return 'SE';
-    if (bearing >= 157.5 && bearing < 202.5) return 'S';
-    if (bearing >= 202.5 && bearing < 247.5) return 'SW';
-    if (bearing >= 247.5 && bearing < 292.5) return 'W';
-    if (bearing >= 292.5 && bearing < 337.5) return 'NW';
-    return '';
+    if (bearing === undefined || bearing === null) return "";
+    if (bearing >= 337.5 || bearing < 22.5) return "N";
+    if (bearing >= 22.5 && bearing < 67.5) return "NE";
+    if (bearing >= 67.5 && bearing < 112.5) return "E";
+    if (bearing >= 112.5 && bearing < 157.5) return "SE";
+    if (bearing >= 157.5 && bearing < 202.5) return "S";
+    if (bearing >= 202.5 && bearing < 247.5) return "SW";
+    if (bearing >= 247.5 && bearing < 292.5) return "W";
+    if (bearing >= 292.5 && bearing < 337.5) return "NW";
+    return "";
   };
 
   // Get approach number from approachId (e.g., "SIG001-2" -> "2")
   const getApproachNumber = (approachId: string): string => {
-    const parts = approachId.split('-');
+    const parts = approachId.split("-");
     return parts.length > 1 ? parts[parts.length - 1] : approachId;
   };
 
   // Format approach for display: "2 - Main St. - SW"
-  const formatApproachDisplay = (approach: { approachId: string; streetName: string; compassBearing: number | null }): string => {
+  const formatApproachDisplay = (approach: {
+    approachId: string;
+    streetName: string;
+    compassBearing: number | null;
+  }): string => {
     const approachNum = getApproachNumber(approach.approachId);
-    const direction = approach.compassBearing !== null ? getBearingDirection(approach.compassBearing) : '';
-    return `${approachNum} - ${approach.streetName}${direction ? ` - ${direction}` : ''}`;
+    const direction =
+      approach.compassBearing !== null ? getBearingDirection(approach.compassBearing) : "";
+    return `${approachNum} - ${approach.streetName}${direction ? ` - ${direction}` : ""}`;
   };
 
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-screen overflow-auto">
         <DialogHeader>
-          <DialogTitle>
-            {phase ? "Edit Phase" : "Add Phase"}
-          </DialogTitle>
+          <DialogTitle>{phase ? "Edit Phase" : "Add Phase"}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -323,10 +342,16 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                       <SelectContent>
                         <SelectItem value="Through">Through (T)</SelectItem>
                         <SelectItem value="Left Turn">Left (L)</SelectItem>
-                        <SelectItem value="Left Protected-Permissive">Left Protected-Permissive (LPP)</SelectItem>
-                        <SelectItem value="Left Through Shared">Left Through Shared Lane (LT)</SelectItem>
+                        <SelectItem value="Left Protected-Permissive">
+                          Left Protected-Permissive (LPP)
+                        </SelectItem>
+                        <SelectItem value="Left Through Shared">
+                          Left Through Shared Lane (LT)
+                        </SelectItem>
                         <SelectItem value="Permissive Phase">Permissive Phase (TL)</SelectItem>
-                        <SelectItem value="Flashing Yellow Arrow">Flashing Yellow Arrow (FYA)</SelectItem>
+                        <SelectItem value="Flashing Yellow Arrow">
+                          Flashing Yellow Arrow (FYA)
+                        </SelectItem>
                         <SelectItem value="U-Turn">U-turn (U)</SelectItem>
                         <SelectItem value="Right Turn">Right Turn (R)</SelectItem>
                         <SelectItem value="Through-Right">Through-Right (TR)</SelectItem>
@@ -338,15 +363,15 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                 )}
               />
 
-
-
               <FormField
                 control={form.control}
                 name="approachId"
                 render={({ field }) => {
                   const selectedSignalId = form.watch("signalId");
-                  const signalApproaches = approaches.filter(a => a.signalId === selectedSignalId);
-                  const selectedApproach = approaches.find(a => a.approachId === field.value);
+                  const signalApproaches = approaches.filter(
+                    (a) => a.signalId === selectedSignalId,
+                  );
+                  const selectedApproach = approaches.find((a) => a.approachId === field.value);
 
                   return (
                     <FormItem className="md:col-span-2">
@@ -373,13 +398,20 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                           {selectedApproach && (
                             <div className="flex gap-2 mt-2">
                               {selectedApproach.compassBearing !== null && (
-                                <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
-                                  {selectedApproach.compassBearing}° {getBearingDirection(selectedApproach.compassBearing)}
+                                <Badge
+                                  variant="secondary"
+                                  className="bg-blue-100 text-blue-800 text-xs"
+                                >
+                                  {selectedApproach.compassBearing}°{" "}
+                                  {getBearingDirection(selectedApproach.compassBearing)}
                                 </Badge>
                               )}
                               {selectedApproach.postedSpeed !== null && (
-                                <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                                  {selectedApproach.postedSpeed} mph
+                                <Badge
+                                  variant="secondary"
+                                  className="bg-green-100 text-green-800 text-xs"
+                                >
+                                  {selectedApproach.postedSpeed} ${speedUnit}
                                 </Badge>
                               )}
                             </div>
@@ -432,7 +464,9 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                       <FormLabel>Pedestrian Phase Enabled</FormLabel>
                       <FormControl>
                         <Switch
-                          checked={typeof field.value === "number" ? field.value > 0 : Boolean(field.value)}
+                          checked={
+                            typeof field.value === "number" ? field.value > 0 : Boolean(field.value)
+                          }
                           onCheckedChange={(checked) => field.onChange(checked ? 1 : 0)}
                         />
                       </FormControl>
@@ -440,7 +474,6 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                     </FormItem>
                   )}
                 />
-
               </div>
             </div>
 
@@ -471,20 +504,22 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                           : ""}
                       </span>
                     </Button>
-                    {form.watch("movementType") === "Through" && [2, 4, 6, 8].includes(form.watch("phase")) && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleDuplicateToLeftTurn}
-                        disabled={isLoading}
-                        className="flex items-center space-x-2 border-blue-200 text-blue-700 hover:bg-blue-50"
-                      >
-                        <Copy className="w-4 h-4" />
-                        <span>
-                          Duplicate to Left Turn (Phase {getLeftTurnPhaseNumber(form.watch("phase"))})
-                        </span>
-                      </Button>
-                    )}
+                    {form.watch("movementType") === "Through" &&
+                      [2, 4, 6, 8].includes(form.watch("phase")) && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleDuplicateToLeftTurn}
+                          disabled={isLoading}
+                          className="flex items-center space-x-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+                        >
+                          <Copy className="w-4 h-4" />
+                          <span>
+                            Duplicate to Left Turn (Phase{" "}
+                            {getLeftTurnPhaseNumber(form.watch("phase"))})
+                          </span>
+                        </Button>
+                      )}
                   </div>
                 </div>
               </div>
@@ -512,7 +547,7 @@ export default function PhaseModal({ phase, onClose, preSelectedSignalId }: Phas
                     className="bg-primary-600 hover:bg-primary-700"
                     disabled={isLoading}
                   >
-                    {isLoading ? "Saving..." : (phase ? "Save Changes" : "Create Phase")}
+                    {isLoading ? "Saving..." : phase ? "Save Changes" : "Create Phase"}
                   </Button>
                 </div>
               </div>

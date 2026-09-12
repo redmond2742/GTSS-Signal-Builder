@@ -122,6 +122,18 @@ function getFromStorage<T>(key: string, defaultValue: T): T {
   }
 }
 
+// Ensure agency object always has a boolean `agencyIsMetric` field.
+function normalizeAgency(
+  a: (Partial<{ agencyIsMetric?: unknown }> & Record<string, unknown>) | null | undefined,
+) {
+  if (a == null) return null;
+  try {
+    return { ...(a as Record<string, unknown>), agencyIsMetric: !!a.agencyIsMetric };
+  } catch {
+    return a;
+  }
+}
+
 // Helper function to save to localStorage with size limit check
 function saveToStorage<T>(key: string, data: T): void {
   try {
@@ -156,11 +168,13 @@ export const agencyStorage = {
       if (Array.isArray(raw)) {
         const defId = agencyListStorage.getDefaultId();
         if (defId) {
-          return raw.find((a: Agency) => a.id === defId) ?? raw[0] ?? null;
+          return normalizeAgency(
+            raw.find((a: Agency) => a.id === defId) ?? raw[0] ?? null,
+          ) as Agency | null;
         }
-        return raw[0] ?? null;
+        return normalizeAgency(raw[0] ?? null) as Agency | null;
       }
-      return raw as Agency;
+      return normalizeAgency(raw as Agency) as Agency;
     } catch {
       return null;
     }
@@ -179,6 +193,7 @@ export const agencyStorage = {
       agencyUrl: agency.agencyUrl ?? null,
       agencyTimezone: agency.agencyTimezone,
       agencyLanguage: agency.agencyLanguage ?? null,
+      agencyIsMetric: agency.agencyIsMetric ?? false,
       agencyEmail: agency.agencyEmail ?? null,
       latitude: agency.latitude ?? null,
       longitude: agency.longitude ?? null,
@@ -216,7 +231,8 @@ export const agencyListStorage = {
   getAll: (): Agency[] => {
     const raw = getFromStorage<Agency[] | null>(STORAGE_KEYS.AGENCY, null);
     if (!raw) return [];
-    return Array.isArray(raw) ? raw : [raw as Agency];
+    const list = Array.isArray(raw) ? raw : [raw as Agency];
+    return list.map((a) => normalizeAgency(a) as Agency);
   },
 
   get: (id: string): Agency | undefined => {
@@ -234,6 +250,7 @@ export const agencyListStorage = {
       agencyUrl: agency.agencyUrl ?? null,
       agencyTimezone: agency.agencyTimezone,
       agencyLanguage: agency.agencyLanguage ?? null,
+      agencyIsMetric: agency.agencyIsMetric ?? false,
       agencyEmail: agency.agencyEmail ?? null,
       latitude: agency.latitude ?? null,
       longitude: agency.longitude ?? null,
@@ -858,18 +875,18 @@ export function generateAgencyCSV(agency: Agency | null): string {
   if (!agency) return "agency_id,agency_name,agency_url,agency_timezone,agency_email\n";
 
   return [
-    "agency_id,agency_name,agency_url,agency_timezone,agency_email",
-    `${sanitizeCSVField(agency.agencyId)},${sanitizeCSVField(agency.agencyName)},${sanitizeCSVField(agency.agencyUrl)},${sanitizeCSVField(agency.agencyTimezone)},${sanitizeCSVField(agency.agencyEmail)}`,
+    "agency_id,agency_name,agency_url,agency_timezone,agency_email,agency_ismetric",
+    `${sanitizeCSVField(agency.agencyId)},${sanitizeCSVField(agency.agencyName)},${sanitizeCSVField(agency.agencyUrl)},${sanitizeCSVField(agency.agencyTimezone)},${sanitizeCSVField(agency.agencyEmail)},${sanitizeCSVField(agency.agencyIsMetric)}`,
   ].join("\n");
 }
 
 // Generate a single agencies CSV containing multiple agency rows
 export function generateAgenciesCSV(agencies: Agency[]): string {
-  const header = "agency_id,agency_name,agency_url,agency_timezone,agency_email";
+  const header = "agency_id,agency_name,agency_url,agency_timezone,agency_email,agency_ismetric";
   if (!agencies || agencies.length === 0) return header + "\n";
   const rows = agencies.map(
     (a) =>
-      `${sanitizeCSVField(a.agencyId)},${sanitizeCSVField(a.agencyName)},${sanitizeCSVField(a.agencyUrl)},${sanitizeCSVField(a.agencyTimezone)},${sanitizeCSVField(a.agencyEmail)}`,
+      `${sanitizeCSVField(a.agencyId)},${sanitizeCSVField(a.agencyName)},${sanitizeCSVField(a.agencyUrl)},${sanitizeCSVField(a.agencyTimezone)},${sanitizeCSVField(a.agencyEmail)},${sanitizeCSVField(a.agencyIsMetric)}`,
   );
   return [header, ...rows].join("\n");
 }
@@ -1335,6 +1352,7 @@ export function parseAgenciesTXT(content: string): Agency[] {
       agencyEmail: values[4] || null,
       latitude: null,
       longitude: null,
+      agencyIsMetric: values[5] ? values[5].toLowerCase() === "true" : false,
     });
   }
 
