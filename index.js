@@ -468,32 +468,45 @@ function serveStatic(app2) {
 
 // server/index.ts
 var app = express2();
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-      // Required for Vite HMR in dev
-      styleSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com"],
-      imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "https://nominatim.openstreetmap.org", "https://ipapi.co", "wss:", "ws:"],
-      fontSrc: ["'self'", "data:"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      frameSrc: ["'none'"]
-    }
-  },
-  crossOriginEmbedderPolicy: false,
-  // Required for map tiles
-  crossOriginResourcePolicy: { policy: "cross-origin" }
-  // Required for external resources
-}));
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(",") || ["http://localhost:5001", "http://localhost:3000"],
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        // Required for Vite HMR in dev
+        styleSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com"],
+        imgSrc: ["'self'", "data:", "https:", "blob:"],
+        connectSrc: [
+          "'self'",
+          "https://nominatim.openstreetmap.org",
+          "https://ipapi.co",
+          "wss:",
+          "ws:"
+        ],
+        fontSrc: ["'self'", "data:"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        frameSrc: ["'none'"]
+      }
+    },
+    crossOriginEmbedderPolicy: false,
+    // Required for map tiles
+    crossOriginResourcePolicy: { policy: "cross-origin" }
+    // Required for external resources
+  })
+);
+app.use(
+  cors({
+    origin: process.env.ALLOWED_ORIGINS?.split(",") || [
+      "http://localhost:5001",
+      "http://localhost:3000"
+    ],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+  })
+);
 var apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1e3,
   // 15 minutes
@@ -546,11 +559,14 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
   const port = parseInt(process.env.PORT || "5001", 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: false
-  }, () => {
-    log(`serving on port ${port}`);
-  });
+  server.listen(
+    {
+      port,
+      host: "0.0.0.0",
+      reusePort: false
+    },
+    () => {
+      log(`serving on port ${port}`);
+    }
+  );
 })();
