@@ -205,6 +205,9 @@ export const PhaseDiagram = ({
 
     let baseOffset = 0;
     if (moveType === "left") baseOffset = 7;
+    // A U-turn is made from the left-turn lane, so it shares that lane's
+    // position and the whole maneuver sits on that side of the approach.
+    else if (moveType === "uturn") baseOffset = 7;
     else if (moveType === "right") baseOffset = -18;
     else if (moveType === "straight") baseOffset = -7;
     else if (moveType === "leftThrough") baseOffset = 0;
@@ -501,50 +504,45 @@ export const PhaseDiagram = ({
     }
 
     if (moveType === "uturn") {
-      const leftPerpAngle = angleRad + Math.PI / 2;
-      const backAngle = angleRad + Math.PI;
-      const stemEndX = startX + (endX - startX) * 0.7;
-      const stemEndY = startY + (endY - startY) * 0.7;
-      const hookOffset = 12;
-      const hookX = stemEndX + hookOffset * Math.cos(leftPerpAngle);
-      const hookY = stemEndY + hookOffset * Math.sin(leftPerpAngle);
-      const arrowLength = 16;
-      const arrowStartX = hookX - 12 * Math.cos(backAngle);
-      const arrowStartY = hookY - 12 * Math.sin(backAngle);
-      const arrowEndX = arrowStartX + arrowLength * Math.cos(backAngle);
-      const arrowEndY = arrowStartY + arrowLength * Math.sin(backAngle);
+      // A U-turn runs in along the approach, loops back through 180°, and
+      // heads out alongside where it came from. The loop swings to the side a
+      // left turn crosses to — the lane a U-turn is made from — which mirrors
+      // on its own under LHT because crossingTurnAngle does.
+      const inwardX = Math.cos(angleRad + Math.PI);
+      const inwardY = Math.sin(angleRad + Math.PI);
+      const turnX = Math.cos(crossingTurnAngle);
+      const turnY = Math.sin(crossingTurnAngle);
+
+      const loopRadius = 8; // half the gap between the two legs of the U
+      const entryDepth = 0.78; // how far down the approach the loop sits
+      const returnLength = 30; // straight run back out, before the head
+
+      // Loop entry and the diametrically opposite exit, 2r to the turn side.
+      const loopInX = startX + (endX - startX) * entryDepth;
+      const loopInY = startY + (endY - startY) * entryDepth;
+      const loopOutX = loopInX + 2 * loopRadius * turnX;
+      const loopOutY = loopInY + 2 * loopRadius * turnY;
+
+      // Of the two half-circles joining those points, take the one bulging
+      // toward the intersection. The arc starts out along -turn and passes
+      // through inward, so the sign of that rotation is SVG's sweep flag
+      // (positive = increasing angle in y-down coordinates).
+      const sweep = -turnX * inwardY - -turnY * inwardX > 0 ? 1 : 0;
+
+      const tipX = loopOutX + returnLength * Math.cos(angleRad);
+      const tipY = loopOutY + returnLength * Math.sin(angleRad);
 
       return (
-        <g key={index}>
-          <line
-            x1={startX}
-            y1={startY}
-            x2={stemEndX}
-            y2={stemEndY}
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-          />
-          <line
-            x1={stemEndX}
-            y1={stemEndY}
-            x2={arrowStartX}
-            y2={arrowStartY}
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-          />
-          <line
-            x1={arrowEndX}
-            y1={arrowEndY}
-            x2={arrowStartX}
-            y2={arrowStartY}
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            markerEnd={`url(#arrowhead-${phase.phase})`}
-          />
-        </g>
+        <path
+          key={index}
+          d={`M ${startX} ${startY} L ${loopInX} ${loopInY} A ${loopRadius} ${loopRadius} 0 0 ${sweep} ${loopOutX} ${loopOutY} L ${tipX} ${tipY}`}
+          fill="none"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          markerEnd={`url(#arrowhead-${phase.phase})`}
+        />
       );
     }
 

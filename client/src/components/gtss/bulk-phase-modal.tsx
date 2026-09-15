@@ -461,25 +461,26 @@ export default function BulkPhaseModal({
       return;
     }
 
-    // The same phase number is allowed on multiple approaches (e.g. a
-    // pedestrian phase serving several crossings, or a shared phase across
-    // different approach angles). We only block TRUE duplicates — identical
-    // phase number AND approach — since those would be redundant records.
+    // The same phase number is allowed on multiple approaches (a pedestrian
+    // phase serving several crossings) and on one approach across movements —
+    // phase 2 on the NB approach commonly runs a Through and a U-Turn together.
+    // We only block TRUE duplicates — identical phase number, approach AND
+    // movement — since those would be redundant records.
     const seen = new Set<string>();
     const trueDuplicates: string[] = [];
     for (const p of pendingPhases) {
-      const key = `${p.phase}::${p.approachId || ""}`;
+      const key = `${p.phase}::${p.approachId || ""}::${p.movementType}`;
       if (seen.has(key)) {
         trueDuplicates.push(
-          `Phase ${p.phase}${p.approachId ? ` @ ${p.approachId}` : " (no approach)"}`,
+          `Phase ${p.phase} ${p.movementType}${p.approachId ? ` @ ${p.approachId}` : " (no approach)"}`,
         );
       }
       seen.add(key);
     }
     if (trueDuplicates.length > 0) {
       toast({
-        title: "Duplicate Phase + Approach",
-        description: `Each phase/approach pair must be unique. Duplicates: ${Array.from(new Set(trueDuplicates)).join(", ")}`,
+        title: "Duplicate Phase + Approach + Movement",
+        description: `Each phase/approach/movement combination must be unique. Duplicates: ${Array.from(new Set(trueDuplicates)).join(", ")}`,
         variant: "destructive",
       });
       return;
