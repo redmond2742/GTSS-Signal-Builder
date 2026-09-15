@@ -568,16 +568,21 @@ export default function SignalDetails() {
       toast({ title: "Invalid Phase", description: "Phase must be 1-8.", variant: "destructive" });
       return;
     }
-    // Same phase number is allowed on different approaches (e.g. a pedestrian
-    // phase serving multiple crossings). Only block an identical phase+approach pair.
+    // A phase number may repeat across approaches (a pedestrian phase serving
+    // several crossings) AND within one approach across movements — phase 2 on
+    // the NB approach commonly runs a Through and a U-Turn together. Only an
+    // identical phase + approach + movement is redundant.
     if (
       signalPhases.some(
-        (p) => p.phase === phaseNum && (p.approachId || "") === (qpApproachId || ""),
+        (p) =>
+          p.phase === phaseNum &&
+          (p.approachId || "") === (qpApproachId || "") &&
+          p.movementType === qpMovementType,
       )
     ) {
       toast({
         title: "Phase Exists",
-        description: `Phase ${phaseNum} is already assigned to ${qpApproachId || "no approach"}. Pick a different approach.`,
+        description: `Phase ${phaseNum} already runs ${qpMovementType} on ${qpApproachId || "no approach"}. Pick a different movement or approach.`,
         variant: "destructive",
       });
       return;
@@ -671,20 +676,23 @@ export default function SignalDetails() {
 
   const handlePhaseSave = (data: InsertPhase) => {
     try {
-      // The same phase number may be assigned to multiple approaches (e.g. a
-      // pedestrian phase covering several crossings). Only block an identical
-      // phase+approach pair, excluding the row being edited.
+      // A phase number may repeat across approaches (a pedestrian phase covering
+      // several crossings) AND within one approach across movements — phase 2 on
+      // the NB approach commonly runs a Through and a U-Turn together. Only an
+      // identical phase + approach + movement is redundant; the row being
+      // edited is excluded.
       const dataApproach = data.approachId || "";
       const conflict = signalPhases.find(
         (p) =>
           p.phase === data.phase &&
           (p.approachId || "") === dataApproach &&
+          p.movementType === data.movementType &&
           (!editingPhase || p.id !== editingPhase.id),
       );
       if (conflict) {
         toast({
           title: "Error",
-          description: `Phase ${data.phase} is already assigned to ${dataApproach || "no approach"} for this signal. Pick a different approach.`,
+          description: `Phase ${data.phase} already runs ${data.movementType} on ${dataApproach || "no approach"} for this signal. Pick a different movement or approach.`,
           variant: "destructive",
         });
         return;
