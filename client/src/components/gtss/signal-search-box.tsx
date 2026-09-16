@@ -16,7 +16,8 @@ interface SignalSearchBoxProps {
  * dropdown or press Enter, and land on that signal's detail page.
  *
  * Lives in both the main shell header and the signal-details header — those two
- * views don't share a layout, so it mounts in each.
+ * views don't share a layout, so it mounts in each. Renders nothing until at
+ * least two signals exist.
  */
 export default function SignalSearchBox({ className = "" }: SignalSearchBoxProps) {
   const { signals, approaches, navigateToSignalDetails } = useGTSSStore();
@@ -94,6 +95,11 @@ export default function SignalSearchBox({ className = "" }: SignalSearchBoxProps
       if (target) go(target.signalId);
     }
   };
+
+  // Nothing to search with a single signal (or none) — the box only earns its
+  // place in the header once there's something to pick between. Declared after
+  // the hooks above so the early return doesn't change hook order.
+  if (signals.length < 2) return null;
 
   return (
     <div ref={wrapperRef} className={`relative ${className}`}>
