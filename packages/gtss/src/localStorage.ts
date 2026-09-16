@@ -8,6 +8,7 @@ import { signalStorage } from "./localStorage/storage/signals";
 export { isMetricForSignalId, isLhtForSignalId } from "./localStorage/agency-units";
 export { clearAllData } from "./localStorage/clearAll";
 export {
+  crosswalkLengthCode,
   generateAgenciesCSV,
   generateAgencyCSV,
   generateApproachesCSV,

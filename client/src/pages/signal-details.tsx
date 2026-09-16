@@ -53,6 +53,7 @@ import {
   generateSignalsCSV,
   isLhtForSignalId,
   isMapScrollZoomEnabled,
+  crosswalkLengthCode,
   isMetricForSignalId,
   phaseDiagramFileName,
   suggestStreetNameForApproach,
@@ -175,6 +176,8 @@ export default function SignalDetails() {
     isLhtForSignalId(currentSignalId ?? undefined),
   );
   const lengthUnit = isMetric ? "m" : "feet";
+  // Short form for tight table headers; `lengthUnit` stays long for prose labels.
+  const lengthUnitShort = isMetric ? "m" : "ft";
 
   const speedUnit = isMetric ? "km/h" : "mph";
   const qaSpeedMax = isMetric ? 200 : 100;
@@ -1796,6 +1799,20 @@ export default function SignalDetails() {
                             Lanes
                           </TableHead>
                           <TableHead
+                            className="font-medium py-1 px-1.5 text-center"
+                            style={{ fontSize: "12px" }}
+                            title="Pedestrian crossing: 0 none · 1 assigned · 2 both · 3 opposite · 4 diagonal · 5 other diagonal · 6 both diagonals (X) · 7 all directions (4 crosswalks + X)"
+                          >
+                            Ped
+                          </TableHead>
+                          <TableHead
+                            className="font-medium py-1 px-1.5"
+                            style={{ fontSize: "12px" }}
+                            title={`Crosswalk length in ${lengthUnitShort}. A measured value, otherwise the estimate phases.txt carries: LE-# from lanes, TE-# from ped clearance time.`}
+                          >
+                            {`CW ${lengthUnitShort}`}
+                          </TableHead>
+                          <TableHead
                             className="font-medium py-1 px-1.5"
                             style={{ fontSize: "12px" }}
                           >
@@ -1824,6 +1841,22 @@ export default function SignalDetails() {
                             </TableCell>
                             <TableCell className="py-1 px-1.5" style={{ fontSize: "12px" }}>
                               {phase.numOfLanes}
+                            </TableCell>
+                            <TableCell
+                              className="py-1 px-1.5 text-center"
+                              style={{ fontSize: "12px" }}
+                              title="Pedestrian crossing: 0 none · 1 assigned · 2 both · 3 opposite · 4 diagonal · 5 other diagonal · 6 both diagonals (X) · 7 all directions (4 crosswalks + X)"
+                            >
+                              {phase.isPedestrian ?? 0}
+                            </TableCell>
+                            <TableCell className="py-1 px-1.5" style={{ fontSize: "12px" }}>
+                              {crosswalkLengthCode(
+                                phase,
+                                signalPhases,
+                                signalTimings,
+                                signalApproaches,
+                                isMetric,
+                              ) || "-"}
                             </TableCell>
                             <TableCell className="py-1 px-1.5">
                               <Button
@@ -2145,6 +2178,12 @@ export default function SignalDetails() {
                           >
                             Approach
                           </TableHead>
+<TableHead
+                            className="font-medium py-1 px-1.5"
+                            style={{ fontSize: "12px" }}
+                          >
+                            Lane
+                          </TableHead>
                           <TableHead
                             className="font-medium py-1 px-1.5"
                             style={{ fontSize: "12px" }}
@@ -2162,6 +2201,24 @@ export default function SignalDetails() {
                             style={{ fontSize: "12px" }}
                           >
                             Technology
+                          </TableHead>
+                          <TableHead
+                            className="font-medium py-1 px-1.5"
+                            style={{ fontSize: "12px" }}
+                          >
+                            Vehicle
+                          </TableHead>
+                          <TableHead
+                            className="font-medium py-1 px-1.5"
+                            style={{ fontSize: "12px" }}
+                          >
+                            {`Length (${lengthUnitShort})`}
+                          </TableHead>
+                          <TableHead
+                            className="font-medium py-1 px-1.5"
+                            style={{ fontSize: "12px" }}
+                          >
+                            Description
                           </TableHead>
                           <TableHead
                             className="font-medium py-1 px-1.5"
@@ -2191,6 +2248,9 @@ export default function SignalDetails() {
                               {detector.approachId ?? (
                                 <span className="text-grey-400">&mdash;</span>
                               )}
+                            </TableCell>
+                            <TableCell className="py-1 px-1.5" style={{ fontSize: "12px" }}>
+                              {detector.lane || <span className="text-grey-400">&mdash;</span>}
                             </TableCell>
                             <TableCell className="py-1 px-1.5" style={{ fontSize: "12px" }}>
                               {detector.stopbarSetbackDist == null ? (
@@ -2253,6 +2313,21 @@ export default function SignalDetails() {
                                   ))}
                                 </SelectContent>
                               </Select>
+                            </TableCell>
+                            <TableCell className="py-1 px-1.5" style={{ fontSize: "12px" }}>
+                              {detector.vehicleType || <span className="text-grey-400">&mdash;</span>}
+                            </TableCell>
+                            <TableCell className="py-1 px-1.5" style={{ fontSize: "12px" }}>
+                              {detector.length == null ? (
+                                <span className="text-grey-400">&mdash;</span>
+                              ) : isMetric ? (
+                                detector.length.toFixed(2)
+                              ) : (
+                                detector.length
+                              )}
+                            </TableCell>
+                            <TableCell className="py-1 px-1.5" style={{ fontSize: "12px" }}>
+                              {detector.description || <span className="text-grey-400">&mdash;</span>}
                             </TableCell>
                             <TableCell className="py-1 px-1.5">
                               <Button
@@ -2401,6 +2476,13 @@ export default function SignalDetails() {
                         <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: "12px" }}>
                           Ped Clr
                         </TableHead>
+                        <TableHead
+                          className="font-medium py-1 px-1.5"
+                          style={{ fontSize: "12px" }}
+                          title="Leading Pedestrian Interval"
+                        >
+                          LPI
+                        </TableHead>
                         <TableHead className="font-medium py-1 px-1.5" style={{ fontSize: "12px" }}>
                           Recall
                         </TableHead>
@@ -2434,6 +2516,9 @@ export default function SignalDetails() {
                             </TableCell>
                             <TableCell className="py-1 px-1.5" style={{ fontSize: "12px" }}>
                               {timing.pedClearance ?? "-"}
+                            </TableCell>
+                            <TableCell className="py-1 px-1.5" style={{ fontSize: "12px" }}>
+                              {timing.leadingPedInterval ?? "-"}
                             </TableCell>
                             <TableCell className="py-1 px-1.5" style={{ fontSize: "12px" }}>
                               {timing.vehRecallType !== "None" ? timing.vehRecallType : "-"}

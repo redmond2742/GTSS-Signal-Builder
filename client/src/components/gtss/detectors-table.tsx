@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import SignalsMap from "@/components/ui/signals-map";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { getSignalDisplayName, useDetectors, useGTSSStore } from "gtss";
+import { getSignalDisplayName, isMetricForSignalId, useDetectors, useGTSSStore } from "gtss";
 import { Detector } from "gtss/schema";
 import { ChevronDown, ChevronUp, MapPin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -19,6 +19,22 @@ interface DetectorsTableProps {
   triggerAdd?: number;
   triggerBulk?: number;
 }
+
+// This table can list every signal at once, so length and setback resolve
+// their units against each row's own signal rather than one global setting.
+const formatDistance = (value: number | null | undefined, signalId: string) => {
+  if (value == null) return <span className="text-grey-400">&mdash;</span>;
+  const metric = isMetricForSignalId(signalId);
+  return metric ? `${value.toFixed(2)} m` : `${value} ft`;
+};
+
+// Setback is signed: positive is upstream of the stop bar, negative past it.
+const formatSetback = (value: number | null | undefined, signalId: string) => {
+  if (value == null) return <span className="text-grey-400">&mdash;</span>;
+  const metric = isMetricForSignalId(signalId);
+  const magnitude = metric ? `${Math.abs(value).toFixed(2)} m` : `${Math.abs(value)} ft`;
+  return value < 0 ? `${magnitude} past` : magnitude;
+};
 
 export default function DetectorsTable({ triggerAdd, triggerBulk }: DetectorsTableProps) {
   const [editingDetector, setEditingDetector] = useState<Detector | null>(null);
@@ -300,21 +316,28 @@ export default function DetectorsTable({ triggerAdd, triggerBulk }: DetectorsTab
                       <SortableHeader field="signalId">Signal ID</SortableHeader>
                       <SortableHeader field="channel">Channel</SortableHeader>
                       <SortableHeader field="phase">Phase</SortableHeader>
-                      <TableHead className="text-xs">Approach</TableHead>
+                      <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Approach</TableHead>
+                      <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Lane</TableHead>
                       <SortableHeader field="technologyType">Technology</SortableHeader>
                       <SortableHeader field="purpose">Purpose</SortableHeader>
+                      <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Vehicle</TableHead>
+                      <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Length</TableHead>
+                      <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider" title="Distance from the stop bar: positive approaching it, negative past it.">
+                        Setback
+                      </TableHead>
+                      <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">Description</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {!selectedSignalId ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-4 text-xs text-grey-500">
+                        <TableCell colSpan={11} className="text-center py-4 text-xs text-grey-500">
                           Please select a signal above to view its detectors.
                         </TableCell>
                       </TableRow>
                     ) : filteredDetectors.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-4 text-xs text-grey-500">
+                        <TableCell colSpan={11} className="text-center py-4 text-xs text-grey-500">
                           No detectors configured for this signal. Add your first detector to get started.
                         </TableCell>
                       </TableRow>
@@ -333,12 +356,27 @@ export default function DetectorsTable({ triggerAdd, triggerBulk }: DetectorsTab
                           <TableCell className="text-grey-600 text-xs py-1.5 px-2">
                             {detector.approachId ?? <span className="text-grey-400">&mdash;</span>}
                           </TableCell>
+                          <TableCell className="text-grey-600 text-xs py-1.5 px-2">
+                            {detector.lane || <span className="text-grey-400">&mdash;</span>}
+                          </TableCell>
                           <TableCell className="py-1.5 px-2">
                             <Badge variant="secondary" className="bg-purple-100 text-purple-800 text-xs py-0 px-1.5 h-4">
                               {detector.technologyType}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-grey-600 text-xs py-1.5 px-2">{detector.purpose}</TableCell>
+                          <TableCell className="text-grey-600 text-xs py-1.5 px-2">
+                            {detector.vehicleType || <span className="text-grey-400">&mdash;</span>}
+                          </TableCell>
+                          <TableCell className="text-grey-600 text-xs py-1.5 px-2">
+                            {formatDistance(detector.length, detector.signalId)}
+                          </TableCell>
+                          <TableCell className="text-grey-600 text-xs py-1.5 px-2">
+                            {formatSetback(detector.stopbarSetbackDist, detector.signalId)}
+                          </TableCell>
+                          <TableCell className="text-grey-600 text-xs py-1.5 px-2">
+                            {detector.description || <span className="text-grey-400">&mdash;</span>}
+                          </TableCell>
                         </TableRow>
                       ))
                     )}
