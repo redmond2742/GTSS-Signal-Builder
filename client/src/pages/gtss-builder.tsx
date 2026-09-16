@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import SignalSearchBox from "@/components/gtss/signal-search-box";
 import SignalDetails from "@/pages/signal-details";
 import { clearAllData, isDemoEnabled, useGTSSStore, useLoadFromStorage } from "gtss";
 import {
@@ -651,9 +652,10 @@ export default function GTSSBuilder() {
                 </p>
               </div>
             </div>
-            {!showExportPanel &&
-              !showImportPanel &&
-              (activeTab === "signals" ? (
+            {!showExportPanel && !showImportPanel && (
+              <div className="flex items-center gap-2">
+                <SignalSearchBox className="w-40 sm:w-52" />
+                {activeTab === "signals" ? (
                 <div className="flex space-x-1">
                   <Button
                     onClick={handleAddMultiple}
@@ -727,7 +729,9 @@ export default function GTSSBuilder() {
                     <span>Add Agency</span>
                   </Button>
                 </div>
-              ) : null)}
+                ) : null}
+              </div>
+            )}
           </div>
         </header>
 

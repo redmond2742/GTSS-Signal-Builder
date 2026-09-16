@@ -178,3 +178,29 @@ export function getSignalDisplayName(signal: Signal, approaches: Approach[]): st
 
   return signal.signalId;
 }
+
+/**
+ * Natural ("human") string comparison — numeric runs compare as numbers, so
+ * "SIG-2" sorts before "SIG-11" rather than after it.
+ *
+ * Used wherever IDs are ordered for display or stepped through sequentially.
+ */
+export function naturalCompare(a: string, b: string): number {
+  const aParts = a.split(/(\d+)/);
+  const bParts = b.split(/(\d+)/);
+
+  for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+    const aPart = aParts[i] || "";
+    const bPart = bParts[i] || "";
+
+    const aNum = parseInt(aPart, 10);
+    const bNum = parseInt(bPart, 10);
+
+    if (!isNaN(aNum) && !isNaN(bNum)) {
+      if (aNum !== bNum) return aNum - bNum;
+    } else {
+      if (aPart !== bPart) return aPart.localeCompare(bPart);
+    }
+  }
+  return 0;
+}
