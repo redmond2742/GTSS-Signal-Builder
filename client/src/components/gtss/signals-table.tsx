@@ -4,7 +4,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import SignalsMap from "@/components/ui/signals-map";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { getDerivedStreetNames, useGTSSStore, useSignals } from "gtss";
+import { getDerivedStreetNames, naturalCompare, useGTSSStore, useSignals } from "gtss";
 import type { Signal } from "gtss/schema";
 
 import { ChevronDown, ChevronUp, MapPin, Search, X } from "lucide-react";
@@ -138,28 +138,6 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
     }
   };
 
-  // Natural sort comparison - handles numeric parts in strings properly
-  // e.g., "SIG-1", "SIG-2", "SIG-11" instead of "SIG-1", "SIG-11", "SIG-2"
-  const naturalCompare = (a: string, b: string): number => {
-    const aParts = a.split(/(\d+)/);
-    const bParts = b.split(/(\d+)/);
-
-    for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
-      const aPart = aParts[i] || '';
-      const bPart = bParts[i] || '';
-
-      // Check if both parts are numeric
-      const aNum = parseInt(aPart, 10);
-      const bNum = parseInt(bPart, 10);
-
-      if (!isNaN(aNum) && !isNaN(bNum)) {
-        if (aNum !== bNum) return aNum - bNum;
-      } else {
-        if (aPart !== bPart) return aPart.localeCompare(bPart);
-      }
-    }
-    return 0;
-  };
 
   const matchesSearch = (signal: Signal): boolean => {
     const query = searchQuery.trim().toLowerCase();

@@ -18,7 +18,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getSignalDisplayName, useGTSSStore, isMetricForSignalId } from "gtss";
+import {
+  getSignalDisplayName,
+  isMetricForSignalId,
+  naturalCompare,
+  useGTSSStore,
+} from "gtss";
 import { Approach } from "gtss/schema";
 import { ChevronDown, ChevronUp, MapPin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -122,26 +127,6 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
     setShowModal(true);
   };
 
-  // Natural sort comparison - handles numeric parts in strings properly
-  const naturalCompare = (a: string, b: string): number => {
-    const aParts = a.split(/(\d+)/);
-    const bParts = b.split(/(\d+)/);
-
-    for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
-      const aPart = aParts[i] || "";
-      const bPart = bParts[i] || "";
-
-      const aNum = parseInt(aPart, 10);
-      const bNum = parseInt(bPart, 10);
-
-      if (!isNaN(aNum) && !isNaN(bNum)) {
-        if (aNum !== bNum) return aNum - bNum;
-      } else {
-        if (aPart !== bPart) return aPart.localeCompare(bPart);
-      }
-    }
-    return 0;
-  };
 
   const getSortedApproaches = () => {
     return [...filteredApproaches].sort((a, b) => {

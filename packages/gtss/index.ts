@@ -78,6 +78,7 @@ export {
   getDerivedStreetNames,
   getSignalDisplayName,
   handleColumnMajorTab,
+  naturalCompare,
   suggestStreetNameForApproach,
 } from "./src/utils";
 export { useGTSSStore } from "./store/gtss-store";

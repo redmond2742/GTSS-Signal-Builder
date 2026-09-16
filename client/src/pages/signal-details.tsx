@@ -55,6 +55,7 @@ import {
   isMapScrollZoomEnabled,
   crosswalkLengthCode,
   isMetricForSignalId,
+  naturalCompare,
   phaseDiagramFileName,
   suggestStreetNameForApproach,
   useAgencies,
@@ -93,6 +94,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import SignalSearchBox from "@/components/gtss/signal-search-box";
 import { MapContainer, Marker, Polyline, useMap, useMapEvents } from "react-leaflet";
 
 // Location picker component for interactive map editing
@@ -199,6 +201,25 @@ export default function SignalDetails() {
   };
 
   const [signal, setSignal] = useState<Signal | null>(null);
+
+  // The header arrows step through signals by ID, not by the order the store
+  // happens to hold them in (insertion / import order), so "next" from 128
+  // lands on 1234 rather than whatever was added next. Wraps at both ends.
+  const orderedSignals = useMemo(
+    () => [...signals].sort((a, b) => naturalCompare(a.signalId, b.signalId)),
+    [signals],
+  );
+  const orderedIndex = signal
+    ? orderedSignals.findIndex((s) => s.signalId === signal.signalId)
+    : -1;
+  const prevSignal =
+    orderedIndex >= 0 && orderedSignals.length > 1
+      ? orderedSignals[(orderedIndex - 1 + orderedSignals.length) % orderedSignals.length]
+      : null;
+  const nextSignal =
+    orderedIndex >= 0 && orderedSignals.length > 1
+      ? orderedSignals[(orderedIndex + 1) % orderedSignals.length]
+      : null;
   const [signalPhases, setSignalPhases] = useState<Phase[]>([]);
   const [signalDetectors, setSignalDetectors] = useState<Detector[]>([]);
   const [signalApproaches, setSignalApproaches] = useState<Approach[]>([]);
@@ -962,16 +983,10 @@ export default function SignalDetails() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => {
-                const currentIndex = signals.findIndex((s) => s.signalId === signal.signalId);
-                const prevIndex = currentIndex > 0 ? currentIndex - 1 : signals.length - 1;
-                const prevSignal = signals[prevIndex];
-                if (prevSignal) {
-                  navigateToSignalDetails(prevSignal.signalId);
-                }
-              }}
+              onClick={() => prevSignal && navigateToSignalDetails(prevSignal.signalId)}
               disabled={signals.length <= 1}
               className="h-6 w-6 p-0"
+              title={prevSignal ? `Previous signal: ${prevSignal.signalId}` : "Previous signal"}
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
@@ -984,19 +999,14 @@ export default function SignalDetails() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => {
-                const currentIndex = signals.findIndex((s) => s.signalId === signal.signalId);
-                const nextIndex = currentIndex < signals.length - 1 ? currentIndex + 1 : 0;
-                const nextSignal = signals[nextIndex];
-                if (nextSignal) {
-                  navigateToSignalDetails(nextSignal.signalId);
-                }
-              }}
+              onClick={() => nextSignal && navigateToSignalDetails(nextSignal.signalId)}
               disabled={signals.length <= 1}
               className="h-6 w-6 p-0"
+              title={nextSignal ? `Next signal: ${nextSignal.signalId}` : "Next signal"}
             >
               <ChevronRight className="w-4 h-4" />
             </Button>
+            <SignalSearchBox className="w-40 sm:w-48" />
           </div>
         )}
       </div>
