@@ -280,18 +280,27 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
                       <SortableHeader field="streetName">Street Name</SortableHeader>
                       <SortableHeader field="compassBearing">Bearing</SortableHeader>
                       <SortableHeader field="postedSpeed">Speed ({speedUnit})</SortableHeader>
+                      <TableHead
+                        className="text-xs font-medium text-grey-500 uppercase tracking-wider"
+                        title="Free right slip lane: FR, FR-P with a ped crossing, FR-P-I traffic calmed."
+                      >
+                        FR
+                      </TableHead>
+                      <TableHead className="text-xs font-medium text-grey-500 uppercase tracking-wider">
+                        FR Lanes
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {!selectedSignalId ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center py-4 text-xs text-grey-500">
+                        <TableCell colSpan={6} className="text-center py-4 text-xs text-grey-500">
                           Please select a signal above to view its approaches.
                         </TableCell>
                       </TableRow>
                     ) : filteredApproaches.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center py-4 text-xs text-grey-500">
+                        <TableCell colSpan={6} className="text-center py-4 text-xs text-grey-500">
                           No approaches configured for this signal. Add your first approach to get
                           started.
                         </TableCell>
@@ -339,6 +348,18 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
                                 ) : (
                                   <span className="text-grey-400 text-xs">-</span>
                                 )}
+                              </TableCell>
+                              <TableCell className="text-grey-600 text-xs py-1.5 px-2">
+                                {approach.freeRight === 3
+                                  ? "FR-P-I"
+                                  : approach.freeRight === 2
+                                    ? "FR-P"
+                                    : approach.freeRight
+                                      ? "FR"
+                                      : "-"}
+                              </TableCell>
+                              <TableCell className="text-grey-600 text-xs py-1.5 px-2">
+                                {approach.freeRight ? (approach.freeRightLanes ?? 1) : "-"}
                               </TableCell>
                             </TableRow>
                           );

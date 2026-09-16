@@ -18,7 +18,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { getSignalDisplayName, isLhtForSignalId, useGTSSStore, usePhases } from "gtss";
+import {
+  crosswalkLengthCode,
+  getSignalDisplayName,
+  isLhtForSignalId,
+  isMetricForSignalId,
+  useGTSSStore,
+  usePhases,
+} from "gtss";
 import { Phase } from "gtss/schema";
 import { AlertTriangle, ChevronDown, ChevronUp, MapPin, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -40,8 +47,14 @@ export default function PhasesTable({ triggerAdd, triggerBulk }: PhasesTableProp
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [sortField, setSortField] = useState<SortField>("phase");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  const { signals, phases, approaches, selectedSignalIdForTables, setSelectedSignalIdForTables } =
-    useGTSSStore();
+  const {
+    signals,
+    phases,
+    approaches,
+    basicTimings,
+    selectedSignalIdForTables,
+    setSelectedSignalIdForTables,
+  } = useGTSSStore();
   const { deepLinkTarget, setDeepLinkTarget } = useGTSSStore();
 
   // Use shared signal selection from store
@@ -306,12 +319,23 @@ export default function PhasesTable({ triggerAdd, triggerBulk }: PhasesTableProp
                       <SortableHeader field="movementType">Movement</SortableHeader>
                       <SortableHeader field="approachId">Approach</SortableHeader>
                       <SortableHeader field="numOfLanes">Lanes</SortableHeader>
+                      <TableHead
+                        className="text-xs font-medium text-grey-500 uppercase tracking-wider text-center"
+                        title="Pedestrian crossing: 0 none · 1 assigned · 2 both · 3 opposite · 4 diagonal · 5 other diagonal · 6 both diagonals (X) · 7 all directions (4 crosswalks + X)">
+                        Ped
+                      </TableHead>
+                      <TableHead
+                        className="text-xs font-medium text-grey-500 uppercase tracking-wider"
+                        title="Crosswalk length. A measured value, otherwise the estimate phases.txt carries: LE-# from lanes, TE-# from ped clearance time."
+                      >
+                        CW
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredPhases.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-grey-500">
+                        <TableCell colSpan={7} className="text-center py-8 text-grey-500">
                           {filterSignal === "all"
                             ? "No phases configured. Add your first phase to get started."
                             : "No phases found for the selected signal."}
@@ -341,6 +365,21 @@ export default function PhasesTable({ triggerAdd, triggerBulk }: PhasesTableProp
                           </TableCell>
                           <TableCell className="text-grey-600 text-xs py-1 px-2">
                             {phase.numOfLanes}
+                          </TableCell>
+                          <TableCell
+                            className="text-grey-600 text-xs py-1 px-2 text-center"
+                            title="Pedestrian crossing: 0 none · 1 assigned · 2 both · 3 opposite · 4 diagonal · 5 other diagonal · 6 both diagonals (X) · 7 all directions (4 crosswalks + X)"
+                          >
+                            {phase.isPedestrian ?? 0}
+                          </TableCell>
+                          <TableCell className="text-grey-600 text-xs py-1 px-2">
+                            {crosswalkLengthCode(
+                              phase,
+                              phases.filter((p) => p.signalId === phase.signalId),
+                              basicTimings.filter((t) => t.signalId === phase.signalId),
+                              approaches.filter((a) => a.signalId === phase.signalId),
+                              isMetricForSignalId(phase.signalId),
+                            ) || "-"}
                           </TableCell>
                         </TableRow>
                       ))

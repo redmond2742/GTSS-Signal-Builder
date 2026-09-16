@@ -40,6 +40,7 @@ export type { ValidationResult, ValidationSummary } from "./src/gtssValidation";
 export { isMetricForSignalId, isLhtForSignalId } from "./src/localStorage/agency-units";
 export { clearAllData } from "./src/localStorage/clearAll";
 export {
+  crosswalkLengthCode,
   generateAgenciesCSV,
   generateAgencyCSV,
   generateApproachesCSV,
