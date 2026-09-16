@@ -140,6 +140,9 @@ export function parseApproachesTXT(content: string): Approach[] {
       postedSpeed,
       freeRight,
       freeRightLanes,
+      laneConfig: values[6]?.trim() ? values[6].trim() : null,
+      laneWidth: values[7]?.trim() ? values[7].trim() : null,
+      laneDirection: values[8]?.trim() ? values[8].trim() : null,
     });
   }
   if (errors.length > 0) throw new Error(`Approaches validation errors:\n${errors.join("\n")}`);
