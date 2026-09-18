@@ -35,7 +35,7 @@ import {
 import { ChevronDown, ChevronUp, Download, Plus, Save, Trash2, Wand2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getMovementTypeOptions } from "./movement-types";
-import { PhaseDiagram, phaseColors } from "./phase-diagram-svg";
+import { PhaseDiagram, phaseColors } from "gtss-diagram";
 
 interface PendingPhase {
   id?: string;
@@ -54,8 +54,8 @@ interface BulkPhaseModalProps {
   inline?: boolean;
 }
 
-// phaseColors is now imported from ./phase-diagram-svg so the diagram can be
-// reused on the signal-details page next to the map.
+// phaseColors comes from the gtss-diagram package, so the swatches in this
+// modal always match the colors the diagram actually draws.
 
 // Left turn phase mapping: Through phase -> Left turn phase
 //const leftTurnMapping: Record<number, number> = { 2: 5, 4: 7, 6: 1, 8: 3 };
@@ -687,6 +687,7 @@ export default function BulkPhaseModal({
                   approaches={signalApproaches}
                   intersectionName={intersectionName}
                   intersectionId={selectedSignalId}
+                  isLht={isLhtForSignalId(selectedSignalId)}
                   svgRef={svgRef}
                 />
               </div>

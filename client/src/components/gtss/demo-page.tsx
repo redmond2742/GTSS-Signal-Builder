@@ -1,6 +1,5 @@
 import { approachColorFor } from "@/components/gtss/approach-colors";
 import DetectorDiagram from "@/components/gtss/detector-diagram";
-import { PhaseDiagram } from "@/components/gtss/phase-diagram-svg";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +30,7 @@ import {
   type DemoIntersection,
 } from "gtss";
 import type { BasicTiming } from "gtss/schema";
+import { PhaseDiagram } from "gtss-diagram";
 import {
   ArrowUpDown,
   Clock,
@@ -678,6 +678,7 @@ export default function DemoPage() {
                         phases={currentIntersection.phases}
                         approaches={currentIntersection.approaches}
                         intersectionId={currentIntersection.signal.signalId}
+                        isLht={isLht}
                         svgRef={phaseSvgRef}
                       />
                     </div>
@@ -756,7 +757,7 @@ export default function DemoPage() {
                             phases={currentIntersection.phases}
                             approaches={currentIntersection.approaches}
                             intersectionId={currentIntersection.signal.signalId}
-                            forceLht={false}
+                            isLht={false}
                           />
                         </div>
                       </div>
@@ -771,7 +772,7 @@ export default function DemoPage() {
                             phases={currentIntersection.phases}
                             approaches={currentIntersection.approaches}
                             intersectionId={currentIntersection.signal.signalId}
-                            forceLht={true}
+                            isLht={true}
                           />
                         </div>
                       </div>

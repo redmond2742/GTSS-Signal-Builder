@@ -18,12 +18,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getSignalDisplayName, useBasicTimings, useGTSSStore } from "gtss";
+import { getSignalDisplayName, isLhtForSignalId, useBasicTimings, useGTSSStore } from "gtss";
 import { BasicTiming } from "gtss/schema";
+import { PhaseDiagram, phaseColors } from "gtss-diagram";
 import { ChevronDown, ChevronUp, Download, MapPin } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import BasicTimingModal from "./basic-timing-modal";
-import PhaseDiagram from "./phase-diagram";
 
 type SortField = "phase" | "minGreen" | "maxGreen" | "yellow" | "allRed" | "vehRecallType";
 type SortDirection = "asc" | "desc";
@@ -31,18 +31,6 @@ type SortDirection = "asc" | "desc";
 interface BasicTimingsTableProps {
   triggerAdd?: number;
 }
-
-// Phase colors matching the phase diagram
-const phaseColors: Record<number, string> = {
-  1: "#22c55e", // green
-  2: "#3b82f6", // blue
-  3: "#f97316", // orange
-  4: "#8b5cf6", // purple
-  5: "#ef4444", // red
-  6: "#14b8a6", // teal
-  7: "#eab308", // yellow
-  8: "#ec4899", // pink
-};
 
 // Timing bar chart component
 interface TimingBarChartProps {
@@ -598,7 +586,6 @@ export default function BasicTimingsTable({ triggerAdd }: BasicTimingsTableProps
                               approachId: p.approachId,
                               movementType: p.movementType,
                               isPedestrian: p.isPedestrian,
-                              numOfLanes: p.numOfLanes,
                             }))}
                             approaches={filteredApproaches.map((a) => ({
                               approachId: a.approachId,
@@ -606,10 +593,9 @@ export default function BasicTimingsTable({ triggerAdd }: BasicTimingsTableProps
                               freeRight: a.freeRight,
                               freeRightLanes: a.freeRightLanes,
                             }))}
-                            intersectionName={intersectionName}
-                            signalId={selectedSignalId}
+                            intersectionId={selectedSignalId}
+                            isLht={isLhtForSignalId(selectedSignalId)}
                             svgRef={phaseDiagramRef}
-                            compact={true}
                           />
                         ) : (
                           <div className="h-full flex items-center justify-center text-sm text-grey-400">
