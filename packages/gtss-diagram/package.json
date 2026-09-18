@@ -1,0 +1,30 @@
+{
+  "name": "gtss-diagram",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Standalone SVG phase-diagram renderer for GTSS (General Traffic Signal Specification) intersections.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/redmond2742/GTSS-Signal-Builder.git",
+    "directory": "packages/gtss-diagram"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "esbuild index.ts --bundle --format=esm --platform=browser --packages=external --jsx=automatic --outdir=dist && tsc -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

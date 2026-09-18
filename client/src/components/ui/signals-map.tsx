@@ -1,7 +1,7 @@
 import { approachColorFor } from "@/components/gtss/approach-colors";
-import { PhaseDiagram } from "@/components/gtss/phase-diagram-svg";
 import { Button } from "@/components/ui/button";
-import { getDerivedStreetNames, useGTSSStore, useMapScrollZoom } from "gtss";
+import { getDerivedStreetNames, isLhtForSignalId, useGTSSStore, useMapScrollZoom } from "gtss";
+import { PhaseDiagram } from "gtss-diagram";
 import { Approach, Phase, Signal } from "gtss/schema";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -20,7 +20,6 @@ L.Icon.Default.mergeOptions({
   iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
-
 
 interface SignalsMapProps {
   signals: Signal[];
@@ -201,6 +200,7 @@ function SignalPopup({
           phases={signalPhases}
           approaches={signalApproaches}
           intersectionId={signal.signalId}
+          isLht={isLhtForSignalId(signal.signalId)}
         />
       </div>
       {pct !== undefined && (
@@ -307,7 +307,7 @@ export default function SignalsMap({
               eventHandlers={{
                 click: (e) => {
                   // Prevent marker clicks from bubbling up to the map (which would trigger click-to-add)
-(e as L.LeafletMouseEvent).originalEvent.stopPropagation();
+                  (e as L.LeafletMouseEvent).originalEvent.stopPropagation();
                 },
               }}
             >

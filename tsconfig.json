@@ -1,5 +1,11 @@
 {
-  "include": ["client/src/**/*", "packages/gtss/schema/**/*", "server/**/*", "packages/gtss"],
+  "include": [
+    "client/src/**/*",
+    "packages/gtss/schema/**/*",
+    "server/**/*",
+    "packages/gtss",
+    "packages/gtss-diagram"
+  ],
   "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
   "compilerOptions": {
     "incremental": true,
@@ -16,7 +22,8 @@
     "types": ["node", "vite/client"],
     "paths": {
       "@/*": ["./client/src/*"],
-      "@shared/*": ["./packages/gtss/shared/*"]
+      "@shared/*": ["./packages/gtss/shared/*"],
+      "gtss-diagram": ["./packages/gtss-diagram/index.ts"]
     }
   }
 }

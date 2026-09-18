@@ -16,6 +16,9 @@ export default defineConfig({
       "@": path.resolve(import.meta.dirname, "client", "src"),
       "@schema": path.resolve(import.meta.dirname, "schema"),
       "@assets": path.resolve(import.meta.dirname, "attached_assets"),
+      // Resolve the diagram package to its source, not its built dist/, so
+      // editing it hot-reloads like any other file in the app.
+      "gtss-diagram": path.resolve(import.meta.dirname, "packages", "gtss-diagram", "index.ts"),
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
@@ -30,12 +33,12 @@ export default defineConfig({
       deny: ["**/.*"],
     },
   },
-   test: {
+  test: {
     coverage: {
       // you can include other reporters, but 'json-summary' is required, json is recommended
-      reporter: ['text', 'json-summary', 'json'],
+      reporter: ["text", "json-summary", "json"],
       // If you want a coverage reports even if your tests are failing, include the reportOnFailure option
       reportOnFailure: true,
-    }
-  }
+    },
+  },
 });

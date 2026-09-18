@@ -1,4 +1,3 @@
-import { isLhtForSignalId } from "gtss";
 import * as React from "react";
 import { freeRightPedMarkings } from "./free-right-markings";
 
@@ -47,9 +46,13 @@ export interface PhaseDiagramProps {
   intersectionName?: string;
   /** Signal/intersection ID shown large in the center of the diagram. */
   intersectionId?: string;
-  /** Force left-hand-traffic lane mirroring regardless of the stored agency
-   * flag for `intersectionId` (used by the demo page's side-by-side compare). */
-  forceLht?: boolean;
+  /** Left-hand traffic: mirrors lane order and turn geometry.
+   *
+   * Required rather than looked up, so this package never reaches into the
+   * host app's storage. Callers inside GTSS Builder pass
+   * `isLhtForSignalId(signalId)`; the demo page passes a literal to render
+   * both handednesses side by side. */
+  isLht: boolean;
   svgRef?: React.RefObject<SVGSVGElement>;
 }
 
@@ -119,11 +122,9 @@ export const PhaseDiagram = ({
   approaches,
   intersectionName,
   intersectionId,
-  forceLht,
+  isLht,
   svgRef,
 }: PhaseDiagramProps) => {
-  const isLht = forceLht ?? isLhtForSignalId(intersectionId);
-
   // Unique street names (in approach order).
   const uniqueStreets = Array.from(
     new Set(approaches.map((a) => (a.streetName || "").trim()).filter(Boolean)),

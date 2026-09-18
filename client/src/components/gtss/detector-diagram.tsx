@@ -1,6 +1,6 @@
 import { isLhtForSignalId, isMetricForSignalId } from "gtss";
 import React from "react";
-import { freeRightPedMarkings } from "./free-right-markings";
+import { freeRightPedMarkings } from "gtss-diagram";
 
 interface DetectorData {
   channel: string;

@@ -6,7 +6,6 @@ import BulkPhaseModal from "@/components/gtss/bulk-phase-modal";
 import DetectorModal from "@/components/gtss/detector-modal";
 import GTSSFileViewer, { GTSSFilePreview } from "@/components/gtss/gtss-file-viewer";
 import { getMovementTypeOptions } from "@/components/gtss/movement-types";
-import { PhaseDiagram } from "@/components/gtss/phase-diagram-svg";
 import { StreetNameInput } from "@/components/gtss/street-name-input";
 import TimingBulkImport from "@/components/gtss/timing-bulk-import";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +64,7 @@ import {
   usePhases,
   useSignals,
 } from "gtss";
+import { PhaseDiagram } from "gtss-diagram";
 import {
   insertPhaseSchema,
   insertSignalSchema,
@@ -1350,6 +1350,7 @@ export default function SignalDetails() {
                 phases={signalPhases}
                 approaches={signalApproaches}
                 intersectionId={signal?.signalId}
+                isLht={isLhtForSignalId(signal?.signalId)}
                 svgRef={phaseDiagramRef}
               />
             )}
@@ -2188,7 +2189,7 @@ export default function SignalDetails() {
                           >
                             Approach
                           </TableHead>
-<TableHead
+                          <TableHead
                             className="font-medium py-1 px-1.5"
                             style={{ fontSize: "12px" }}
                           >
@@ -2325,7 +2326,9 @@ export default function SignalDetails() {
                               </Select>
                             </TableCell>
                             <TableCell className="py-1 px-1.5" style={{ fontSize: "12px" }}>
-                              {detector.vehicleType || <span className="text-grey-400">&mdash;</span>}
+                              {detector.vehicleType || (
+                                <span className="text-grey-400">&mdash;</span>
+                              )}
                             </TableCell>
                             <TableCell className="py-1 px-1.5" style={{ fontSize: "12px" }}>
                               {detector.length == null ? (
@@ -2337,7 +2340,9 @@ export default function SignalDetails() {
                               )}
                             </TableCell>
                             <TableCell className="py-1 px-1.5" style={{ fontSize: "12px" }}>
-                              {detector.description || <span className="text-grey-400">&mdash;</span>}
+                              {detector.description || (
+                                <span className="text-grey-400">&mdash;</span>
+                              )}
                             </TableCell>
                             <TableCell className="py-1 px-1.5">
                               <Button
