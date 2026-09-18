@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   getSignalDisplayName,
+  isLhtForSignalId,
   isMetricForSignalId,
   POSTED_SPEED_LIMITS,
   suggestStreetNameForApproach,
@@ -33,6 +34,7 @@ import { MapPin, Navigation, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { MapContainer, Marker, Polyline, Popup, useMapEvents } from "react-leaflet";
+import LaneConfigEditor from "./lane-config-editor";
 import { StreetNameInput } from "./street-name-input";
 
 interface ApproachModalProps {
@@ -71,9 +73,13 @@ export default function ApproachModal({
       compassBearing: undefined,
       postedSpeed: undefined,
       freeRight: 0,
+      laneConfig: "",
+      laneWidth: "",
+      laneDirection: "",
     },
   });
   const isMetric = isMetricForSignalId(form.watch("signalId"));
+  const isLht = isLhtForSignalId(form.watch("signalId"));
   const speedUnit = isMetric ? "km/h" : "mph";
   const speedLimits = isMetric ? POSTED_SPEED_LIMITS.metric : POSTED_SPEED_LIMITS.imperial;
 
@@ -88,6 +94,9 @@ export default function ApproachModal({
         freeRight:
           typeof approach.freeRight === "number" ? approach.freeRight : approach.freeRight ? 1 : 0,
         freeRightLanes: approach.freeRightLanes ?? 1,
+        laneConfig: approach.laneConfig ?? "",
+        laneWidth: approach.laneWidth ?? "",
+        laneDirection: approach.laneDirection ?? "",
       });
     }
   }, [approach, form]);
@@ -424,6 +433,26 @@ export default function ApproachModal({
                     <FormMessage />
                   </FormItem>
                 )}
+              />
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded-lg border">
+              <h3 className="text-lg font-medium mb-3">Lane Configuration</h3>
+              <p className="text-sm text-grey-600 mb-3">
+                Left-to-right cross-section of this approach: sidewalks, transit/bike/car lanes, and
+                the dividers between them.
+              </p>
+              <LaneConfigEditor
+                laneConfig={form.watch("laneConfig")}
+                laneWidth={form.watch("laneWidth")}
+                laneDirection={form.watch("laneDirection")}
+                isMetric={isMetric}
+                isLht={isLht}
+                onChange={(laneConfig, laneWidth, laneDirection) => {
+                  form.setValue("laneConfig", laneConfig);
+                  form.setValue("laneWidth", laneWidth);
+                  form.setValue("laneDirection", laneDirection);
+                }}
               />
             </div>
 
