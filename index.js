@@ -3,6 +3,7 @@ import cors from "cors";
 import express2 from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
+import path3 from "path";
 
 // server/routes.ts
 import archiver from "archiver";
@@ -372,8 +373,9 @@ function generateDetectionCSV(detectors) {
 // server/vite.ts
 import express from "express";
 import fs from "fs";
+import { nanoid } from "nanoid";
 import path2 from "path";
-import { createServer as createViteServer, createLogger } from "vite";
+import { createLogger, createServer as createViteServer } from "vite";
 
 // vite.config.ts
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
@@ -419,7 +421,6 @@ var vite_config_default = defineConfig({
 });
 
 // server/vite.ts
-import { nanoid } from "nanoid";
 var viteLogger = createLogger();
 function log(message, source = "express") {
   const formattedTime = (/* @__PURE__ */ new Date()).toLocaleTimeString("en-US", {
@@ -466,11 +467,13 @@ async function setupVite(app2, server) {
 }
 function serveStatic(app2) {
   const distPath = path2.resolve(import.meta.dirname, "public");
+  const dataPath = path2.resolve(import.meta.dirname, "..", "data");
   if (!fs.existsSync(distPath)) {
     throw new Error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`
     );
   }
+  app2.use("/data", express.static(dataPath));
   app2.use(express.static(distPath));
   app2.use("*", (_req, res) => {
     res.sendFile(path2.resolve(distPath, "index.html"));
@@ -532,9 +535,10 @@ var apiLimiter = rateLimit({
 app.use(apiLimiter);
 app.use(express2.json({ limit: "1mb" }));
 app.use(express2.urlencoded({ extended: false, limit: "1mb" }));
+app.use("/data", express2.static(path3.resolve(import.meta.dirname, "..", "data")));
 app.use((req, res, next) => {
   const start = Date.now();
-  const path3 = req.path;
+  const path4 = req.path;
   let capturedJsonResponse = void 0;
   const originalResJson = res.json;
   res.json = function(bodyJson, ...args) {
@@ -543,8 +547,8 @@ app.use((req, res, next) => {
   };
   res.on("finish", () => {
     const duration = Date.now() - start;
-    if (path3.startsWith("/api")) {
-      let logLine = `${req.method} ${path3} ${res.statusCode} in ${duration}ms`;
+    if (path4.startsWith("/api")) {
+      let logLine = `${req.method} ${path4} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
