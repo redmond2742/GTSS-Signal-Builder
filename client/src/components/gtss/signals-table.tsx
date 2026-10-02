@@ -103,7 +103,6 @@ export default function SignalsTable({ triggerAdd, triggerBulk }: SignalsTablePr
       });
     }
   };
-
   const handleAdd = () => {
     if (!agency?.agencyId) {
       toast({

@@ -23,6 +23,9 @@ export const approachStorage = {
       freeRightLanes: normalizeFreeRightLanes(
         (approach as { freeRightLanes?: unknown }).freeRightLanes,
       ),
+      laneConfig: (approach as { laneConfig?: string | null }).laneConfig ?? null,
+      laneWidth: (approach as { laneWidth?: string | null }).laneWidth ?? null,
+      laneDirection: (approach as { laneDirection?: string | null }).laneDirection ?? null,
     }));
   },
 
@@ -44,6 +47,9 @@ export const approachStorage = {
       postedSpeed: approach.postedSpeed ?? null,
       freeRight: normalizeFreeRight(approach.freeRight),
       freeRightLanes: normalizeFreeRightLanes(approach.freeRightLanes),
+      laneConfig: approach.laneConfig ?? null,
+      laneWidth: approach.laneWidth ?? null,
+      laneDirection: approach.laneDirection ?? null,
     };
 
     saveToStorage(STORAGE_KEYS.APPROACHES, [...approaches, newApproach]);

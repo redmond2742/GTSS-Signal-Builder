@@ -13,6 +13,62 @@ export interface DemoIntersection {
   basicTimings: BasicTiming[];
 }
 
+type LaneFields = Pick<Approach, "laneConfig" | "laneWidth" | "laneDirection">;
+
+interface RoadSpec {
+  /** Lane codes from the curb to the centre, for traffic entering the intersection. */
+  inbound: string[];
+  /** Lane codes from the centre to the curb, for traffic leaving the intersection. */
+  outbound: string[];
+  center?: "|" | "=" | "/";
+  centerWidth?: number;
+  /** Paved shoulder width (inches) between sidewalk and road; a curb is used when omitted. */
+  shoulder?: number;
+  sidewalk?: number;
+}
+
+const LANE_WIDTHS: Record<string, number> = {
+  C: 132,
+  A: 132,
+  B: 60,
+  P: 72,
+  K: 96,
+  R: 132,
+  L: 144,
+  "C+R": 168,
+};
+
+/**
+ * Builds an RHT laneConfig/laneWidth/laneDirection triple (widths in inches), read left-to-right
+ * looking outward from the intersection: sidewalk, inbound lanes, centre, outbound lanes, sidewalk.
+ */
+function road(spec: RoadSpec): LaneFields {
+  const segments: Array<[string, number, string]> = [];
+  const edge = (): [string, number, string] =>
+    spec.shoulder ? [">", spec.shoulder, "B"] : ["-", 6, "B"];
+  const laneRun = (codes: string[], direction: string) => {
+    codes.forEach((code, index) => {
+      if (index > 0) {
+        const protectedPair = code === "P" || codes[index - 1] === "P";
+        segments.push(protectedPair ? ["#", 18, "B"] : [":", 0, "B"]);
+      }
+      segments.push([code, LANE_WIDTHS[code] ?? 132, direction]);
+    });
+  };
+  const sidewalk = spec.sidewalk ?? 72;
+  segments.push(["S", sidewalk, "B"], edge());
+  laneRun(spec.inbound, "I");
+  const center = spec.center ?? "|";
+  segments.push([center, center === "|" ? 0 : (spec.centerWidth ?? 48), "B"]);
+  laneRun(spec.outbound, "O");
+  segments.push(edge(), ["S", sidewalk, "B"]);
+  return {
+    laneConfig: segments.map(([raw]) => raw).join(""),
+    laneWidth: segments.map(([, width]) => String(width)).join("|"),
+    laneDirection: segments.map(([, , direction]) => direction).join("|"),
+  };
+}
+
 function makeApproach(
   id: string,
   approachId: string,
@@ -22,6 +78,7 @@ function makeApproach(
   postedSpeed: number | null = 35,
   freeRight: number | null = 0,
   freeRightLanes: number | null = 1,
+  lanes: LaneFields = {},
 ): Approach {
   return {
     id,
@@ -32,6 +89,7 @@ function makeApproach(
     postedSpeed,
     freeRight,
     freeRightLanes,
+    ...lanes,
   };
 }
 
@@ -117,6 +175,127 @@ function makeTiming(
   };
 }
 
+function makeRailTransitDemo(mode: "streetcar" | "lrt"): DemoIntersection {
+  const isStreetcar = mode === "streetcar";
+  const signalId = isStreetcar ? "DEMO-4C" : "DEMO-4D";
+  const route = isStreetcar
+    ? road({ inbound: ["C", "C+R"], outbound: ["C+R", "C"] })
+    : road({ inbound: ["C", "C", "L"], outbound: ["L", "C", "C"] });
+  const crossStreet = road({ inbound: ["C", "C"], outbound: ["C", "C"] });
+  const routeName = isStreetcar ? "Market Street" : "Central Avenue";
+  const crossStreetName = isStreetcar ? "Union Street" : "University Boulevard";
+  const approachSpecs = [
+    { bearing: 0, street: `${routeName} NB`, lanes: route },
+    { bearing: 90, street: `${crossStreetName} EB`, lanes: crossStreet },
+    { bearing: 180, street: `${routeName} SB`, lanes: route },
+    { bearing: 270, street: `${crossStreetName} WB`, lanes: crossStreet },
+  ];
+  const approaches = approachSpecs.map((spec, index) =>
+    makeApproach(
+      `demo-app-${signalId.toLowerCase()}-${index + 1}`,
+      `${signalId}-${index + 1}`,
+      signalId,
+      spec.street,
+      spec.bearing,
+      30,
+      0,
+      1,
+      spec.lanes,
+    ),
+  );
+  const phases = approaches.map((approach, index) =>
+    makePhase(
+      `demo-ph-${signalId.toLowerCase()}-${index + 1}`,
+      signalId,
+      (index + 1) * 2,
+      "Through",
+      approach.approachId,
+      1,
+      2,
+      48,
+    ),
+  );
+
+  return {
+    id: isStreetcar ? "demo-4-streetcar" : "demo-4-lrt",
+    name: isStreetcar ? "4-Way Streetcar in Mixed Traffic" : "4-Way Median LRT Crossing",
+    description: isStreetcar
+      ? "Signalized urban intersection with streetcars sharing curbside lanes with general traffic, plus conventional cross-street approaches."
+      : "Signalized urban intersection with dedicated median LRT lanes continuing through the junction and conventional cross-street approaches.",
+    approachCount: 4,
+    category: "4-approach",
+    signal: {
+      id: `demo-sig-${signalId.toLowerCase()}`,
+      signalId,
+      agencyId: "DEMO_AGENCY",
+      streetName1: routeName,
+      streetName2: crossStreetName,
+      latitude: isStreetcar ? 37.769 : 37.761,
+      longitude: isStreetcar ? -122.416 : -122.414,
+    },
+    approaches,
+    phases,
+    detectors: approaches.map((approach, index) =>
+      makeDetector(
+        `demo-det-${signalId.toLowerCase()}-${index + 1}`,
+        signalId,
+        String(index + 1),
+        "Stop Bar",
+        "Video",
+        (index + 1) * 2,
+        approach.approachId,
+        isStreetcar && (index === 0 || index === 2) ? "Streetcar lane" : "Through lane",
+        0,
+        `${approach.streetName} stop bar`,
+        isStreetcar && (index === 0 || index === 2) ? "Streetcar" : null,
+      ),
+    ),
+    basicTimings: phases.map((phase, index) =>
+      makeTiming(
+        `demo-bt-${signalId.toLowerCase()}-${index + 1}`,
+        signalId,
+        phase.phase,
+        12,
+        40,
+        4,
+        2,
+        7,
+        15,
+        null,
+        index === 0 ? "Min" : "None",
+      ),
+    ),
+  };
+}
+
+const GRAND_AVE = road({ inbound: ["B", "C", "C"], outbound: ["C", "C", "B"] });
+const DIAGONAL_PKWY = road({
+  inbound: ["P", "C", "C", "C"],
+  outbound: ["C", "C", "P"],
+  center: "=",
+  centerWidth: 48,
+});
+const FORKS_HWY = road({
+  inbound: ["C", "C"],
+  outbound: ["C", "C"],
+  center: "/",
+  centerWidth: 120,
+});
+const BROADWAY = road({
+  inbound: ["C", "C", "C", "C"],
+  outbound: ["C", "C", "C"],
+  center: "=",
+  centerWidth: 48,
+});
+const CENTER_ST = road({ inbound: ["K", "C", "C", "C"], outbound: ["C", "C", "K"] });
+const DIAGONAL_EXPWY = road({
+  inbound: ["A", "C", "C", "C", "C"],
+  outbound: ["C", "C", "C", "A"],
+  center: "=",
+  centerWidth: 72,
+});
+const CROSS_PARK = road({ inbound: ["B", "C", "C"], outbound: ["C", "C", "B"] });
+
 /**
  * Curated preset showcase intersections demonstrating varied approaches,
  * angles, slip lanes, complex phasing, detectors, and timing parameters.
@@ -140,8 +319,18 @@ export const PRESET_DEMO_INTERSECTIONS: DemoIntersection[] = [
       longitude: -122.4194,
     },
     approaches: [
-      makeApproach("demo-app-2a-1", "DEMO-2A-1", "DEMO-2A", "Grand Ave NB", 0, 35, 0, 1),
-      makeApproach("demo-app-2a-2", "DEMO-2A-2", "DEMO-2A", "Grand Ave SB", 180, 35, 0, 1),
+      makeApproach("demo-app-2a-1", "DEMO-2A-1", "DEMO-2A", "Grand Ave NB", 0, 35, 0, 1, GRAND_AVE),
+      makeApproach(
+        "demo-app-2a-2",
+        "DEMO-2A-2",
+        "DEMO-2A",
+        "Grand Ave SB",
+        180,
+        35,
+        0,
+        1,
+        GRAND_AVE,
+      ),
     ],
     phases: [
       makePhase("demo-ph-2a-2", "DEMO-2A", 2, "Through", "DEMO-2A-1", 1, 2, 48),
@@ -235,8 +424,28 @@ export const PRESET_DEMO_INTERSECTIONS: DemoIntersection[] = [
       longitude: -122.418,
     },
     approaches: [
-      makeApproach("demo-app-2b-1", "DEMO-2B-1", "DEMO-2B", "Diagonal Pkwy NE", 45, 45, 0, 1),
-      makeApproach("demo-app-2b-2", "DEMO-2B-2", "DEMO-2B", "Diagonal Pkwy SW", 225, 45, 0, 1),
+      makeApproach(
+        "demo-app-2b-1",
+        "DEMO-2B-1",
+        "DEMO-2B",
+        "Diagonal Pkwy NE",
+        45,
+        45,
+        0,
+        1,
+        DIAGONAL_PKWY,
+      ),
+      makeApproach(
+        "demo-app-2b-2",
+        "DEMO-2B-2",
+        "DEMO-2B",
+        "Diagonal Pkwy SW",
+        225,
+        45,
+        0,
+        1,
+        DIAGONAL_PKWY,
+      ),
     ],
     phases: [
       makePhase("demo-ph-2b-2", "DEMO-2B", 2, "Through", "DEMO-2B-1", 1, 2, 45),
@@ -316,9 +525,39 @@ export const PRESET_DEMO_INTERSECTIONS: DemoIntersection[] = [
       longitude: -122.415,
     },
     approaches: [
-      makeApproach("demo-app-3a-1", "DEMO-3A-1", "DEMO-3A", "Commerce St NB", 0, 30, 2, 1),
-      makeApproach("demo-app-3a-2", "DEMO-3A-2", "DEMO-3A", "Main Blvd EB", 90, 40, 0, 1),
-      makeApproach("demo-app-3a-3", "DEMO-3A-3", "DEMO-3A", "Main Blvd WB", 270, 40, 1, 1),
+      makeApproach(
+        "demo-app-3a-1",
+        "DEMO-3A-1",
+        "DEMO-3A",
+        "Commerce St NB",
+        0,
+        30,
+        2,
+        1,
+        road({ inbound: ["C", "C"], outbound: ["C"] }),
+      ),
+      makeApproach(
+        "demo-app-3a-2",
+        "DEMO-3A-2",
+        "DEMO-3A",
+        "Main Blvd EB",
+        90,
+        40,
+        0,
+        1,
+        road({ inbound: ["C", "C", "C"], outbound: ["C", "C"], shoulder: 72 }),
+      ),
+      makeApproach(
+        "demo-app-3a-3",
+        "DEMO-3A-3",
+        "DEMO-3A",
+        "Main Blvd WB",
+        270,
+        40,
+        1,
+        1,
+        road({ inbound: ["C", "C"], outbound: ["C", "C"], shoulder: 72 }),
+      ),
     ],
     phases: [
       makePhase("demo-ph-3a-2", "DEMO-3A", 2, "Through", "DEMO-3A-2", 1, 2, 50),
@@ -411,9 +650,39 @@ export const PRESET_DEMO_INTERSECTIONS: DemoIntersection[] = [
       longitude: -122.41,
     },
     approaches: [
-      makeApproach("demo-app-3b-1", "DEMO-3B-1", "DEMO-3B", "North Branch (30°)", 30, 45, 0, 1),
-      makeApproach("demo-app-3b-2", "DEMO-3B-2", "DEMO-3B", "South Branch (150°)", 150, 45, 0, 1),
-      makeApproach("demo-app-3b-3", "DEMO-3B-3", "DEMO-3B", "West Stem (270°)", 270, 35, 0, 1),
+      makeApproach(
+        "demo-app-3b-1",
+        "DEMO-3B-1",
+        "DEMO-3B",
+        "North Branch (30°)",
+        30,
+        45,
+        0,
+        1,
+        FORKS_HWY,
+      ),
+      makeApproach(
+        "demo-app-3b-2",
+        "DEMO-3B-2",
+        "DEMO-3B",
+        "South Branch (150°)",
+        150,
+        45,
+        0,
+        1,
+        FORKS_HWY,
+      ),
+      makeApproach(
+        "demo-app-3b-3",
+        "DEMO-3B-3",
+        "DEMO-3B",
+        "West Stem (270°)",
+        270,
+        35,
+        0,
+        1,
+        road({ inbound: ["C", "C"], outbound: ["C", "C"] }),
+      ),
     ],
     phases: [
       makePhase("demo-ph-3b-2", "DEMO-3B", 2, "Through", "DEMO-3B-1", 1, 2, 45),
@@ -460,10 +729,20 @@ export const PRESET_DEMO_INTERSECTIONS: DemoIntersection[] = [
       longitude: -122.405,
     },
     approaches: [
-      makeApproach("demo-app-4a-1", "DEMO-4A-1", "DEMO-4A", "Center St NB", 0, 35, 0, 1),
-      makeApproach("demo-app-4a-2", "DEMO-4A-2", "DEMO-4A", "Broadway EB", 90, 45, 0, 1),
-      makeApproach("demo-app-4a-3", "DEMO-4A-3", "DEMO-4A", "Center St SB", 180, 35, 0, 1),
-      makeApproach("demo-app-4a-4", "DEMO-4A-4", "DEMO-4A", "Broadway WB", 270, 45, 0, 1),
+      makeApproach("demo-app-4a-1", "DEMO-4A-1", "DEMO-4A", "Center St NB", 0, 35, 0, 1, CENTER_ST),
+      makeApproach("demo-app-4a-2", "DEMO-4A-2", "DEMO-4A", "Broadway EB", 90, 45, 0, 1, BROADWAY),
+      makeApproach(
+        "demo-app-4a-3",
+        "DEMO-4A-3",
+        "DEMO-4A",
+        "Center St SB",
+        180,
+        35,
+        0,
+        1,
+        CENTER_ST,
+      ),
+      makeApproach("demo-app-4a-4", "DEMO-4A-4", "DEMO-4A", "Broadway WB", 270, 45, 0, 1, BROADWAY),
     ],
     phases: [
       makePhase("demo-ph-4a-1", "DEMO-4A", 1, "Left Turn", "DEMO-4A-4", 0, 1, null),
@@ -606,7 +885,17 @@ export const PRESET_DEMO_INTERSECTIONS: DemoIntersection[] = [
       longitude: -122.401,
     },
     approaches: [
-      makeApproach("demo-app-4b-1", "DEMO-4B-1", "DEMO-4B", "Cross Park NE (20°)", 20, 40, 1, 1),
+      makeApproach(
+        "demo-app-4b-1",
+        "DEMO-4B-1",
+        "DEMO-4B",
+        "Cross Park NE (20°)",
+        20,
+        40,
+        1,
+        1,
+        CROSS_PARK,
+      ),
       makeApproach(
         "demo-app-4b-2",
         "DEMO-4B-2",
@@ -616,8 +905,19 @@ export const PRESET_DEMO_INTERSECTIONS: DemoIntersection[] = [
         50,
         2,
         2,
+        DIAGONAL_EXPWY,
       ),
-      makeApproach("demo-app-4b-3", "DEMO-4B-3", "DEMO-4B", "Cross Park SW (200°)", 200, 40, 3, 1),
+      makeApproach(
+        "demo-app-4b-3",
+        "DEMO-4B-3",
+        "DEMO-4B",
+        "Cross Park SW (200°)",
+        200,
+        40,
+        3,
+        1,
+        CROSS_PARK,
+      ),
       makeApproach(
         "demo-app-4b-4",
         "DEMO-4B-4",
@@ -627,6 +927,7 @@ export const PRESET_DEMO_INTERSECTIONS: DemoIntersection[] = [
         50,
         0,
         1,
+        DIAGONAL_EXPWY,
       ),
     ],
     phases: [
@@ -704,6 +1005,9 @@ export const PRESET_DEMO_INTERSECTIONS: DemoIntersection[] = [
     ],
   },
 
+  makeRailTransitDemo("streetcar"),
+  makeRailTransitDemo("lrt"),
+
   // 7. Five Approaches: Complex 5-Leg Multi-Way Star Intersection
   {
     id: "demo-5-star-junction",
@@ -722,11 +1026,61 @@ export const PRESET_DEMO_INTERSECTIONS: DemoIntersection[] = [
       longitude: -122.395,
     },
     approaches: [
-      makeApproach("demo-app-5a-1", "DEMO-5A-1", "DEMO-5A", "North Blvd (0°)", 0, 30, 0, 1),
-      makeApproach("demo-app-5a-2", "DEMO-5A-2", "DEMO-5A", "Northeast Ave (50°)", 50, 35, 1, 1),
-      makeApproach("demo-app-5a-3", "DEMO-5A-3", "DEMO-5A", "Southeast Way (120°)", 120, 30, 0, 1),
-      makeApproach("demo-app-5a-4", "DEMO-5A-4", "DEMO-5A", "Southwest Blvd (200°)", 200, 40, 2, 1),
-      makeApproach("demo-app-5a-5", "DEMO-5A-5", "DEMO-5A", "West Connector (285°)", 285, 35, 0, 1),
+      makeApproach(
+        "demo-app-5a-1",
+        "DEMO-5A-1",
+        "DEMO-5A",
+        "North Blvd (0°)",
+        0,
+        30,
+        0,
+        1,
+        road({ inbound: ["C", "C+R"], outbound: ["C+R", "C"] }),
+      ),
+      makeApproach(
+        "demo-app-5a-2",
+        "DEMO-5A-2",
+        "DEMO-5A",
+        "Northeast Ave (50°)",
+        50,
+        35,
+        1,
+        1,
+        road({ inbound: ["C", "C"], outbound: ["C", "C"] }),
+      ),
+      makeApproach(
+        "demo-app-5a-3",
+        "DEMO-5A-3",
+        "DEMO-5A",
+        "Southeast Way (120°)",
+        120,
+        30,
+        0,
+        1,
+        road({ inbound: ["C", "C"], outbound: ["C", "C"] }),
+      ),
+      makeApproach(
+        "demo-app-5a-4",
+        "DEMO-5A-4",
+        "DEMO-5A",
+        "Southwest Blvd (200°)",
+        200,
+        40,
+        2,
+        1,
+        road({ inbound: ["B", "C", "C"], outbound: ["C", "C", "B"] }),
+      ),
+      makeApproach(
+        "demo-app-5a-5",
+        "DEMO-5A-5",
+        "DEMO-5A",
+        "West Connector (285°)",
+        285,
+        35,
+        0,
+        1,
+        road({ inbound: ["C", "C"], outbound: ["C"] }),
+      ),
     ],
     phases: [
       makePhase("demo-ph-5a-2", "DEMO-5A", 2, "Through", "DEMO-5A-1", 1, 2, 55),
@@ -880,6 +1234,22 @@ export function generateProceduralIntersection(
     const bearing = Math.round((((baseBearing + i * angleStep + jitter) % 360) + 360) % 360);
     const appId = `${sigId}-${i + 1}`;
     const freeRight = hasSlipLanes && i % 2 === 1 ? (i % 3) + 1 : 0;
+    const approachSpeed = speed + (i % 2 === 0 ? 0 : 5);
+    const hasLeftLane = hasLeftTurns && (approachCount <= 4 || i < 2);
+    const variant = (seed * 31 + i * 7) % 4;
+    const curbLane = approachSpeed <= 35 ? (["B", "K", "C", "P"][variant] ?? "C") : "C";
+    const inbound = ["C", "C", ...(hasLeftLane ? ["C"] : [])];
+    const outbound = ["C", "C"];
+    if (curbLane !== "C") {
+      inbound.unshift(curbLane);
+      outbound.push(curbLane);
+    }
+    const lanes = road({
+      inbound,
+      outbound,
+      ...(approachSpeed >= 45 ? { center: "=" as const, centerWidth: 48 } : {}),
+      ...(approachSpeed >= 50 ? { shoulder: 72 } : {}),
+    });
 
     approaches.push(
       makeApproach(
@@ -888,9 +1258,10 @@ export function generateProceduralIntersection(
         sigId,
         `${i % 2 === 0 ? street1 : street2} (Approach ${i + 1})`,
         bearing,
-        speed + (i % 2 === 0 ? 0 : 5),
+        approachSpeed,
         freeRight,
         freeRight > 0 && i === 1 ? 2 : 1,
+        lanes,
       ),
     );
   }

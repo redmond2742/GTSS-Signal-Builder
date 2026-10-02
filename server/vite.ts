@@ -69,11 +69,31 @@ export function serveStatic(app: Express) {
     );
   }
 
+  app.use((req, res, next) => {
+    if (req.path === "/" || req.path.endsWith(".html") || req.path.includes("index.")) {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+    }
+    next();
+  });
+
+  app.use(
+    express.static(distPath, {
+      maxAge: 0,
+      etag: true,
+      lastModified: true,
+      immutable: false,
+    }),
+  );
   app.use("/data", express.static(dataPath));
   app.use(express.static(distPath));
 
   // fall through to index.html if the file doesn't exist
   app.use("*", (_req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }

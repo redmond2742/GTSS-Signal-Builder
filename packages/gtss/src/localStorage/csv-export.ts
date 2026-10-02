@@ -50,7 +50,8 @@ export function generateSignalsCSV(signals: Signal[]): string {
 }
 
 export function generateApproachesCSV(approaches: Approach[]): string {
-  const headers = "approach_id,signal_id,street_name,compass_bearing,posted_speed,free_right";
+  const headers =
+    "approach_id,signal_id,street_name,compass_bearing,posted_speed,free_right,lane_config,lane_width,lane_direction";
 
   if (approaches.length === 0) return headers + "\n";
 
@@ -71,7 +72,7 @@ export function generateApproachesCSV(approaches: Approach[]): string {
   };
   const rows = sortedApproaches.map(
     (approach) =>
-      `${sanitizeCSVField(approach.approachId)},${sanitizeCSVField(approach.signalId)},${sanitizeCSVField(approach.streetName)},${sanitizeCSVField(approach.compassBearing)},${sanitizeCSVField(approach.postedSpeed)},${frLabel(approach.freeRight, approach.freeRightLanes)}`,
+      `${sanitizeCSVField(approach.approachId)},${sanitizeCSVField(approach.signalId)},${sanitizeCSVField(approach.streetName)},${sanitizeCSVField(approach.compassBearing)},${sanitizeCSVField(approach.postedSpeed)},${frLabel(approach.freeRight, approach.freeRightLanes)},${sanitizeCSVField(approach.laneConfig ?? "")},${sanitizeCSVField(approach.laneWidth ?? "")},${sanitizeCSVField(approach.laneDirection ?? "")}`,
   );
 
   return [headers, ...rows].join("\n");

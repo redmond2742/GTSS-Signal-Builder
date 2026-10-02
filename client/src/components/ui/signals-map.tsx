@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { getDerivedStreetNames, isLhtForSignalId, useGTSSStore, useMapScrollZoom } from "gtss";
 import { PhaseDiagram } from "gtss-diagram";
 import { Approach, Phase, Signal } from "gtss/schema";
+import type { ControlPosition } from "leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useMemo, useState } from "react";
@@ -32,6 +33,7 @@ interface SignalsMapProps {
   /** Optional completeness lookup so the popup can show the same %-bar as the table. */
   getCompletenessPct?: (signalId: string) => number;
   className?: string;
+  layersControlPosition?: ControlPosition;
   /** When true, enable map-click-to-add behavior and crosshair cursor (signals page only) */
   enableClickToAdd?: boolean;
 }
@@ -262,6 +264,7 @@ export default function SignalsMap({
   getCompletenessPct,
   highlightedSignalId,
   className,
+  layersControlPosition,
   enableClickToAdd = false,
 }: SignalsMapProps) {
   const mapScrollZoom = useMapScrollZoom();
@@ -318,7 +321,7 @@ export default function SignalsMap({
         key={`map-${signals.length}-${center[0]}-${center[1]}`}
       >
         <CaptureMap onReady={(m) => setMap(m)} />
-        <MapTileLayers />
+        <MapTileLayers position={layersControlPosition} />
 
         <MapResizeObserver />
         {map && <MapBounds signals={signals} />}

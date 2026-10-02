@@ -4,26 +4,49 @@
     "packages/gtss/schema/**/*",
     "server/**/*",
     "packages/gtss",
+    "packages/gtss-3d/index.ts",
+    "packages/gtss-3d/src",
     "packages/gtss-diagram"
   ],
-  "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
+  "exclude": [
+    "node_modules",
+    "build",
+    "dist",
+    "**/*.test.ts"
+  ],
   "compilerOptions": {
     "incremental": true,
     "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo",
     "noEmit": true,
     "module": "ESNext",
     "strict": true,
-    "lib": ["esnext", "dom", "dom.iterable"],
+    "lib": [
+      "esnext",
+      "dom",
+      "dom.iterable"
+    ],
     "jsx": "preserve",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
     "moduleResolution": "bundler",
-    "types": ["node", "vite/client"],
+    "types": [
+      "node",
+      "vite/client"
+    ],
     "paths": {
-      "@/*": ["./client/src/*"],
-      "@shared/*": ["./packages/gtss/shared/*"],
-      "gtss-diagram": ["./packages/gtss-diagram/index.ts"]
+      "@/*": [
+        "./client/src/*"
+      ],
+      "@shared/*": [
+        "./packages/gtss/shared/*"
+      ],
+      "gtss-diagram": [
+        "./packages/gtss-diagram/index.ts"
+      ],
+      "gtss-3d": [
+        "./packages/gtss-3d/index.ts"
+      ]
     }
   }
 }

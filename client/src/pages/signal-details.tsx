@@ -78,6 +78,7 @@ import {
 } from "gtss/schema";
 import {
   ArrowLeft,
+  Box,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -86,16 +87,19 @@ import {
   HelpCircle,
   Lock,
   MapPin,
+  Map as MapIcon,
   Navigation,
   Plus,
   Settings,
   Trash2,
   Unlock,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import SignalSearchBox from "@/components/gtss/signal-search-box";
 import { MapContainer, Marker, Polyline, useMap, useMapEvents } from "react-leaflet";
+
+const LazySignal3DView = lazy(() => import("@/components/gtss/signal-3d-view"));
 
 // Location picker component for interactive map editing
 function LocationPicker({
@@ -114,12 +118,15 @@ function LocationPicker({
 // Toggles Leaflet's scroll-wheel zoom on the parent <MapContainer>. When
 // `locked`, mouse-wheel events bubble out of the map and scroll the page
 // normally. Panning and the +/- buttons stay enabled in both states.
-function ScrollZoomToggle({ locked }: { locked: boolean }) {
+function ScrollZoomToggle({ locked, active }: { locked: boolean; active: boolean }) {
   const map = useMap();
   useEffect(() => {
-    if (locked) map.scrollWheelZoom.disable();
+    if (locked || !active) map.scrollWheelZoom.disable();
     else map.scrollWheelZoom.enable();
-  }, [locked, map]);
+    if (!active) return;
+    const frame = window.requestAnimationFrame(() => map.invalidateSize({ pan: false }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [active, locked, map]);
   return null;
 }
 
@@ -223,6 +230,15 @@ export default function SignalDetails() {
   const [signalPhases, setSignalPhases] = useState<Phase[]>([]);
   const [signalDetectors, setSignalDetectors] = useState<Detector[]>([]);
   const [signalApproaches, setSignalApproaches] = useState<Approach[]>([]);
+  const intersection3DInput = useMemo(
+    () => ({
+      signalId: signal?.signalId ?? "new-signal",
+      approaches: signalApproaches,
+      phases: signalPhases,
+      detectors: signalDetectors,
+    }),
+    [signal?.signalId, signalApproaches, signalPhases, signalDetectors],
+  );
 
   // The common case at a given intersection is "the same speed as the other
   // legs", so suggest the most frequent posted speed already on this signal and
@@ -261,6 +277,8 @@ export default function SignalDetails() {
   const [activeTab, setActiveTab] = useState<"approaches" | "phases" | "detection" | "timings">(
     "approaches",
   );
+  const [activeIntersectionView, setActiveIntersectionView] = useState<"map" | "3d">("map");
+  const [hasLoaded3DView, setHasLoaded3DView] = useState(false);
   // When true, mouse-wheel over the persistent map scrolls the page instead of zooming.
   // Agency default for what the wheel does over a map.
   const mapScrollZoom = isMapScrollZoomEnabled(agencyDefaults);
@@ -1262,70 +1280,131 @@ export default function SignalDetails() {
           </CardContent>
         </Card>
 
-        {/* Right: persistent map */}
-        {signal && signal.latitude && signal.longitude ? (
-          <div className="h-[500px] rounded-lg border overflow-hidden relative z-0">
-            <MapContainer
-              center={[signal.latitude, signal.longitude]}
-              zoom={17}
-              maxZoom={22}
-              scrollWheelZoom={!mapZoomLocked}
-              style={{ height: "100%", width: "100%", zIndex: 1 }}
-            >
-              <MapTileLayers />
+        {/* Map and 3D views share the same panel so the signal details stay in view. */}
+        <Card className="h-[500px] flex flex-col overflow-hidden">
+          <CardHeader className="bg-grey-50 border-b border-grey-200 px-3 py-2 shrink-0">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-sm font-semibold text-grey-800">
+                Intersection View
+              </CardTitle>
+              <Tabs
+                value={activeIntersectionView}
+                onValueChange={(value) => {
+                  const view = value as "map" | "3d";
+                  setActiveIntersectionView(view);
+                  if (view === "3d") setHasLoaded3DView(true);
+                }}
+              >
+                <TabsList className="h-8">
+                  <TabsTrigger value="map" className="h-7 gap-1.5 px-2 text-xs">
+                    <MapIcon className="h-3.5 w-3.5" />
+                    Map
+                  </TabsTrigger>
+                  <TabsTrigger value="3d" className="h-7 gap-1.5 px-2 text-xs">
+                    <Box className="h-3.5 w-3.5" />
+                    3D
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </CardHeader>
+          <CardContent className="relative min-h-0 flex-1 p-0">
+            {signal && signal.latitude && signal.longitude ? (
+              <div
+                className={`absolute inset-0 z-0 overflow-hidden ${
+                  activeIntersectionView === "map" ? "" : "hidden"
+                }`}
+                aria-hidden={activeIntersectionView !== "map"}
+              >
+                <MapContainer
+                  center={[signal.latitude, signal.longitude]}
+                  zoom={17}
+                  maxZoom={22}
+                  scrollWheelZoom={!mapZoomLocked}
+                  style={{ height: "100%", width: "100%", zIndex: 1 }}
+                >
+                  <MapTileLayers />
 
-              <ScrollZoomToggle locked={mapZoomLocked} />
-              <MapRecenter lat={signal.latitude} lng={signal.longitude} />
-              <Marker position={[signal.latitude, signal.longitude]} />
-
-              {/* Capture map clicks on Approaches tab → fill the quick-add Bearing field */}
-              {activeTab === "approaches" && (
-                <LocationPicker onLocationSelect={handleMapBearingClick} />
-              )}
-
-              {/* Approach polylines — shown on every tab, including Phases.
-                  The phase diagram next to the map already conveys phase info,
-                  so the map stays as a clean approach reference. */}
-              {signalApproaches.map((a) => {
-                if (a.compassBearing == null || signal.latitude == null || signal.longitude == null)
-                  return null;
-                const endpoint = approachEndpoint(
-                  a.compassBearing,
-                  signal.latitude,
-                  signal.longitude,
-                );
-                return (
-                  <Polyline
-                    key={`approach-${a.id}`}
-                    positions={[[signal.latitude, signal.longitude], endpoint]}
-                    color={approachColorFor(signalApproaches, a.approachId)}
-                    weight={4}
-                    opacity={0.8}
+                  <ScrollZoomToggle
+                    locked={mapZoomLocked}
+                    active={activeIntersectionView === "map"}
                   />
-                );
-              })}
-            </MapContainer>
-            {/* Scroll-wheel zoom lock toggle */}
-            <button
-              type="button"
-              onClick={() => setMapZoomLocked((v) => !v)}
-              className="absolute bottom-2 left-2 z-[1000] flex items-center gap-1 rounded-md border border-grey-300 bg-white px-2 py-1 text-xs shadow hover:bg-grey-50"
-              title={
-                mapZoomLocked
-                  ? "Scroll-zoom is locked so scrolling the page doesn't accidentally zoom the map. Click to unlock, or use the + / − buttons."
-                  : "Scroll-zoom is unlocked — the wheel zooms the map instead of scrolling the page. Click to lock."
-              }
-              aria-pressed={mapZoomLocked}
-            >
-              {mapZoomLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
-              <span>{mapZoomLocked ? "Zoom locked" : "Zoom"}</span>
-            </button>
-          </div>
-        ) : (
-          <div className="h-[500px] flex items-center justify-center bg-grey-50 rounded-lg border text-sm text-grey-400">
-            {isNewSignal ? "Click Edit to set this signal's location." : "No coordinates yet."}
-          </div>
-        )}
+                  <MapRecenter lat={signal.latitude} lng={signal.longitude} />
+                  <Marker position={[signal.latitude, signal.longitude]} />
+
+                  {activeTab === "approaches" && (
+                    <LocationPicker onLocationSelect={handleMapBearingClick} />
+                  )}
+
+                  {signalApproaches.map((a) => {
+                    if (
+                      a.compassBearing == null ||
+                      signal.latitude == null ||
+                      signal.longitude == null
+                    )
+                      return null;
+                    const endpoint = approachEndpoint(
+                      a.compassBearing,
+                      signal.latitude,
+                      signal.longitude,
+                    );
+                    return (
+                      <Polyline
+                        key={`approach-${a.id}`}
+                        positions={[[signal.latitude, signal.longitude], endpoint]}
+                        color={approachColorFor(signalApproaches, a.approachId)}
+                        weight={4}
+                        opacity={0.8}
+                      />
+                    );
+                  })}
+                </MapContainer>
+                <button
+                  type="button"
+                  onClick={() => setMapZoomLocked((v) => !v)}
+                  className="absolute bottom-2 left-2 z-[1000] flex items-center gap-1 rounded-md border border-grey-300 bg-white px-2 py-1 text-xs shadow hover:bg-grey-50"
+                  title={
+                    mapZoomLocked
+                      ? "Scroll-zoom is locked so scrolling the page doesn't accidentally zoom the map. Click to unlock, or use the + / − buttons."
+                      : "Scroll-zoom is unlocked — the wheel zooms the map instead of scrolling the page. Click to lock."
+                  }
+                  aria-pressed={mapZoomLocked}
+                >
+                  {mapZoomLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+                  <span>{mapZoomLocked ? "Zoom locked" : "Zoom"}</span>
+                </button>
+              </div>
+            ) : (
+              activeIntersectionView === "map" && (
+                <div className="absolute inset-0 flex items-center justify-center bg-grey-50 text-sm text-grey-400">
+                  {isNewSignal
+                    ? "Click Edit to set this signal's location."
+                    : "No coordinates yet."}
+                </div>
+              )
+            )}
+            {hasLoaded3DView && (
+              <div
+                className={`absolute inset-0 ${activeIntersectionView === "3d" ? "" : "hidden"}`}
+                aria-hidden={activeIntersectionView !== "3d"}
+              >
+                <Suspense
+                  fallback={
+                    <div className="flex h-full items-center justify-center text-sm text-grey-500">
+                      Loading 3D view…
+                    </div>
+                  }
+                >
+                  <LazySignal3DView
+                    input={intersection3DInput}
+                    isLht={isLhtForSignalId(signal?.signalId)}
+                    isMetric={isMetricForSignalId(signal?.signalId)}
+                  />
+                </Suspense>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Phase Diagram — always visible regardless of active tab */}
         <Card className="h-[500px]">

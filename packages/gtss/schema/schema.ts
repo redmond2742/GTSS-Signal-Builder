@@ -54,6 +54,14 @@ export const approaches = pgTable("approaches", {
   // Number of free-right lanes. In approaches.txt this prefixes the FR code
   // as "<n>-FR", "<n>-FR-P", etc. (a bare "FR" / "FR-P" implies 1 lane).
   freeRightLanes: integer("free_right_lanes").default(1),
+  // Left-to-right cross-section, concatenated lane/divider tokens (e.g. "S-C:C|B").
+  // See packages/gtss/src/laneConfig.ts for the grammar.
+  laneConfig: text("lane_config"),
+  // "|"-delimited widths (agency-native unit: inches or cm), one per laneConfig token.
+  laneWidth: text("lane_width"),
+  // "|"-delimited directions, one per laneConfig token: I=Incoming, O=Outgoing, B=Both.
+  // Only meaningful for lane tokens; blank for divider tokens. See laneConfig.ts.
+  laneDirection: text("lane_direction"),
 });
 
 // Phases table - updated for GTSSv1.1 (removed compassBearing, postedSpeed; added approachId)

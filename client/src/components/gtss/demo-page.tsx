@@ -33,6 +33,7 @@ import type { BasicTiming } from "gtss/schema";
 import { PhaseDiagram } from "gtss-diagram";
 import {
   ArrowUpDown,
+  Box,
   Clock,
   Compass,
   Download,
@@ -43,8 +44,10 @@ import {
   Sparkles,
   Target,
 } from "lucide-react";
-import React, { useMemo, useRef, useState } from "react";
+import React, { Suspense, lazy, useMemo, useRef, useState } from "react";
 import { formatMovementType } from "./movement-types";
+
+const Intersection3DPanel = lazy(() => import("./intersection-3d-panel"));
 
 // Phase color mapping matching the phase diagram
 const phaseColors: Record<number, string> = {
@@ -288,7 +291,7 @@ export default function DemoPage() {
 
   const [selectedId, setSelectedId] = useState<string>(presets[0]?.id || "demo-4-nema-standard");
   const [activeViewTab, setActiveViewTab] = useState<
-    "phase" | "timing" | "detectors" | "approaches" | "trafficSide"
+    "phase" | "timing" | "detectors" | "approaches" | "trafficSide" | "3d"
   >("phase");
   const [approachFilter, setApproachFilter] = useState<string>("all");
 
@@ -632,7 +635,7 @@ export default function DemoPage() {
                 onValueChange={(v) => setActiveViewTab(v as typeof activeViewTab)}
                 className="w-full space-y-4"
               >
-                <TabsList className="grid w-full grid-cols-5 h-9">
+                <TabsList className="grid w-full grid-cols-6 h-9">
                   <TabsTrigger value="phase" className="text-xs flex items-center gap-1.5">
                     <ArrowUpDown className="w-3.5 h-3.5" />
                     <span>Phase Diagram</span>
@@ -653,7 +656,31 @@ export default function DemoPage() {
                     <SignpostBig className="w-3.5 h-3.5" />
                     <span>Traffic Side</span>
                   </TabsTrigger>
+                  <TabsTrigger value="3d" className="text-xs flex items-center gap-1.5">
+                    <Box className="w-3.5 h-3.5" />
+                    <span>3D View</span>
+                  </TabsTrigger>
                 </TabsList>
+
+                <TabsContent value="3d" className="m-0">
+                  {activeViewTab === "3d" && (
+                    <Suspense
+                      fallback={
+                        <div className="h-[520px] flex items-center justify-center text-xs text-grey-500">
+                          Loading 3D view…
+                        </div>
+                      }
+                    >
+                      <Intersection3DPanel
+                        intersection={currentIntersection}
+                        isLht={isLht}
+                        onExported={() =>
+                          toast({ title: "Downloaded", description: "3D view saved as image." })
+                        }
+                      />
+                    </Suspense>
+                  )}
+                </TabsContent>
 
                 {/* TAB 1: PHASE DIAGRAM */}
                 <TabsContent value="phase" className="space-y-4 m-0">

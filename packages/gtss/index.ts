@@ -38,6 +38,26 @@ export {
 export { evaluateGTSSCompleteness } from "./src/gtssValidation";
 export type { ValidationResult, ValidationSummary } from "./src/gtssValidation";
 export {
+  computeDefaultDirections,
+  DIVIDER_CODES,
+  fromDisplayWidth,
+  LANE_TYPE_CODES,
+  parseLaneConfig,
+  serializeLaneConfig,
+  toDisplayWidth,
+  tokenizeLaneConfig,
+  validateLaneConfig,
+} from "./src/laneConfig";
+export type {
+  DividerCategory,
+  DividerInfo,
+  LaneCategory,
+  LaneDirection,
+  LaneSegment,
+  LaneToken,
+  LaneTypeInfo,
+} from "./src/laneConfig";
+export {
   flattenLibraryEntries,
   getLibrarySourceUrls,
   resolveLibraryResourceUrl,

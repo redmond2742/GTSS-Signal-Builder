@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { generateProceduralIntersection, getAllDemoIntersections } from "../src/demoIntersections";
+import {
+  generateProceduralIntersection,
+  getAllDemoIntersections,
+  type DemoIntersection,
+} from "../src/demoIntersections";
+import { parseLaneConfig, tokenizeLaneConfig, validateLaneConfig } from "../src/laneConfig";
 
 describe("demoIntersections", () => {
   it("provides preset intersections covering 2, 3, 4, and 5 approach configurations", () => {
@@ -44,5 +49,62 @@ describe("demoIntersections", () => {
         expect(app.compassBearing).toBeLessThan(360);
       });
     });
+  });
+
+  const expectValidLaneConfigs = (demo: DemoIntersection) => {
+    demo.approaches.forEach((app) => {
+      expect(app.laneConfig, app.approachId).toBeTruthy();
+      expect(validateLaneConfig(app.laneConfig)).toEqual([]);
+      const tokenCount = tokenizeLaneConfig(app.laneConfig).length;
+      expect(app.laneWidth?.split("|")).toHaveLength(tokenCount);
+      expect(app.laneDirection?.split("|")).toHaveLength(tokenCount);
+
+      const inboundCarLanes = parseLaneConfig(
+        app.laneConfig,
+        app.laneWidth,
+        app.laneDirection,
+      ).filter(
+        (seg) => seg.kind === "lane" && seg.parts.includes("C") && seg.direction === "I",
+      ).length;
+      const required = demo.phases
+        .filter((ph) => ph.approachId === app.approachId && ph.movementType !== "Pedestrian")
+        .reduce((sum, ph) => sum + (ph.numOfLanes ?? 1), 0);
+      expect(inboundCarLanes, app.approachId).toBeGreaterThanOrEqual(required);
+    });
+  };
+
+  it("gives every preset approach a valid lane config that covers its phase lanes", () => {
+    getAllDemoIntersections().forEach(expectValidLaneConfigs);
+  });
+
+  it("includes dedicated streetcar and LRT demo intersections", () => {
+    const demos = getAllDemoIntersections();
+    const streetcar = demos.find((demo) => demo.id === "demo-4-streetcar");
+    const lrt = demos.find((demo) => demo.id === "demo-4-lrt");
+
+    expect(streetcar).toBeDefined();
+    expect(
+      streetcar?.approaches.some((approach) =>
+        tokenizeLaneConfig(approach.laneConfig).some((lane) => lane.parts.includes("R")),
+      ),
+    ).toBe(true);
+    expect(lrt).toBeDefined();
+    expect(
+      lrt?.approaches.some((approach) =>
+        tokenizeLaneConfig(approach.laneConfig).some((lane) => lane.parts.includes("L")),
+      ),
+    ).toBe(true);
+  });
+
+  it("gives procedural approaches valid lane configs", () => {
+    for (let seed = 0; seed < 20; seed++) {
+      const proc = generateProceduralIntersection({
+        approachCount: ((seed % 4) + 2) as 2 | 3 | 4 | 5,
+        hasSlipLanes: seed % 2 === 0,
+        speed: 30 + (seed % 3) * 10,
+        seed,
+      });
+      expectValidLaneConfigs(proc);
+    }
   });
 });

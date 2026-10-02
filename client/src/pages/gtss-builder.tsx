@@ -70,6 +70,22 @@ const baseTabs = [
   { id: "agency" as const, label: "Agency Info", icon: Building },
 ];
 
+type HeaderActionState = {
+  showExportPanel: boolean;
+  showImportPanel: boolean;
+  showAgencyDefaults: boolean;
+  showDataManagement: boolean;
+};
+
+const shouldShowHeaderActions = ({
+  showExportPanel,
+  showImportPanel,
+  showAgencyDefaults,
+  showDataManagement,
+}: HeaderActionState): boolean => {
+  return !showExportPanel && !showImportPanel && !showAgencyDefaults && !showDataManagement;
+};
+
 const tabTitles: Record<TabType, { title: string; desc: string }> = {
   agency: { title: "Agency Information", desc: "Configure your traffic management agency details" },
   signals: { title: "Traffic Signals", desc: "Manage traffic signal installation locations" },
@@ -284,11 +300,7 @@ export default function GTSSBuilder() {
 
   const DataManagementPanel = () => (
     <div className="space-y-6 p-4 md:p-6">
-      <Tabs
-        value={dataManagementTab}
-        onValueChange={setDataManagementTab}
-        className="w-full"
-      >
+      <Tabs value={dataManagementTab} onValueChange={setDataManagementTab} className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-3">
           <TabsTrigger value="export" className="gap-2">
             <FolderOutput className="h-4 w-4" />
@@ -298,7 +310,10 @@ export default function GTSSBuilder() {
             <FolderInput className="h-4 w-4" />
             Import
           </TabsTrigger>
-          <TabsTrigger value="clear" className="gap-2 text-red-700 data-[state=active]:text-red-700">
+          <TabsTrigger
+            value="clear"
+            className="gap-2 text-red-700 data-[state=active]:text-red-700"
+          >
             <Trash2 className="h-4 w-4" />
             Clear Data
           </TabsTrigger>
@@ -318,7 +333,8 @@ export default function GTSSBuilder() {
               <div>
                 <h3 className="text-base font-semibold text-red-700">Clear All Data</h3>
                 <p className="text-sm text-red-700/80">
-                  Permanently delete all agencies, signals, approaches, phases, timings, and detectors.
+                  Permanently delete all agencies, signals, approaches, phases, timings, and
+                  detectors.
                 </p>
               </div>
               <AlertDialog
@@ -347,9 +363,13 @@ export default function GTSSBuilder() {
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <div className="space-y-1">
-                    <label htmlFor="clear-all-confirm" className="text-xs font-medium text-grey-700">
-                      Type <span className="font-mono font-semibold">{CLEAR_ALL_CONFIRM_PHRASE}</span>{" "}
-                      to confirm
+                    <label
+                      htmlFor="clear-all-confirm"
+                      className="text-xs font-medium text-grey-700"
+                    >
+                      Type{" "}
+                      <span className="font-mono font-semibold">{CLEAR_ALL_CONFIRM_PHRASE}</span> to
+                      confirm
                     </label>
                     <Input
                       id="clear-all-confirm"
@@ -735,9 +755,15 @@ export default function GTSSBuilder() {
                 </p>
               </div>
             </div>
-            {!showDataManagement && !showExportPanel && !showImportPanel && !showAgencyDefaults && (
+            {shouldShowHeaderActions({
+              showExportPanel,
+              showImportPanel,
+              showAgencyDefaults,
+              showDataManagement,
+            }) && (
               <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
                 <SignalSearchBox className="w-36 sm:w-52" />
+
                 {activeTab === "signals" ? (
                   <div className="flex space-x-1">
                     <Button

@@ -36,6 +36,11 @@ The app has a **dual storage architecture**:
   - `store/gtss-store.ts` - Zustand state management
   - `localStorage.ts` - All localStorage CRUD operations and CSV/TXT export/import functions
   - `schema/schema.ts` - Drizzle ORM schemas defining data types (Agency, Signal, Phase, Detector)
+- `packages/gtss-3d/` - three.js 3D intersection view (depends on `gtss`)
+  - `src/layout.ts` - Pure layout (legs, corners, lane arrows, crosswalks, slip lanes, detector zones); unit-tested in Node
+  - `src/builders.ts` / `src/textures.ts` - Meshes and canvas-painted road markings
+  - `src/scene.ts` - `createIntersectionScene()` (renderer, OrbitControls); `src/react/Intersection3D.tsx` wraps it
+  - Lane configs are read left-to-right looking outward from the centre; `compassBearing` is the incoming travel direction, so a leg points at bearing + 180
 - `packages/gtss-diagram/` - Standalone SVG phase-diagram renderer, publishable on its own
   - `src/phase-diagram.tsx` - The one and only phase diagram; every call site in the app uses it
   - `src/free-right-markings.tsx` - Slip-lane / crosswalk markings shared with the detector diagram

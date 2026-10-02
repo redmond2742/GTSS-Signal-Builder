@@ -31,6 +31,9 @@ export const insertApproachSchema = z.object({
   postedSpeed: z.number().nullable().optional(),
   freeRight: z.number().nullable().optional(),
   freeRightLanes: z.number().nullable().optional(),
+  laneConfig: z.string().nullable().optional(),
+  laneWidth: z.string().nullable().optional(),
+  laneDirection: z.string().nullable().optional(),
 });
 
 export const insertPhaseSchema = z.object({
@@ -87,7 +90,13 @@ export type Signal = InsertSignal & {
 };
 export type Approach = Omit<
   InsertApproach,
-  "approachId" | "compassBearing" | "postedSpeed" | "freeRight" | "freeRightLanes"
+  | "approachId"
+  | "compassBearing"
+  | "postedSpeed"
+  | "freeRight"
+  | "freeRightLanes"
+  | "laneConfig"
+  | "laneWidth"
 > & {
   id: string;
   approachId: string;
@@ -95,6 +104,9 @@ export type Approach = Omit<
   postedSpeed: number | null;
   freeRight: number | null;
   freeRightLanes: number | null;
+  laneConfig?: string | null;
+  laneWidth?: string | null;
+  laneDirection?: string | null;
 };
 export type Phase = Omit<
   InsertPhase,

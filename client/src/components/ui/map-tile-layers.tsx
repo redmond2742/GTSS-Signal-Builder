@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { ControlPosition } from "leaflet";
 import { LayersControl, TileLayer, useMap } from "react-leaflet";
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
@@ -31,7 +32,7 @@ const writeCount = (n: number) => {
   }
 };
 
-export default function MapTileLayers() {
+export default function MapTileLayers({ position = "topright" }: { position?: ControlPosition }) {
   const [overLimit, setOverLimit] = useState(() => readCount() >= DAILY_TILE_LIMIT);
   const mapboxAvailable = !!MAPBOX_TOKEN && !overLimit;
 
@@ -47,7 +48,7 @@ export default function MapTileLayers() {
 
   return (
     <>
-      <LayersControl position="topright">
+      <LayersControl position={position}>
         <LayersControl.BaseLayer checked name="Streets">
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

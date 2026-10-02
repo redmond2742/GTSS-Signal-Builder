@@ -2,6 +2,7 @@ import { approachColorFor } from "@/components/gtss/approach-colors";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -20,15 +21,18 @@ import {
 } from "@/components/ui/table";
 import {
   getSignalDisplayName,
+  isLhtForSignalId,
   isMetricForSignalId,
   naturalCompare,
   useGTSSStore,
 } from "gtss";
 import { Approach } from "gtss/schema";
-import { ChevronDown, ChevronUp, MapPin } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Box, ChevronDown, ChevronUp, Map as MapIcon, MapPin } from "lucide-react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import ApproachModal from "./approach-modal";
 import BulkApproachModal from "./bulk-approach-modal";
+
+const LazySignal3DView = lazy(() => import("./signal-3d-view"));
 
 type SortField = "signalId" | "approachId" | "streetName" | "compassBearing" | "postedSpeed";
 type SortDirection = "asc" | "desc";
@@ -44,8 +48,16 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [sortField, setSortField] = useState<SortField>("approachId");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  const { approaches, signals, selectedSignalIdForTables, setSelectedSignalIdForTables } =
-    useGTSSStore();
+  const {
+    approaches,
+    signals,
+    phases,
+    detectors,
+    selectedSignalIdForTables,
+    setSelectedSignalIdForTables,
+  } = useGTSSStore();
+  const [activeView, setActiveView] = useState<"map" | "3d">("map");
+  const [hasLoaded3DView, setHasLoaded3DView] = useState(false);
   const isMetric = isMetricForSignalId(selectedSignalIdForTables);
   const speedUnit = isMetric ? "km/h" : "mph";
   const { deepLinkTarget, setDeepLinkTarget } = useGTSSStore();
@@ -97,6 +109,17 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
   const filteredApproaches = selectedSignalId
     ? approaches.filter((approach) => approach.signalId === selectedSignalId)
     : [];
+  const intersection3DInput = useMemo(
+    () => ({
+      signalId: selectedSignalId ?? "no-signal",
+      approaches: filteredApproaches,
+      phases: selectedSignalId ? phases.filter((phase) => phase.signalId === selectedSignalId) : [],
+      detectors: selectedSignalId
+        ? detectors.filter((detector) => detector.signalId === selectedSignalId)
+        : [],
+    }),
+    [selectedSignalId, filteredApproaches, phases, detectors],
+  );
   /*
   const handleEdit = (approach: Approach) => {
     setEditingApproach(approach);
@@ -126,7 +149,6 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
     setEditingApproach(approach);
     setShowModal(true);
   };
-
 
   const getSortedApproaches = () => {
     return [...filteredApproaches].sort((a, b) => {
@@ -210,15 +232,69 @@ export default function ApproachesTable({ triggerAdd, triggerBulk }: ApproachesT
             </div>
           ) : (
             <div className="w-full h-full relative z-0">
-              {selectedSignalId ? (
-                <SignalsMap
-                  signals={signals.filter((s) => s.signalId === selectedSignalId)}
-                  approaches={filteredApproaches}
-                  className="w-full h-full"
-                />
-              ) : (
+              <div className="absolute right-3 top-3 z-[1000]">
+                <Tabs
+                  value={activeView}
+                  onValueChange={(value) => {
+                    const view = value as "map" | "3d";
+                    setActiveView(view);
+                    if (view === "3d") setHasLoaded3DView(true);
+                  }}
+                >
+                  <TabsList className="h-8 bg-white/95 shadow">
+                    <TabsTrigger value="map" className="h-7 gap-1.5 px-2 text-xs">
+                      <MapIcon className="h-3.5 w-3.5" />
+                      Map
+                    </TabsTrigger>
+                    <TabsTrigger value="3d" className="h-7 gap-1.5 px-2 text-xs">
+                      <Box className="h-3.5 w-3.5" />
+                      3D
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+              {selectedSignalId && (
+                <div
+                  className={`absolute inset-0 ${activeView === "map" ? "" : "invisible"}`}
+                  aria-hidden={activeView !== "map"}
+                >
+                  <SignalsMap
+                    signals={signals.filter((s) => s.signalId === selectedSignalId)}
+                    approaches={filteredApproaches}
+                    layersControlPosition="topleft"
+                    className="w-full h-full"
+                  />
+                </div>
+              )}
+              {!selectedSignalId && activeView === "map" && (
                 <div className="w-full h-full bg-grey-100 flex items-center justify-center">
                   <MapPin className="w-6 h-6 text-grey-400" />
+                </div>
+              )}
+              {hasLoaded3DView && (
+                <div
+                  className={`absolute inset-0 ${activeView === "3d" ? "" : "hidden"}`}
+                  aria-hidden={activeView !== "3d"}
+                >
+                  {selectedSignalId ? (
+                    <Suspense
+                      fallback={
+                        <div className="flex h-full items-center justify-center text-sm text-grey-500">
+                          Loading 3D view…
+                        </div>
+                      }
+                    >
+                      <LazySignal3DView
+                        input={intersection3DInput}
+                        isLht={isLhtForSignalId(selectedSignalId)}
+                        isMetric={isMetricForSignalId(selectedSignalId)}
+                      />
+                    </Suspense>
+                  ) : (
+                    <div className="flex h-full items-center justify-center bg-grey-50 text-sm text-grey-500">
+                      Select a signal to view its intersection in 3D.
+                    </div>
+                  )}
                 </div>
               )}
             </div>

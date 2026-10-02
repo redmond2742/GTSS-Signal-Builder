@@ -124,7 +124,6 @@ export default function PhasesTable({ triggerAdd, triggerBulk }: PhasesTableProp
     }
   };
 
-
   const getSortedPhases = () => {
     return [...filteredPhases].sort((a, b) => {
       let comparison;
@@ -302,7 +301,8 @@ export default function PhasesTable({ triggerAdd, triggerBulk }: PhasesTableProp
                       <SortableHeader field="numOfLanes">Lanes</SortableHeader>
                       <TableHead
                         className="text-xs font-medium text-grey-500 uppercase tracking-wider text-center"
-                        title="Pedestrian crossing: 0 none · 1 assigned · 2 both · 3 opposite · 4 diagonal · 5 other diagonal · 6 both diagonals (X) · 7 all directions (4 crosswalks + X)">
+                        title="Pedestrian crossing: 0 none · 1 assigned · 2 both · 3 opposite · 4 diagonal · 5 other diagonal · 6 both diagonals (X) · 7 all directions (4 crosswalks + X)"
+                      >
                         Ped
                       </TableHead>
                       <TableHead
