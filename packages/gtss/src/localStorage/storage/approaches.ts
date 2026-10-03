@@ -1,7 +1,12 @@
 import { nanoid } from "nanoid";
 import type { Approach, InsertApproach } from "../../../schema/public";
 import { STORAGE_KEYS } from "../keys";
-import { getFromStorage, hasPrototypePollution, saveToStorage } from "../storage-utils";
+import {
+  getFromStorage,
+  hasPrototypePollution,
+  removeFromStorage,
+  saveToStorage,
+} from "../storage-utils";
 
 function normalizeFreeRight(value: unknown): number {
   if (typeof value === "number") return value;
@@ -98,6 +103,6 @@ export const approachStorage = {
   },
 
   clear: (): void => {
-    localStorage.removeItem(STORAGE_KEYS.APPROACHES);
+    removeFromStorage(STORAGE_KEYS.APPROACHES);
   },
 };

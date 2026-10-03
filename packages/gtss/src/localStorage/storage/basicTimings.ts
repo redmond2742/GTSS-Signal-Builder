@@ -1,7 +1,12 @@
 import { nanoid } from "nanoid";
 import type { BasicTiming, InsertBasicTiming } from "../../../schema/public";
 import { STORAGE_KEYS } from "../keys";
-import { getFromStorage, hasPrototypePollution, saveToStorage } from "../storage-utils";
+import {
+  getFromStorage,
+  hasPrototypePollution,
+  removeFromStorage,
+  saveToStorage,
+} from "../storage-utils";
 
 export const basicTimingStorage = {
   getAll: (): BasicTiming[] => {
@@ -77,6 +82,6 @@ export const basicTimingStorage = {
   },
 
   clear: (): void => {
-    localStorage.removeItem(STORAGE_KEYS.BASIC_TIMINGS);
+    removeFromStorage(STORAGE_KEYS.BASIC_TIMINGS);
   },
 };

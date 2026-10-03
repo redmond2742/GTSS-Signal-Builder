@@ -157,7 +157,15 @@ function approachEndpoint(bearing: number, lat: number, lng: number): [number, n
   return [endLat, endLng];
 }
 
-export default function SignalDetails() {
+interface SignalDetailsProps {
+  /** Lookup mode: render the page for reading only. Every control that would
+   *  create, change or delete a record is withheld. The storage layer blocks
+   *  writes independently (see packages/gtss/src/localStorage/write-guard.ts);
+   *  this is the presentation half. */
+  readOnly?: boolean;
+}
+
+export default function SignalDetails({ readOnly = false }: SignalDetailsProps) {
   const { toast } = useToast();
   const {
     agency,
@@ -238,7 +246,10 @@ export default function SignalDetails() {
     return String(mostCommon);
   }, [signalApproaches, qaSpeedFallback]);
   const [signalTimings, setSignalTimings] = useState<BasicTiming[]>([]);
-  const [isEditingSignal, setIsEditingSignal] = useState(false);
+  const [isEditingSignalState, setIsEditingSignal] = useState(false);
+  // Latched off in lookup mode so the Signal Info card always renders its
+  // existing read-only branch.
+  const isEditingSignal = isEditingSignalState && !readOnly;
   const [showPhaseModal, setShowPhaseModal] = useState(false);
   const [showDetectorModal, setShowDetectorModal] = useState(false);
   const [showBulkPhaseModal, setShowBulkPhaseModal] = useState(false);
@@ -1020,7 +1031,7 @@ export default function SignalDetails() {
                 <MapPin className="w-4 h-4 text-primary-600" />
                 <span>Signal Info</span>
               </CardTitle>
-              {signal && !isNewSignal && (
+              {!readOnly && signal && !isNewSignal && (
                 <Button
                   variant="outline"
                   onClick={() => setIsEditingSignal((v) => !v)}
@@ -1264,7 +1275,9 @@ export default function SignalDetails() {
 
         {/* Right: persistent map */}
         {signal && signal.latitude && signal.longitude ? (
-          <div className="h-[500px] rounded-lg border overflow-hidden relative z-0">
+          <div
+            className={`${readOnly ? "h-[300px]" : "h-[500px]"} rounded-lg border overflow-hidden relative z-0`}
+          >
             <MapContainer
               center={[signal.latitude, signal.longitude]}
               zoom={17}
@@ -1279,7 +1292,7 @@ export default function SignalDetails() {
               <Marker position={[signal.latitude, signal.longitude]} />
 
               {/* Capture map clicks on Approaches tab → fill the quick-add Bearing field */}
-              {activeTab === "approaches" && (
+              {!readOnly && activeTab === "approaches" && (
                 <LocationPicker onLocationSelect={handleMapBearingClick} />
               )}
 
@@ -1306,29 +1319,33 @@ export default function SignalDetails() {
               })}
             </MapContainer>
             {/* Scroll-wheel zoom lock toggle */}
-            <button
-              type="button"
-              onClick={() => setMapZoomLocked((v) => !v)}
-              className="absolute bottom-2 left-2 z-[1000] flex items-center gap-1 rounded-md border border-grey-300 bg-white px-2 py-1 text-xs shadow hover:bg-grey-50"
-              title={
-                mapZoomLocked
-                  ? "Scroll-zoom is locked so scrolling the page doesn't accidentally zoom the map. Click to unlock, or use the + / − buttons."
-                  : "Scroll-zoom is unlocked — the wheel zooms the map instead of scrolling the page. Click to lock."
-              }
-              aria-pressed={mapZoomLocked}
-            >
-              {mapZoomLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
-              <span>{mapZoomLocked ? "Zoom locked" : "Zoom"}</span>
-            </button>
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={() => setMapZoomLocked((v) => !v)}
+                className="absolute bottom-2 left-2 z-[1000] flex items-center gap-1 rounded-md border border-grey-300 bg-white px-2 py-1 text-xs shadow hover:bg-grey-50"
+                title={
+                  mapZoomLocked
+                    ? "Scroll-zoom is locked so scrolling the page doesn't accidentally zoom the map. Click to unlock, or use the + / − buttons."
+                    : "Scroll-zoom is unlocked — the wheel zooms the map instead of scrolling the page. Click to lock."
+                }
+                aria-pressed={mapZoomLocked}
+              >
+                {mapZoomLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+                <span>{mapZoomLocked ? "Zoom locked" : "Zoom"}</span>
+              </button>
+            )}
           </div>
         ) : (
-          <div className="h-[500px] flex items-center justify-center bg-grey-50 rounded-lg border text-sm text-grey-400">
+          <div
+            className={`${readOnly ? "h-[300px]" : "h-[500px]"} flex items-center justify-center bg-grey-50 rounded-lg border text-sm text-grey-400`}
+          >
             {isNewSignal ? "Click Edit to set this signal's location." : "No coordinates yet."}
           </div>
         )}
 
         {/* Phase Diagram — always visible regardless of active tab */}
-        <Card className="h-[500px]">
+        <Card className={readOnly ? "h-[420px]" : "h-[500px]"}>
           <CardHeader className="bg-grey-50 border-b border-grey-200 px-3 py-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-semibold text-grey-800 flex items-center space-x-2">
@@ -1374,16 +1391,31 @@ export default function SignalDetails() {
         onValueChange={(v) => setActiveTab(v as typeof activeTab)}
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="approaches">Approaches ({signalApproaches.length})</TabsTrigger>
-          <TabsTrigger value="phases">Phases ({signalPhases.length})</TabsTrigger>
-          <TabsTrigger value="detection">Detection ({signalDetectors.length})</TabsTrigger>
-          <TabsTrigger value="timings">Basic Timings ({signalTimings.length})</TabsTrigger>
+        <TabsList
+          // Four fixed columns give ~80px each at phone width, which clips
+          // "Approaches (4)" and "Basic Timings (5)". Scroll the strip instead
+          // of squeezing the labels.
+          className={
+            readOnly ? "flex w-full justify-start overflow-x-auto" : "grid w-full grid-cols-4"
+          }
+        >
+          <TabsTrigger value="approaches" className={readOnly ? "shrink-0 px-4" : ""}>
+            Approaches ({signalApproaches.length})
+          </TabsTrigger>
+          <TabsTrigger value="phases" className={readOnly ? "shrink-0 px-4" : ""}>
+            Phases ({signalPhases.length})
+          </TabsTrigger>
+          <TabsTrigger value="detection" className={readOnly ? "shrink-0 px-4" : ""}>
+            Detection ({signalDetectors.length})
+          </TabsTrigger>
+          <TabsTrigger value="timings" className={readOnly ? "shrink-0 px-4" : ""}>
+            Basic Timings ({signalTimings.length})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="approaches" className="mt-3 space-y-3">
           {/* Quick-Add Approach — rapid input directly below the map */}
-          {!isNewSignal && !showBulkApproachModal && (
+          {!readOnly && !isNewSignal && !showBulkApproachModal && (
             <Card>
               <CardContent className="p-3">
                 <div className="flex gap-2 items-end flex-wrap">
@@ -1527,24 +1559,26 @@ export default function SignalDetails() {
                     <Navigation className="w-4 h-4 text-primary-600" />
                     <span>Approaches ({signalApproaches.length})</span>
                   </CardTitle>
-                  <Button
-                    onClick={() => {
-                      if (isNewSignal) {
-                        toast({
-                          title: "Save Signal First",
-                          description:
-                            "Please save the signal information before adding approaches",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      setShowBulkApproachModal(true);
-                    }}
-                    className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
-                  >
-                    <Plus className="w-3 h-3 mr-1" />
-                    Bulk Add
-                  </Button>
+                  {!readOnly && (
+                    <Button
+                      onClick={() => {
+                        if (isNewSignal) {
+                          toast({
+                            title: "Save Signal First",
+                            description:
+                              "Please save the signal information before adding approaches",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        setShowBulkApproachModal(true);
+                      }}
+                      className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Bulk Add
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="p-0">
@@ -1655,7 +1689,7 @@ export default function SignalDetails() {
 
         <TabsContent value="phases" className="mt-3 space-y-3">
           {/* Quick-Add Phase — rapid input directly below the map */}
-          {!isNewSignal && !showBulkPhaseModal && (
+          {!readOnly && !isNewSignal && !showBulkPhaseModal && (
             <Card>
               <CardContent className="p-3">
                 <div className="flex gap-2 items-end flex-wrap">
@@ -1756,25 +1790,28 @@ export default function SignalDetails() {
                     <Settings className="w-4 h-4 text-primary-600" />
                     <span>Signal Phases ({signalPhases.length})</span>
                   </CardTitle>
-                  <div className="flex space-x-1">
-                    <Button
-                      onClick={() => {
-                        if (isNewSignal) {
-                          toast({
-                            title: "Save Signal First",
-                            description: "Please save the signal information before adding phases",
-                            variant: "destructive",
-                          });
-                          return;
-                        }
-                        setShowBulkPhaseModal(true);
-                      }}
-                      className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
-                    >
-                      <Plus className="w-3 h-3 mr-1" />
-                      Bulk Add
-                    </Button>
-                  </div>
+                  {!readOnly && (
+                    <div className="flex space-x-1">
+                      <Button
+                        onClick={() => {
+                          if (isNewSignal) {
+                            toast({
+                              title: "Save Signal First",
+                              description:
+                                "Please save the signal information before adding phases",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          setShowBulkPhaseModal(true);
+                        }}
+                        className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        Bulk Add
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="p-0">
@@ -1833,20 +1870,24 @@ export default function SignalDetails() {
                           >
                             {`CW ${lengthUnitShort}`}
                           </TableHead>
-                          <TableHead
-                            className="font-medium py-1 px-1.5"
-                            style={{ fontSize: "12px" }}
-                          >
-                            Actions
-                          </TableHead>
+                          {!readOnly && (
+                            <TableHead
+                              className="font-medium py-1 px-1.5"
+                              style={{ fontSize: "12px" }}
+                            >
+                              Actions
+                            </TableHead>
+                          )}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {signalPhases.map((phase) => (
                           <TableRow
                             key={phase.id}
-                            className="hover:bg-grey-50 cursor-pointer transition-colors"
-                            onClick={() => handlePhaseEdit(phase)}
+                            className={
+                              readOnly ? "" : "hover:bg-grey-50 cursor-pointer transition-colors"
+                            }
+                            onClick={readOnly ? undefined : () => handlePhaseEdit(phase)}
                           >
                             <TableCell
                               className="py-1 px-1.5 font-medium"
@@ -1879,19 +1920,21 @@ export default function SignalDetails() {
                                 isMetric,
                               ) || "-"}
                             </TableCell>
-                            <TableCell className="py-1 px-1.5">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handlePhaseDelete(phase);
-                                }}
-                                className="h-5 w-5 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="w-2.5 h-2.5" />
-                              </Button>
-                            </TableCell>
+                            {!readOnly && (
+                              <TableCell className="py-1 px-1.5">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePhaseDelete(phase);
+                                  }}
+                                  className="h-5 w-5 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-2.5 h-2.5" />
+                                </Button>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))}
                       </TableBody>
@@ -2119,47 +2162,49 @@ export default function SignalDetails() {
                     <Navigation className="w-4 h-4 text-primary-600" />
                     <span>Detection Equipment ({signalDetectors.length})</span>
                   </CardTitle>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      onClick={() => {
-                        if (isNewSignal) {
-                          toast({
-                            title: "Save Signal First",
-                            description:
-                              "Please save the signal information before adding detectors",
-                            variant: "destructive",
-                          });
-                          return;
-                        }
-                        setShowBulkDetectorModal(true);
-                      }}
-                      className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
-                    >
-                      <Plus className="w-3 h-3 mr-1" />
-                      Add Detectors
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        if (isNewSignal) {
-                          toast({
-                            title: "Save Signal First",
-                            description:
-                              "Please save the signal information before adding detectors",
-                            variant: "destructive",
-                          });
-                          return;
-                        }
-                        setShowDetectorPaste(true);
-                      }}
-                      variant="outline"
-                      className="h-7 px-2 text-xs"
-                      disabled={signalPhases.length === 0}
-                      title="Paste a Detector → Phase table"
-                    >
-                      <Plus className="w-3 h-3 mr-1" />
-                      Bulk Add
-                    </Button>
-                  </div>
+                  {!readOnly && (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        onClick={() => {
+                          if (isNewSignal) {
+                            toast({
+                              title: "Save Signal First",
+                              description:
+                                "Please save the signal information before adding detectors",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          setShowBulkDetectorModal(true);
+                        }}
+                        className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        Add Detectors
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          if (isNewSignal) {
+                            toast({
+                              title: "Save Signal First",
+                              description:
+                                "Please save the signal information before adding detectors",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          setShowDetectorPaste(true);
+                        }}
+                        variant="outline"
+                        className="h-7 px-2 text-xs"
+                        disabled={signalPhases.length === 0}
+                        title="Paste a Detector → Phase table"
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        Bulk Add
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="p-0">
@@ -2241,20 +2286,24 @@ export default function SignalDetails() {
                           >
                             Description
                           </TableHead>
-                          <TableHead
-                            className="font-medium py-1 px-1.5"
-                            style={{ fontSize: "12px" }}
-                          >
-                            Actions
-                          </TableHead>
+                          {!readOnly && (
+                            <TableHead
+                              className="font-medium py-1 px-1.5"
+                              style={{ fontSize: "12px" }}
+                            >
+                              Actions
+                            </TableHead>
+                          )}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {signalDetectors.map((detector) => (
                           <TableRow
                             key={detector.id}
-                            className="hover:bg-grey-50 cursor-pointer transition-colors"
-                            onClick={() => handleDetectorEdit(detector)}
+                            className={
+                              readOnly ? "" : "hover:bg-grey-50 cursor-pointer transition-colors"
+                            }
+                            onClick={readOnly ? undefined : () => handleDetectorEdit(detector)}
                           >
                             <TableCell
                               className="py-1 px-1.5 font-medium"
@@ -2289,52 +2338,66 @@ export default function SignalDetails() {
                                 `${detector.stopbarSetbackDist} ft`
                               )}
                             </TableCell>
-                            <TableCell
-                              className="py-1 px-1.5"
-                              style={{ fontSize: "12px" }}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Select
-                                value={detector.purpose || ""}
-                                onValueChange={(v) =>
-                                  handleDetectorFieldChange(detector.id, "purpose", v)
-                                }
+                            {readOnly ? (
+                              <TableCell className="py-1 px-1.5" style={{ fontSize: "12px" }}>
+                                {detector.purpose || <span className="text-grey-400">&mdash;</span>}
+                              </TableCell>
+                            ) : (
+                              <TableCell
+                                className="py-1 px-1.5"
+                                style={{ fontSize: "12px" }}
+                                onClick={(e) => e.stopPropagation()}
                               >
-                                <SelectTrigger className="h-7 text-xs">
-                                  <SelectValue placeholder="—" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {DETECTOR_PURPOSE_OPTIONS.map((opt) => (
-                                    <SelectItem key={opt} value={opt}>
-                                      {opt}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell
-                              className="py-1 px-1.5"
-                              style={{ fontSize: "12px" }}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Select
-                                value={detector.technologyType || ""}
-                                onValueChange={(v) =>
-                                  handleDetectorFieldChange(detector.id, "technologyType", v)
-                                }
+                                <Select
+                                  value={detector.purpose || ""}
+                                  onValueChange={(v) =>
+                                    handleDetectorFieldChange(detector.id, "purpose", v)
+                                  }
+                                >
+                                  <SelectTrigger className="h-7 text-xs">
+                                    <SelectValue placeholder="—" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {DETECTOR_PURPOSE_OPTIONS.map((opt) => (
+                                      <SelectItem key={opt} value={opt}>
+                                        {opt}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                            )}
+                            {readOnly ? (
+                              <TableCell className="py-1 px-1.5" style={{ fontSize: "12px" }}>
+                                {detector.technologyType || (
+                                  <span className="text-grey-400">&mdash;</span>
+                                )}
+                              </TableCell>
+                            ) : (
+                              <TableCell
+                                className="py-1 px-1.5"
+                                style={{ fontSize: "12px" }}
+                                onClick={(e) => e.stopPropagation()}
                               >
-                                <SelectTrigger className="h-7 text-xs">
-                                  <SelectValue placeholder="—" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {DETECTOR_TECHNOLOGY_OPTIONS.map((opt) => (
-                                    <SelectItem key={opt} value={opt}>
-                                      {opt}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
+                                <Select
+                                  value={detector.technologyType || ""}
+                                  onValueChange={(v) =>
+                                    handleDetectorFieldChange(detector.id, "technologyType", v)
+                                  }
+                                >
+                                  <SelectTrigger className="h-7 text-xs">
+                                    <SelectValue placeholder="—" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {DETECTOR_TECHNOLOGY_OPTIONS.map((opt) => (
+                                      <SelectItem key={opt} value={opt}>
+                                        {opt}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                            )}
                             <TableCell className="py-1 px-1.5" style={{ fontSize: "12px" }}>
                               {detector.vehicleType || (
                                 <span className="text-grey-400">&mdash;</span>
@@ -2354,19 +2417,21 @@ export default function SignalDetails() {
                                 <span className="text-grey-400">&mdash;</span>
                               )}
                             </TableCell>
-                            <TableCell className="py-1 px-1.5">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDetectorDelete(detector);
-                                }}
-                                className="h-5 w-5 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="w-2.5 h-2.5" />
-                              </Button>
-                            </TableCell>
+                            {!readOnly && (
+                              <TableCell className="py-1 px-1.5">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDetectorDelete(detector);
+                                  }}
+                                  className="h-5 w-5 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-2.5 h-2.5" />
+                                </Button>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))}
                       </TableBody>
@@ -2379,7 +2444,7 @@ export default function SignalDetails() {
         </TabsContent>
 
         <TabsContent value="timings" className="mt-3 space-y-3">
-          {showTimingImport && !isNewSignal && signalPhases.length > 0 && (
+          {!readOnly && showTimingImport && !isNewSignal && signalPhases.length > 0 && (
             <TimingBulkImport
               signalId={signalId || ""}
               signalPhases={signalPhases}
@@ -2399,61 +2464,63 @@ export default function SignalDetails() {
                   <Settings className="w-4 h-4 text-primary-600" />
                   <span>Basic Timings ({signalTimings.length})</span>
                 </CardTitle>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      if (isNewSignal) {
-                        toast({
-                          title: "Save Signal First",
-                          description: "Please save the signal information before adding timings",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      if (signalPhases.length === 0) {
-                        toast({
-                          title: "Add Phases First",
-                          description: "Please add phases before configuring timings",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      setShowTimingImport((v) => !v);
-                    }}
-                    className="h-7 px-2 text-xs"
-                    disabled={signalPhases.length === 0}
-                  >
-                    <Plus className="w-3 h-3 mr-1" />
-                    Bulk Import
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      if (isNewSignal) {
-                        toast({
-                          title: "Save Signal First",
-                          description: "Please save the signal information before adding timings",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      if (signalPhases.length === 0) {
-                        toast({
-                          title: "Add Phases First",
-                          description: "Please add phases before configuring timings",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      setShowBasicTimingModal(true);
-                    }}
-                    className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
-                    disabled={signalPhases.length === 0}
-                  >
-                    <Plus className="w-3 h-3 mr-1" />
-                    Add Timing
-                  </Button>
-                </div>
+                {!readOnly && (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        if (isNewSignal) {
+                          toast({
+                            title: "Save Signal First",
+                            description: "Please save the signal information before adding timings",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        if (signalPhases.length === 0) {
+                          toast({
+                            title: "Add Phases First",
+                            description: "Please add phases before configuring timings",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        setShowTimingImport((v) => !v);
+                      }}
+                      className="h-7 px-2 text-xs"
+                      disabled={signalPhases.length === 0}
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Bulk Import
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (isNewSignal) {
+                          toast({
+                            title: "Save Signal First",
+                            description: "Please save the signal information before adding timings",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        if (signalPhases.length === 0) {
+                          toast({
+                            title: "Add Phases First",
+                            description: "Please add phases before configuring timings",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        setShowBasicTimingModal(true);
+                      }}
+                      className="h-7 px-2 text-xs bg-primary-600 hover:bg-primary-700"
+                      disabled={signalPhases.length === 0}
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Add Timing
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -2588,7 +2655,7 @@ export default function SignalDetails() {
       </Card>
 
       {/* Phase Modal */}
-      <Dialog open={showPhaseModal} onOpenChange={setShowPhaseModal}>
+      <Dialog open={!readOnly && showPhaseModal} onOpenChange={setShowPhaseModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-base">
@@ -2875,7 +2942,7 @@ export default function SignalDetails() {
       </Dialog>
 
       {/* Detector Modal */}
-      {showDetectorModal && (
+      {!readOnly && showDetectorModal && (
         <DetectorModal
           detector={editingDetector}
           onClose={handleDetectorModalClose}
@@ -2888,7 +2955,7 @@ export default function SignalDetails() {
           on this page. */}
 
       {/* Basic Timing Modal */}
-      {showBasicTimingModal && (
+      {!readOnly && showBasicTimingModal && (
         <BasicTimingModal
           timing={null}
           onClose={() => {
@@ -2910,7 +2977,7 @@ export default function SignalDetails() {
           so this page is only ever reached for a signal that already exists. */}
 
       {/* Delete Signal Section */}
-      {!isNewSignal && signal && (
+      {!readOnly && !isNewSignal && signal && (
         <Card className="border-red-200">
           <CardHeader className="bg-red-50 border-b border-red-200 px-4 py-2">
             <CardTitle className="text-base font-semibold text-red-700 flex items-center space-x-2">

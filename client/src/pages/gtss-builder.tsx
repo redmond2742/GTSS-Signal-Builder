@@ -29,6 +29,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { IS_NARROW_VIEWPORT, setFullEditor } from "@/lib/view-mode";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -43,6 +44,7 @@ import {
   Coffee,
   Compass,
   ExternalLink,
+  Eye,
   FolderInput,
   FolderOutput,
   HelpCircle,
@@ -284,11 +286,7 @@ export default function GTSSBuilder() {
 
   const DataManagementPanel = () => (
     <div className="space-y-6 p-4 md:p-6">
-      <Tabs
-        value={dataManagementTab}
-        onValueChange={setDataManagementTab}
-        className="w-full"
-      >
+      <Tabs value={dataManagementTab} onValueChange={setDataManagementTab} className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-3">
           <TabsTrigger value="export" className="gap-2">
             <FolderOutput className="h-4 w-4" />
@@ -298,7 +296,10 @@ export default function GTSSBuilder() {
             <FolderInput className="h-4 w-4" />
             Import
           </TabsTrigger>
-          <TabsTrigger value="clear" className="gap-2 text-red-700 data-[state=active]:text-red-700">
+          <TabsTrigger
+            value="clear"
+            className="gap-2 text-red-700 data-[state=active]:text-red-700"
+          >
             <Trash2 className="h-4 w-4" />
             Clear Data
           </TabsTrigger>
@@ -318,7 +319,8 @@ export default function GTSSBuilder() {
               <div>
                 <h3 className="text-base font-semibold text-red-700">Clear All Data</h3>
                 <p className="text-sm text-red-700/80">
-                  Permanently delete all agencies, signals, approaches, phases, timings, and detectors.
+                  Permanently delete all agencies, signals, approaches, phases, timings, and
+                  detectors.
                 </p>
               </div>
               <AlertDialog
@@ -347,9 +349,13 @@ export default function GTSSBuilder() {
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <div className="space-y-1">
-                    <label htmlFor="clear-all-confirm" className="text-xs font-medium text-grey-700">
-                      Type <span className="font-mono font-semibold">{CLEAR_ALL_CONFIRM_PHRASE}</span>{" "}
-                      to confirm
+                    <label
+                      htmlFor="clear-all-confirm"
+                      className="text-xs font-medium text-grey-700"
+                    >
+                      Type{" "}
+                      <span className="font-mono font-semibold">{CLEAR_ALL_CONFIRM_PHRASE}</span> to
+                      confirm
                     </label>
                     <Input
                       id="clear-all-confirm"
@@ -658,6 +664,22 @@ export default function GTSSBuilder() {
           <Coffee className="w-3 h-3 mr-1" />
           Buy me a Coffee
         </Button>
+
+        {/* The way back to the phone's read-only lookup view. Only offered on a
+            phone-sized device: that is where lookup mode is the default and the
+            user opted out of it. On a desktop there is nothing to go back to. */}
+        {IS_NARROW_VIEWPORT && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full h-9 text-xs mt-2"
+            onClick={() => setFullEditor(false)}
+            data-testid="button-back-to-view-only"
+          >
+            <Eye className="w-3.5 h-3.5 mr-1" />
+            Back to view-only
+          </Button>
+        )}
       </div>
     </>
   );

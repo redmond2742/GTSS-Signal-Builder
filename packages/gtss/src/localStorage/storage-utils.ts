@@ -1,5 +1,6 @@
 import type { Agency } from "../../schema/public";
 import { MAX_STORAGE_SIZE } from "./keys";
+import { isStorageReadOnly, refuseWrite } from "./write-guard";
 
 export function hasPrototypePollution(obj: Record<string, unknown>): boolean {
   return (
@@ -19,6 +20,7 @@ export function getFromStorage<T>(key: string, defaultValue: T): T {
 }
 
 export function saveToStorage<T>(key: string, data: T): void {
+  if (isStorageReadOnly()) return refuseWrite(key, "save");
   try {
     const serialized = JSON.stringify(data);
     if (serialized.length > MAX_STORAGE_SIZE) {
@@ -34,6 +36,27 @@ export function saveToStorage<T>(key: string, data: T): void {
     }
     console.error("Failed to save to localStorage:", error);
     throw error;
+  }
+}
+
+/** Raw string write. Same policy gate as saveToStorage, for the handful of
+ *  keys stored as plain strings rather than JSON. */
+export function writeRawToStorage(key: string, value: string): void {
+  if (isStorageReadOnly()) return refuseWrite(key, "set");
+  try {
+    localStorage.setItem(key, value);
+  } catch (error) {
+    console.error("Failed to save to localStorage:", error);
+  }
+}
+
+/** Key removal, behind the same policy gate. */
+export function removeFromStorage(key: string): void {
+  if (isStorageReadOnly()) return refuseWrite(key, "remove");
+  try {
+    localStorage.removeItem(key);
+  } catch (error) {
+    console.error("Failed to remove from localStorage:", error);
   }
 }
 

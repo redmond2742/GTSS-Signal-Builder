@@ -2,7 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <!-- No maximum-scale: on a phone this app is for reading phase diagrams and
+         maps, so pinch-zoom has to work. It is also a Lighthouse a11y failure. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- SEO Meta Tags -->
     <title>GTSS Builder - Traffic Signal Configuration Tool</title>

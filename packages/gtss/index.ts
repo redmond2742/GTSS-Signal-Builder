@@ -45,6 +45,7 @@ export {
 export type { LibraryBounds, LibraryEntry, LibrarySource } from "./src/library";
 export { isLhtForSignalId, isMetricForSignalId } from "./src/localStorage/agency-units";
 export { clearAllData } from "./src/localStorage/clearAll";
+export { isStorageReadOnly, setStorageReadOnly } from "./src/localStorage/write-guard";
 export {
   crosswalkLengthCode,
   generateAgenciesCSV,

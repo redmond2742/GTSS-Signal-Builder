@@ -2,7 +2,13 @@ import { nanoid } from "nanoid";
 import type { Agency, InsertAgency } from "../../../schema/public";
 import { parseCSVLine } from "../csv-utils";
 import { STORAGE_KEYS } from "../keys";
-import { getFromStorage, normalizeAgency, saveToStorage } from "../storage-utils";
+import {
+  getFromStorage,
+  normalizeAgency,
+  removeFromStorage,
+  saveToStorage,
+  writeRawToStorage,
+} from "../storage-utils";
 import { signalStorage } from "./signals";
 
 export const agencyStorage = {
@@ -48,7 +54,7 @@ export const agencyStorage = {
     const defaultId = localStorage.getItem(STORAGE_KEYS.DEFAULT_AGENCY);
     if (!defaultId) {
       try {
-        localStorage.setItem(STORAGE_KEYS.DEFAULT_AGENCY, newAgency.id);
+        writeRawToStorage(STORAGE_KEYS.DEFAULT_AGENCY, newAgency.id);
       } catch {
         // Ignore storage errors when setting the initial default.
       }
@@ -57,8 +63,8 @@ export const agencyStorage = {
   },
 
   clear: (): void => {
-    localStorage.removeItem(STORAGE_KEYS.AGENCY);
-    localStorage.removeItem(STORAGE_KEYS.DEFAULT_AGENCY);
+    removeFromStorage(STORAGE_KEYS.AGENCY);
+    removeFromStorage(STORAGE_KEYS.DEFAULT_AGENCY);
   },
 };
 
@@ -99,7 +105,7 @@ export const agencyListStorage = {
     const defaultId = localStorage.getItem(STORAGE_KEYS.DEFAULT_AGENCY);
     if (!defaultId) {
       try {
-        localStorage.setItem(STORAGE_KEYS.DEFAULT_AGENCY, newAgency.id);
+        writeRawToStorage(STORAGE_KEYS.DEFAULT_AGENCY, newAgency.id);
       } catch {
         // Ignore storage errors when setting the initial default.
       }
@@ -108,8 +114,8 @@ export const agencyListStorage = {
     return newAgency;
   },
   clear: (): void => {
-    localStorage.removeItem(STORAGE_KEYS.AGENCY);
-    localStorage.removeItem(STORAGE_KEYS.DEFAULT_AGENCY);
+    removeFromStorage(STORAGE_KEYS.AGENCY);
+    removeFromStorage(STORAGE_KEYS.DEFAULT_AGENCY);
   },
   deleteWithCascade: (id: string): void => {
     const agency = agencyListStorage.get(id);
@@ -126,12 +132,12 @@ export const agencyListStorage = {
     if (defaultId === id) {
       if (updated.length > 0) {
         try {
-          localStorage.setItem(STORAGE_KEYS.DEFAULT_AGENCY, updated[0].id);
+          writeRawToStorage(STORAGE_KEYS.DEFAULT_AGENCY, updated[0].id);
         } catch {
           // Ignore storage errors when selecting a replacement default.
         }
       } else {
-        localStorage.removeItem(STORAGE_KEYS.DEFAULT_AGENCY);
+        removeFromStorage(STORAGE_KEYS.DEFAULT_AGENCY);
       }
     }
   },
@@ -148,12 +154,12 @@ export const agencyListStorage = {
   setDefaultId: (id: string | null): void => {
     if (id) {
       try {
-        localStorage.setItem(STORAGE_KEYS.DEFAULT_AGENCY, id);
+        writeRawToStorage(STORAGE_KEYS.DEFAULT_AGENCY, id);
       } catch {
         // Ignore storage errors when selecting a default.
       }
     } else {
-      localStorage.removeItem(STORAGE_KEYS.DEFAULT_AGENCY);
+      removeFromStorage(STORAGE_KEYS.DEFAULT_AGENCY);
     }
   },
 };
