@@ -1,6 +1,6 @@
 import type { AgencyDefaults } from "../../agencyDefaults";
 import { STORAGE_KEYS } from "../keys";
-import { getFromStorage, saveToStorage } from "../storage-utils";
+import { getFromStorage, removeFromStorage, saveToStorage } from "../storage-utils";
 
 export const agencyDefaultsStorage = {
   get: (): AgencyDefaults | null => {
@@ -22,6 +22,6 @@ export const agencyDefaultsStorage = {
   },
 
   clear: (): void => {
-    localStorage.removeItem(STORAGE_KEYS.AGENCY_DEFAULTS);
+    removeFromStorage(STORAGE_KEYS.AGENCY_DEFAULTS);
   },
 };

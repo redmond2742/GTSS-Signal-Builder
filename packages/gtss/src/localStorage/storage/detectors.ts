@@ -6,6 +6,7 @@ import {
   displayDistanceToStored,
   getFromStorage,
   hasPrototypePollution,
+  removeFromStorage,
   saveToStorage,
   storedDistanceToDisplay,
 } from "../storage-utils";
@@ -127,6 +128,6 @@ export const detectorStorage = {
   },
 
   clear: (): void => {
-    localStorage.removeItem(STORAGE_KEYS.DETECTORS);
+    removeFromStorage(STORAGE_KEYS.DETECTORS);
   },
 };

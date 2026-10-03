@@ -1,7 +1,13 @@
 import { nanoid } from "nanoid";
 import type { Agency, Approach, BasicTiming, Detector, Phase, Signal } from "../../schema/public";
 import { STORAGE_KEYS } from "./keys";
-import { displayDistanceToStored, getFromStorage, saveToStorage } from "./storage-utils";
+import {
+  displayDistanceToStored,
+  getFromStorage,
+  removeFromStorage,
+  saveToStorage,
+  writeRawToStorage,
+} from "./storage-utils";
 import { agencyListStorage, agencyStorage } from "./storage/agencies";
 import { signalStorage } from "./storage/signals";
 
@@ -19,9 +25,9 @@ export function importData(
   if (mode === "replace") {
     if (parsedData.agency !== undefined) {
       if (parsedData.agency === null) {
-        localStorage.removeItem(STORAGE_KEYS.AGENCY);
+        removeFromStorage(STORAGE_KEYS.AGENCY);
         try {
-          localStorage.removeItem(STORAGE_KEYS.DEFAULT_AGENCY);
+          removeFromStorage(STORAGE_KEYS.DEFAULT_AGENCY);
         } catch {
           // ignore
         }
@@ -34,9 +40,8 @@ export function importData(
         try {
           const currentDefault = localStorage.getItem(STORAGE_KEYS.DEFAULT_AGENCY);
           if (!currentDefault || !agencies.some((agency) => agency.id === currentDefault)) {
-            if (agencies.length > 0)
-              localStorage.setItem(STORAGE_KEYS.DEFAULT_AGENCY, agencies[0].id);
-            else localStorage.removeItem(STORAGE_KEYS.DEFAULT_AGENCY);
+            if (agencies.length > 0) writeRawToStorage(STORAGE_KEYS.DEFAULT_AGENCY, agencies[0].id);
+            else removeFromStorage(STORAGE_KEYS.DEFAULT_AGENCY);
           }
         } catch {
           // ignore storage errors
@@ -46,7 +51,7 @@ export function importData(
         const stored = { ...agency, id: agency.id ?? nanoid() };
         saveToStorage(STORAGE_KEYS.AGENCY, [stored]);
         try {
-          localStorage.setItem(STORAGE_KEYS.DEFAULT_AGENCY, stored.id);
+          writeRawToStorage(STORAGE_KEYS.DEFAULT_AGENCY, stored.id);
         } catch {
           // ignore
         }
@@ -109,8 +114,8 @@ export function importData(
     try {
       const currentDefault = localStorage.getItem(STORAGE_KEYS.DEFAULT_AGENCY);
       if (!currentDefault || !existing.some((agency) => agency.id === currentDefault)) {
-        if (existing.length > 0) localStorage.setItem(STORAGE_KEYS.DEFAULT_AGENCY, existing[0].id);
-        else localStorage.removeItem(STORAGE_KEYS.DEFAULT_AGENCY);
+        if (existing.length > 0) writeRawToStorage(STORAGE_KEYS.DEFAULT_AGENCY, existing[0].id);
+        else removeFromStorage(STORAGE_KEYS.DEFAULT_AGENCY);
       }
     } catch {
       // ignore storage errors

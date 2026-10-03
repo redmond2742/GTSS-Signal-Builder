@@ -1,7 +1,13 @@
 import { nanoid } from "nanoid";
 import type { InsertPhase, Phase } from "../../../schema/public";
 import { PED_RENUMBER_FLAG, STORAGE_KEYS } from "../keys";
-import { getFromStorage, hasPrototypePollution, saveToStorage } from "../storage-utils";
+import {
+  getFromStorage,
+  hasPrototypePollution,
+  removeFromStorage,
+  saveToStorage,
+  writeRawToStorage,
+} from "../storage-utils";
 
 function normalizePedestrian(value: unknown): number {
   if (typeof value === "number") return value;
@@ -31,7 +37,7 @@ export const phaseStorage = {
           return phase;
         });
         saveToStorage(STORAGE_KEYS.PHASES, renumbered);
-        localStorage.setItem(PED_RENUMBER_FLAG, "1");
+        writeRawToStorage(PED_RENUMBER_FLAG, "1");
         return renumbered;
       }
       if (hadOverlap) {
@@ -111,6 +117,6 @@ export const phaseStorage = {
   },
 
   clear: (): void => {
-    localStorage.removeItem(STORAGE_KEYS.PHASES);
+    removeFromStorage(STORAGE_KEYS.PHASES);
   },
 };

@@ -1,7 +1,12 @@
 import { nanoid } from "nanoid";
 import type { InsertSignal, Signal } from "../../../schema/public";
 import { STORAGE_KEYS } from "../keys";
-import { getFromStorage, hasPrototypePollution, saveToStorage } from "../storage-utils";
+import {
+  getFromStorage,
+  hasPrototypePollution,
+  removeFromStorage,
+  saveToStorage,
+} from "../storage-utils";
 import { approachStorage } from "./approaches";
 import { basicTimingStorage } from "./basicTimings";
 import { detectorStorage } from "./detectors";
@@ -71,6 +76,6 @@ export const signalStorage = {
   },
 
   clear: (): void => {
-    localStorage.removeItem(STORAGE_KEYS.SIGNALS);
+    removeFromStorage(STORAGE_KEYS.SIGNALS);
   },
 };
