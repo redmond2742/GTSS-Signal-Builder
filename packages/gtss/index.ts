@@ -6,6 +6,7 @@ export {
   DEFAULT_AGENCY_DEFAULTS,
   DEFAULT_PHASE_COUNT,
   guessPhaseDirectionMapping,
+  isCoordinationEnabled,
   isDemoEnabled,
   isMapScrollZoomEnabled,
   isTypicallyThroughPhase,
@@ -45,6 +46,37 @@ export {
 export type { LibraryBounds, LibraryEntry, LibrarySource } from "./src/library";
 export { isLhtForSignalId, isMetricForSignalId } from "./src/localStorage/agency-units";
 export { clearAllData } from "./src/localStorage/clearAll";
+// --- Coordination (experimental) -----------------------------------------
+export {
+  COORDINATION_ENTITIES,
+  COORDINATION_STORAGE_KEYS,
+  clearAllCoordination,
+  detectCoordinationFile,
+  readAllCoordination,
+} from "./src/localStorage/coordination/entities";
+export type { Entity as CoordinationEntity } from "./src/localStorage/coordination/factory";
+export { emptyCoordinationRows, identityOf } from "./src/localStorage/coordination/rows";
+export type {
+  CoordinationFlags,
+  CoordinationKey,
+  CoordinationPlan,
+  CoordinationRows,
+  Corridor,
+  CorridorSignal,
+  ParsedCoordination,
+  Pattern,
+  PatternSignal,
+  PhaseSequenceEntry,
+  ScheduleEntry,
+  Split,
+} from "./src/localStorage/coordination/rows";
+export { resolveCoordinationScope, UNSCOPED } from "./src/localStorage/coordination/scope";
+export type { CoordinationScope } from "./src/localStorage/coordination/scope";
+export { summarizeIssues, validateCoordination } from "./src/localStorage/coordination/validate";
+export type {
+  CoordinationIssue,
+  CoordinationIssueLevel,
+} from "./src/localStorage/coordination/validate";
 export { isStorageReadOnly, setStorageReadOnly } from "./src/localStorage/write-guard";
 export {
   crosswalkLengthCode,
@@ -56,7 +88,12 @@ export {
   generatePhasesCSV,
   generateSignalsCSV,
 } from "./src/localStorage/csv-export";
-export { exportAsIndividualFiles, exportAsZip, exportData } from "./src/localStorage/exports";
+export {
+  exportAsIndividualFiles,
+  exportAsZip,
+  exportCoordinationAsZip,
+  exportData,
+} from "./src/localStorage/exports";
 export { importData } from "./src/localStorage/imports";
 export {
   parseApproachesTXT,

@@ -1,0 +1,218 @@
+import type { CoordinationRows } from "./rows";
+
+export type CoordinationIssueLevel = "error" | "warning";
+
+export interface CoordinationIssue {
+  level: CoordinationIssueLevel;
+  /** Which file the issue belongs to, for grouping in the UI. */
+  scope: keyof CoordinationRows;
+  /** Stable id so the UI can key a list without an index. */
+  id: string;
+  message: string;
+}
+
+const ERR = (scope: keyof CoordinationRows, id: string, message: string): CoordinationIssue => ({
+  level: "error",
+  scope,
+  id,
+  message,
+});
+const WARN = (scope: keyof CoordinationRows, id: string, message: string): CoordinationIssue => ({
+  level: "warning",
+  scope,
+  id,
+  message,
+});
+
+/**
+ * Check imported coordination data for the things that actually go wrong in
+ * converted timing sheets.
+ *
+ * The headline check is the split sum. A signal's green splits, summed per
+ * ring, should equal its pattern's cycle length — and in real exports they
+ * frequently don't, because the source split table was built at a different
+ * native cycle. The reference intersection matches and every other signal is
+ * off by a fixed amount, which is invisible in a flat table and obvious here.
+ *
+ * `signalIds` is the set of signals that exist in the main GTSS data, used to
+ * flag coordination rows that reference a signal nobody has imported.
+ */
+export function validateCoordination(
+  rows: CoordinationRows,
+  signalIds: ReadonlySet<string> = new Set(),
+): CoordinationIssue[] {
+  const issues: CoordinationIssue[] = [];
+
+  const patternById = new Map(rows.patterns.map((p) => [p.patternId, p]));
+  const corridorIds = new Set(rows.corridors.map((c) => c.corridorId));
+  const coordinationIds = new Set(rows.coordination.map((c) => c.coordinationId));
+
+  // --- Referential integrity ---------------------------------------------
+
+  for (const p of rows.patterns) {
+    if (p.corridorId != null && !corridorIds.has(p.corridorId)) {
+      issues.push(
+        ERR(
+          "patterns",
+          `pattern-corridor-${p.patternId}`,
+          `Pattern ${p.patternId} references corridor ${p.corridorId}, which is not in corridors.txt`,
+        ),
+      );
+    }
+  }
+
+  for (const s of rows.schedule) {
+    if (s.patternId != null && !patternById.has(s.patternId)) {
+      issues.push(
+        ERR(
+          "schedule",
+          `schedule-pattern-${s.scheduleId}`,
+          `Schedule ${s.scheduleId} references pattern ${s.patternId}, which is not in Patterns.txt`,
+        ),
+      );
+    }
+    if (s.coordinationId != null && !coordinationIds.has(s.coordinationId)) {
+      issues.push(
+        ERR(
+          "schedule",
+          `schedule-coord-${s.scheduleId}`,
+          `Schedule ${s.scheduleId} references coordination ${s.coordinationId}, which is not in Coordination.txt`,
+        ),
+      );
+    }
+  }
+
+  // Signals referenced by coordination but absent from the signal list. Only
+  // meaningful once signals have been imported, hence the empty-set guard.
+  if (signalIds.size > 0) {
+    const missing = new Set<string>();
+    const collect = (id: string) => {
+      if (!signalIds.has(id)) missing.add(id);
+    };
+    rows.corridorSignals.forEach((r) => collect(r.signalId));
+    rows.patternSignals.forEach((r) => collect(r.signalId));
+    for (const id of Array.from(missing).sort()) {
+      issues.push(
+        WARN(
+          "corridorSignals",
+          `unknown-signal-${id}`,
+          `Signal ${id} is used by coordination but has no row in signals.txt`,
+        ),
+      );
+    }
+  }
+
+  // --- Corridor ordering --------------------------------------------------
+
+  const bySeq = new Map<string, number[]>();
+  for (const cs of rows.corridorSignals) {
+    if (cs.sequence == null) continue;
+    const list = bySeq.get(cs.corridorId) ?? [];
+    list.push(cs.sequence);
+    bySeq.set(cs.corridorId, list);
+  }
+  for (const [corridorId, seqs] of Array.from(bySeq)) {
+    const sorted = [...seqs].sort((a, b) => a - b);
+    const dupes = sorted.filter((v, i) => i > 0 && v === sorted[i - 1]);
+    if (dupes.length > 0) {
+      issues.push(
+        ERR(
+          "corridorSignals",
+          `corridor-dupe-seq-${corridorId}`,
+          `Corridor ${corridorId} has duplicate sequence numbers (${Array.from(new Set(dupes)).join(", ")})`,
+        ),
+      );
+    }
+    const gaps = sorted.filter((v, i) => i > 0 && v !== sorted[i - 1] && v !== sorted[i - 1] + 1);
+    if (gaps.length > 0) {
+      issues.push(
+        WARN(
+          "corridorSignals",
+          `corridor-gap-seq-${corridorId}`,
+          `Corridor ${corridorId} sequence numbers are not contiguous (gap before ${gaps.join(", ")})`,
+        ),
+      );
+    }
+  }
+
+  // --- Offsets within the cycle ------------------------------------------
+
+  for (const ps of rows.patternSignals) {
+    const pattern = patternById.get(ps.patternId);
+    if (!pattern) {
+      issues.push(
+        ERR(
+          "patternSignals",
+          `ps-pattern-${ps.patternId}-${ps.signalId}`,
+          `PatternSignals references pattern ${ps.patternId}, which is not in Patterns.txt`,
+        ),
+      );
+      continue;
+    }
+    const cycle = pattern.cycleLengthS ?? 0;
+    if (cycle > 0 && ps.offsetS != null && ps.offsetS >= cycle) {
+      issues.push(
+        WARN(
+          "patternSignals",
+          `offset-${ps.patternId}-${ps.signalId}`,
+          `${ps.signalId} offset ${ps.offsetS}s is not less than pattern ${ps.patternId}'s ${cycle}s cycle`,
+        ),
+      );
+    }
+  }
+
+  // --- Split sums vs cycle (the headline check) --------------------------
+
+  // Ring membership comes from PhaseSequence, which is per signal rather than
+  // per pattern — a signal's ring structure doesn't change between patterns.
+  const ringOf = new Map<string, number>();
+  for (const seq of rows.phaseSequence) {
+    if (seq.phaseId == null || seq.ring == null) continue;
+    ringOf.set(`${seq.signalId}|${seq.phaseId}`, seq.ring);
+  }
+
+  const ringTotals = new Map<string, number>();
+  const unringed = new Set<string>();
+  for (const split of rows.splits) {
+    if (split.phaseId == null || split.splitS == null) continue;
+    const ring = ringOf.get(`${split.signalId}|${split.phaseId}`);
+    if (ring === undefined) {
+      unringed.add(`${split.signalId}|${split.phaseId}`);
+      continue;
+    }
+    const key = `${split.patternId}|${split.signalId}|${ring}`;
+    ringTotals.set(key, (ringTotals.get(key) ?? 0) + split.splitS);
+  }
+
+  for (const ref of Array.from(unringed).sort()) {
+    const [signalId, phaseId] = ref.split("|");
+    issues.push(
+      WARN(
+        "splits",
+        `split-no-ring-${ref}`,
+        `Split for ${signalId} phase ${phaseId} has no matching row in PhaseSequence.txt, so its ring is unknown`,
+      ),
+    );
+  }
+
+  for (const [key, total] of Array.from(ringTotals).sort()) {
+    const [patternId, signalId, ring] = key.split("|");
+    const cycle = patternById.get(patternId)?.cycleLengthS ?? 0;
+    if (cycle <= 0 || total === cycle) continue;
+    issues.push(
+      WARN(
+        "splits",
+        `split-sum-${key}`,
+        `${signalId} ring ${ring} splits total ${total}s but pattern ${patternId} runs a ${cycle}s cycle`,
+      ),
+    );
+  }
+
+  return issues;
+}
+
+/** Counts for a one-line summary above the detail list. */
+export const summarizeIssues = (issues: readonly CoordinationIssue[]) => ({
+  errors: issues.filter((i) => i.level === "error").length,
+  warnings: issues.filter((i) => i.level === "warning").length,
+});

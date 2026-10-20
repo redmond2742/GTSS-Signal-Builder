@@ -3,8 +3,12 @@
   "configurations": [
     {
       "name": "dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "_comment": "The preview launcher spawns with cwd set to the literal string '.'. Establishing an absolute cwd first is needed regardless; note it is NOT sufficient if the launcher lacks macOS Files-and-Folders access to ~/Documents, because getcwd() is then denied outright and npm dies on process.cwd().",
+      "runtimeExecutable": "/bin/zsh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/matt/Documents/Projects/GTSS/GTSSv2.0/GTSS-Signal-Builder && exec npm run dev"
+      ],
       "port": 5001,
       "autoPort": true
     }

@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import type { Agency, Approach, BasicTiming, Detector, Phase, Signal } from "../schema/public";
 import { AgencyDefaults } from "../src/agencyDefaults";
+import { readAllCoordination } from "../src/localStorage/coordination/entities";
+import type { CoordinationRows } from "../src/localStorage/coordination/rows";
 import {
   agencyDefaultsStorage,
   agencyListStorage,
@@ -23,6 +25,12 @@ interface GTSSStore {
   phases: Phase[];
   detectors: Detector[];
   basicTimings: BasicTiming[];
+  /** All eight coordination collections in one field. Deliberately not
+   *  eight top-level fields: these are read-only in this cut, so the 13
+   *  per-entity touch points the other collections need would be dead
+   *  weight. Select `s.coordination` and destructure — do not build the
+   *  object inside a selector or every consumer re-renders. */
+  coordination: CoordinationRows;
 
   // Navigation state (for single-page app without URL routing)
   currentView: "main" | "signal-details";
@@ -89,6 +97,7 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
   phases: phaseStorage.getAll(),
   detectors: detectorStorage.getAll(),
   basicTimings: basicTimingStorage.getAll(),
+  coordination: readAllCoordination(),
 
   // Initial navigation state
   currentView: "main",
@@ -209,5 +218,6 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
       phases: phaseStorage.getAll(),
       detectors: detectorStorage.getAll(),
       basicTimings: basicTimingStorage.getAll(),
+      coordination: readAllCoordination(),
     }),
 }));

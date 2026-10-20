@@ -34,6 +34,9 @@ export type AgencyDefaults = {
   mapScrollWheel: MapScrollWheelMode;
   /** Show the procedural demo gallery under Agency Info */
   showDemo?: boolean;
+  /** Experimental: show the Coordination section (corridors, patterns, splits,
+   *  schedule). Optional, so existing stored defaults need no migration. */
+  showCoordination?: boolean;
   updatedAt: string;
 };
 
@@ -64,6 +67,7 @@ export const DEFAULT_AGENCY_DEFAULTS: AgencyDefaults = {
   // makes the data below it hard to reach.
   mapScrollWheel: "page",
   showDemo: false,
+  showCoordination: false,
   updatedAt: new Date().toISOString(),
 };
 
@@ -81,6 +85,13 @@ export function isMapScrollZoomEnabled(defaults: AgencyDefaults | null | undefin
  */
 export function isDemoEnabled(defaults: AgencyDefaults | null | undefined): boolean {
   return defaults?.showDemo === true;
+}
+
+/**
+ * Whether the experimental Coordination section should be shown.
+ */
+export function isCoordinationEnabled(defaults: AgencyDefaults | null | undefined): boolean {
+  return defaults?.showCoordination === true;
 }
 
 /**

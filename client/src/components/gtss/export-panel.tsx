@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import {
+  COORDINATION_ENTITIES,
   evaluateGTSSCompleteness,
   generateAgenciesCSV,
   generateApproachesCSV,
@@ -22,6 +23,8 @@ import {
   generateDetectionCSV,
   generatePhasesCSV,
   generateSignalsCSV,
+  isCoordinationEnabled,
+  UNSCOPED,
   useAgencies,
   useExport,
   useGTSSStore,
@@ -39,8 +42,22 @@ import {
 import { useEffect, useState } from "react";
 
 export default function ExportPanel() {
-  const { agency, signals, approaches, phases, detectors, basicTimings, navigateToSignalDetails } =
-    useGTSSStore();
+  const {
+    agency,
+    signals,
+    approaches,
+    phases,
+    detectors,
+    basicTimings,
+    coordination,
+    agencyDefaults,
+    navigateToSignalDetails,
+  } = useGTSSStore();
+  const coordinationEnabled = isCoordinationEnabled(agencyDefaults);
+  const coordinationRowCount = COORDINATION_ENTITIES.reduce(
+    (sum, entity) => sum + (coordination[entity.key]?.length ?? 0),
+    0,
+  );
   const agenciesApi = useAgencies();
 
   const getDefaultPackageName = () => {
@@ -59,6 +76,9 @@ export default function ExportPanel() {
     phases: true,
     detection: true,
     basicTimings: true,
+    // Opt-in: off by default so the main export keeps its existing shape while
+    // coordination is experimental.
+    coordination: false,
   });
   const [selectedAgencyIds, setSelectedAgencyIds] = useState<string[]>([]);
   const { toast } = useToast();
@@ -214,6 +234,13 @@ export default function ExportPanel() {
   const filteredBasicTimings = basicTimings.filter((t) => filteredSignalIds.includes(t.signalId));
 
   const previewFiles: GTSSFilePreview[] = [
+    ...(includeFiles.coordination
+      ? COORDINATION_ENTITIES.map((entity) => ({
+          id: entity.key,
+          label: entity.filename,
+          content: entity.renderFrom(coordination, UNSCOPED),
+        }))
+      : []),
     // Single combined agency.txt matching download behavior
     ...(includeFiles.agency
       ? [{ id: "agency", label: "agency.txt", content: generateAgenciesCSV(selectedAgencies) }]
@@ -523,6 +550,21 @@ export default function ExportPanel() {
                     basic_timings.txt ({basicTimings.length} records)
                   </Label>
                 </div>
+                {coordinationEnabled && (
+                  <div className="flex items-center space-x-3">
+                    <Checkbox
+                      id="coordination"
+                      checked={includeFiles.coordination}
+                      onCheckedChange={(checked) =>
+                        setIncludeFiles((prev) => ({ ...prev, coordination: checked as boolean }))
+                      }
+                    />
+                    <Label htmlFor="coordination" className="text-sm text-grey-700">
+                      Coordination files ({coordinationRowCount} records across{" "}
+                      {COORDINATION_ENTITIES.length} files)
+                    </Label>
+                  </div>
+                )}
               </div>
             </div>
 
