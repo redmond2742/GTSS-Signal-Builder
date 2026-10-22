@@ -1,18 +1,24 @@
 import MapTileLayers from "@/components/ui/map-tile-layers";
 import type { CorridorSignal } from "gtss";
-import { useMapScrollZoom } from "gtss";
+import { sortBySequence, useMapScrollZoom } from "gtss";
 import type { Signal } from "gtss/schema";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { MapContainer, Marker, Polyline, Popup, useMap } from "react-leaflet";
+
+/** What a pin says: its place in the run, the signal it is, or both. */
+export type PinLabelMode = "sequence" | "signalId" | "both";
 
 interface CorridorsMapProps {
   /** Corridor members, in any order — this component sorts by `sequence`. */
   corridorSignals: readonly CorridorSignal[];
   signals: readonly Signal[];
+  labelMode?: PinLabelMode;
   /** Highlight one stop in the corridor, e.g. the row under the cursor. */
   highlightedSignalId?: string | null;
+  /** Pointer entered / left a pin, so the list beside the map can follow. */
+  onSignalHover?: (signalId: string | null) => void;
   onSignalSelect?: (signalId: string) => void;
   className?: string;
 }
@@ -24,38 +30,71 @@ interface Stop {
   direction: string | null;
   lat: number;
   lng: number;
-  missing: false;
 }
 
+// Signal IDs are free text from an imported file and go into divIcon markup,
+// which Leaflet assigns as innerHTML. Escape them.
+const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+const PIN_HEIGHT = 26;
+const PIN_CHAR_WIDTH = 6.6;
+
+const pinText = (stop: Stop, mode: PinLabelMode) => {
+  if (mode === "signalId") return stop.signalId;
+  if (mode === "both") return `${stop.sequence} · ${stop.signalId}`;
+  return String(stop.sequence);
+};
+
 /**
- * Numbered pin. A corridor's story is its ORDER, so the sequence number is the
- * marker rather than a tooltip you have to hunt for.
+ * Pin for one stop. A corridor's story is its ORDER, so by default the sequence
+ * number is the marker rather than a tooltip you have to hunt for; the signal ID
+ * is a toggle away for when you are matching the map to a timing sheet.
+ * Text pins grow to fit and turn from a disc into a pill.
  */
-const stopIcon = (sequence: number, highlighted: boolean) =>
-  L.divIcon({
+const stopIcon = (stop: Stop, mode: PinLabelMode, highlighted: boolean) => {
+  const text = pinText(stop, mode);
+  const disc = mode === "sequence";
+  const width = disc
+    ? PIN_HEIGHT
+    : Math.max(PIN_HEIGHT, Math.round(text.length * PIN_CHAR_WIDTH) + 16);
+  return L.divIcon({
     className: "gtss-corridor-stop",
     html:
-      `<div role="img" aria-label="Stop ${sequence}" style="width:26px;height:26px;` +
-      `display:flex;align-items:center;justify-content:center;border-radius:50%;` +
+      `<div role="img" aria-label="Stop ${stop.sequence}: signal ${escapeHtml(stop.signalId)}" ` +
+      `style="width:${width}px;height:${PIN_HEIGHT}px;` +
+      `display:flex;align-items:center;justify-content:center;` +
+      `border-radius:${PIN_HEIGHT / 2}px;white-space:nowrap;` +
       `background:${highlighted ? "#ec4899" : "#2563eb"};color:#fff;` +
       `font:600 12px/1 ui-sans-serif,system-ui,sans-serif;` +
-      `border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);">${sequence}</div>`,
-    iconSize: [26, 26],
-    iconAnchor: [13, 13],
-    popupAnchor: [0, -14],
+      `border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);">${escapeHtml(text)}</div>`,
+    iconSize: [width, PIN_HEIGHT],
+    iconAnchor: [width / 2, PIN_HEIGHT / 2],
+    popupAnchor: [0, -(PIN_HEIGHT / 2 + 1)],
   });
+};
 
-function FitToCorridor({ stops }: { stops: Stop[] }) {
+/**
+ * Fit the view to the corridor when it changes — not when it is merely
+ * re-rendered. `fitKey` stands in for "which signals, where": hovering a list
+ * row or reordering the stops rebuilds `points` every time, and refitting on
+ * that would throw away whatever pan and zoom the user had settled on.
+ */
+function FitToCorridor({ points, fitKey }: { points: [number, number][]; fitKey: string }) {
   const map = useMap();
+  // Read through a ref so the effect depends on the key alone; `points` is a new
+  // array every render and listing it would refit every render.
+  const latest = useRef(points);
+  latest.current = points;
+
   useEffect(() => {
-    if (stops.length === 0) return;
-    if (stops.length === 1) {
-      map.setView([stops[0].lat, stops[0].lng], 16);
+    const pts = latest.current;
+    if (pts.length === 0) return;
+    if (pts.length === 1) {
+      map.setView(pts[0], 16);
       return;
     }
-    const group = new L.FeatureGroup(stops.map((s) => L.marker([s.lat, s.lng])));
-    map.fitBounds(group.getBounds(), { padding: [28, 28] });
-  }, [stops, map]);
+    map.fitBounds(L.latLngBounds(pts), { padding: [28, 28] });
+  }, [fitKey, map]);
   return null;
 }
 
@@ -71,7 +110,9 @@ function FitToCorridor({ stops }: { stops: Stop[] }) {
 export default function CorridorsMap({
   corridorSignals,
   signals,
+  labelMode = "sequence",
   highlightedSignalId,
+  onSignalHover,
   onSignalSelect,
   className,
 }: CorridorsMapProps) {
@@ -79,11 +120,9 @@ export default function CorridorsMap({
 
   const byId = new Map(signals.map((s) => [s.signalId, s]));
 
-  const ordered = [...corridorSignals].sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
-
   const stops: Stop[] = [];
   const unplaced: string[] = [];
-  ordered.forEach((cs, index) => {
+  sortBySequence(corridorSignals).forEach((cs, index) => {
     const signal = byId.get(cs.signalId);
     if (!signal || signal.latitude == null || signal.longitude == null) {
       unplaced.push(cs.signalId);
@@ -95,7 +134,6 @@ export default function CorridorsMap({
       direction: cs.direction,
       lat: signal.latitude,
       lng: signal.longitude,
-      missing: false,
     });
   });
 
@@ -111,41 +149,45 @@ export default function CorridorsMap({
     );
   }
 
-  const center: [number, number] = [stops[0].lat, stops[0].lng];
+  const points = stops.map((s) => [s.lat, s.lng] as [number, number]);
+  // Order-independent on purpose: moving a stop must not move the camera.
+  const fitKey = points
+    .map(([lat, lng]) => `${lat},${lng}`)
+    .sort()
+    .join("|");
 
   return (
     <div className={className} style={{ position: "relative", zIndex: 1 }}>
       <MapContainer
-        center={center}
+        center={points[0]}
         zoom={14}
         scrollWheelZoom={mapScrollZoom}
         style={{ height: "100%", width: "100%", zIndex: 1 }}
         className="rounded-lg"
-        key={`corridor-${stops.length}-${center[0]}-${center[1]}`}
+        key={fitKey}
       >
         <MapTileLayers />
-        <FitToCorridor stops={stops} />
+        <FitToCorridor points={points} fitKey={fitKey} />
 
         {/* The run itself. `positions` already takes N points — the existing
             approach arrows just happen to pass two. */}
-        {stops.length > 1 && (
-          <Polyline
-            positions={stops.map((s) => [s.lat, s.lng] as [number, number])}
-            color="#2563eb"
-            weight={4}
-            opacity={0.65}
-          />
+        {points.length > 1 && (
+          <Polyline positions={points} color="#2563eb" weight={4} opacity={0.65} />
         )}
 
         {stops.map((stop) => (
           <Marker
             key={`${stop.signalId}-${stop.sequence}`}
             position={[stop.lat, stop.lng]}
-            icon={stopIcon(stop.sequence, highlightedSignalId === stop.signalId)}
+            icon={stopIcon(stop, labelMode, highlightedSignalId === stop.signalId)}
             zIndexOffset={highlightedSignalId === stop.signalId ? 1000 : 0}
             alt={`Stop ${stop.sequence}: signal ${stop.signalId}`}
             title={`Stop ${stop.sequence}: signal ${stop.signalId}`}
-            eventHandlers={{ click: () => onSignalSelect?.(stop.signalId) }}
+            eventHandlers={{
+              click: () => onSignalSelect?.(stop.signalId),
+              mouseover: () => onSignalHover?.(stop.signalId),
+              mouseout: () => onSignalHover?.(null),
+            }}
           >
             <Popup>
               <div className="text-xs">

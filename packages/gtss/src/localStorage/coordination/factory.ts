@@ -47,6 +47,23 @@ export interface Descriptor<K extends CoordinationKey> {
   };
 }
 
+/** What happened when one row's signal ID was changed. */
+export type RowSignalChange =
+  | "ok"
+  /** The new ID is the one the row already has. */
+  | "unchanged"
+  /** Another row already has the key this one would end up with. Nothing written. */
+  | "duplicate"
+  | "missing"
+  | "blank";
+
+/** Result of re-pointing every row of one signal in a file. */
+export interface SignalMoveReport {
+  changed: number;
+  /** Rows left alone because moving them would duplicate an existing row. */
+  skipped: number;
+}
+
 /**
  * Row-type-erased view of one entity.
  *
@@ -72,9 +89,20 @@ export interface Entity {
   readonly parseInto: (content: string, bag: ParsedCoordination) => void;
   readonly replaceFrom: (bag: ParsedCoordination) => void;
   readonly mergeFrom: (bag: ParsedCoordination) => void;
-  /** Signal rename / delete fan-out, for the four signal-scoped files. */
+  /** Signal delete fan-out, for the four signal-scoped files. */
   readonly deleteBySignal?: (signalId: string) => void;
-  readonly updateSignalId?: (oldId: string, newId: string) => void;
+  /**
+   * Point ONE row at a different signal. The signal id is part of the identity of
+   * PatternSignals, Splits and PhaseSequence rows, so this is a move, not a patch:
+   * if another row already has the resulting key it refuses and writes nothing,
+   * rather than leave two rows claiming the same address.
+   */
+  readonly changeRowSignal?: (identity: string, newSignalId: string) => RowSignalChange;
+  /**
+   * Point every row of `oldId` at `newId`. Rows that would collide with an
+   * existing row are skipped and counted, not merged or overwritten.
+   */
+  readonly changeSignalInFile?: (oldId: string, newId: string) => SignalMoveReport;
 
   // --- editing -----------------------------------------------------------
   /** Row properties that form the identity; the cell editor locks these. */
@@ -192,15 +220,54 @@ export function defineEntity<K extends CoordinationKey>(d: Descriptor<K>): Entit
       const kept = rows.filter((r) => get(r as CoordinationRow<K>) !== signalId);
       if (kept.length !== rows.length) write(kept as CoordinationRows[K]);
     },
-    updateSignalId: (oldId, newId) => {
+    changeRowSignal: (identity, newSignalId) => {
+      const target = newSignalId.trim();
+      if (target === "") return "blank";
       const rows = read();
-      let touched = false;
+      const index = rows.findIndex((r) => d.identity(r as CoordinationRow<K>) === identity);
+      if (index < 0) return "missing";
+      const current = rows[index] as CoordinationRow<K>;
+      if (get(current) === target) return "unchanged";
+
+      const moved = set(current, target);
+      const movedKey = d.identity(moved);
+      const clash = rows.some(
+        (r, i) => i !== index && d.identity(r as CoordinationRow<K>) === movedKey,
+      );
+      if (clash) return "duplicate";
+
+      write(rows.map((r, i) => (i === index ? moved : r)) as CoordinationRows[K]);
+      return "ok";
+    },
+    changeSignalInFile: (oldId, newId) => {
+      const target = newId.trim();
+      if (target === "" || target === oldId) return { changed: 0, skipped: 0 };
+
+      const rows = read();
+      // Keys in use, kept current as rows move so two rows of the old signal
+      // can't both land on one key.
+      const taken = new Set(rows.map((r) => d.identity(r as CoordinationRow<K>)));
+      let changed = 0;
+      let skipped = 0;
       const next = rows.map((r) => {
-        if (get(r as CoordinationRow<K>) !== oldId) return r;
-        touched = true;
-        return set(r as CoordinationRow<K>, newId);
+        const row = r as CoordinationRow<K>;
+        if (get(row) !== oldId) return r;
+        const moved = set(row, target);
+        const ownKey = d.identity(row);
+        const movedKey = d.identity(moved);
+        // For corridorSignals the signal isn't part of the key, so the moved row
+        // has the same key as itself. That is not a clash.
+        if (movedKey !== ownKey && taken.has(movedKey)) {
+          skipped++;
+          return r;
+        }
+        taken.delete(ownKey);
+        taken.add(movedKey);
+        changed++;
+        return moved;
       });
-      if (touched) write(next as CoordinationRows[K]);
+      if (changed > 0) write(next as CoordinationRows[K]);
+      return { changed, skipped };
     },
   };
 }

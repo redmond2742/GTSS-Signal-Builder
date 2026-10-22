@@ -1,4 +1,12 @@
 import type { CoordinationRows } from "./rows";
+import {
+  describeDayType,
+  effectiveSegments,
+  expandEntry,
+  formatClock,
+  type ScheduleBlock,
+} from "./schedule";
+import { ringSplitTotals } from "./splitTotals";
 
 export type CoordinationIssueLevel = "error" | "warning";
 
@@ -89,8 +97,13 @@ export function validateCoordination(
     const collect = (id: string) => {
       if (!signalIds.has(id)) missing.add(id);
     };
+    // Every file that names a signal. Splits and PhaseSequence matter as much as
+    // the others: their signal ids are editable, and a mistyped one there would
+    // otherwise pass unremarked.
     rows.corridorSignals.forEach((r) => collect(r.signalId));
     rows.patternSignals.forEach((r) => collect(r.signalId));
+    rows.splits.forEach((r) => collect(r.signalId));
+    rows.phaseSequence.forEach((r) => collect(r.signalId));
     for (const id of Array.from(missing).sort()) {
       issues.push(
         WARN(
@@ -163,26 +176,7 @@ export function validateCoordination(
 
   // --- Split sums vs cycle (the headline check) --------------------------
 
-  // Ring membership comes from PhaseSequence, which is per signal rather than
-  // per pattern — a signal's ring structure doesn't change between patterns.
-  const ringOf = new Map<string, number>();
-  for (const seq of rows.phaseSequence) {
-    if (seq.phaseId == null || seq.ring == null) continue;
-    ringOf.set(`${seq.signalId}|${seq.phaseId}`, seq.ring);
-  }
-
-  const ringTotals = new Map<string, number>();
-  const unringed = new Set<string>();
-  for (const split of rows.splits) {
-    if (split.phaseId == null || split.splitS == null) continue;
-    const ring = ringOf.get(`${split.signalId}|${split.phaseId}`);
-    if (ring === undefined) {
-      unringed.add(`${split.signalId}|${split.phaseId}`);
-      continue;
-    }
-    const key = `${split.patternId}|${split.signalId}|${ring}`;
-    ringTotals.set(key, (ringTotals.get(key) ?? 0) + split.splitS);
-  }
+  const { totals: ringTotals, unringed } = ringSplitTotals(rows.phaseSequence, rows.splits);
 
   for (const ref of Array.from(unringed).sort()) {
     const [signalId, phaseId] = ref.split("|");
@@ -206,6 +200,63 @@ export function validateCoordination(
         `${signalId} ring ${ring} splits total ${total}s but pattern ${patternId} runs a ${cycle}s cycle`,
       ),
     );
+  }
+
+  // --- Schedule coverage -------------------------------------------------
+
+  // Each day type should account for all 24 hours exactly once. Overlap across
+  // different priorities is legitimate (that is how SPECIAL_* overrides the
+  // weekly schedule), so only same-priority overlap is a conflict.
+  const dayGroups = new Map<string, { label: string; blocks: ScheduleBlock[] }>();
+  for (const entry of rows.schedule) {
+    const expanded = expandEntry(entry);
+    if (expanded.problem === "unparseable") {
+      issues.push(
+        ERR(
+          "schedule",
+          `schedule-time-${entry.scheduleId}`,
+          `Schedule ${entry.scheduleId} has a start or end time that isn't HH:MM[:SS] (${entry.startTime ?? "blank"} to ${entry.endTime ?? "blank"})`,
+        ),
+      );
+    } else if (expanded.problem === "empty") {
+      issues.push(
+        WARN(
+          "schedule",
+          `schedule-empty-${entry.scheduleId}`,
+          `Schedule ${entry.scheduleId} starts and ends at ${entry.startTime}, so it covers no time`,
+        ),
+      );
+    }
+    const day = describeDayType(entry.dayType);
+    const key = `${entry.coordinationId ?? ""}|${day.dayType}`;
+    const group = dayGroups.get(key) ?? { label: day.dayType || day.label, blocks: [] };
+    group.blocks.push(...expanded.blocks);
+    dayGroups.set(key, group);
+  }
+
+  for (const [key, { label, blocks }] of Array.from(dayGroups)) {
+    if (blocks.length === 0) continue; // every entry was unreadable; already reported
+    for (const seg of effectiveSegments(blocks)) {
+      const span = `${formatClock(seg.startMin)} to ${formatClock(seg.endMin)}`;
+      if (seg.block === null) {
+        issues.push(
+          WARN(
+            "schedule",
+            `schedule-gap-${key}-${seg.startMin}`,
+            `Schedule ${label} has no pattern from ${span}`,
+          ),
+        );
+      } else if (seg.conflicts.length > 0) {
+        const ids = [seg.block, ...seg.conflicts].map((b) => b.scheduleId);
+        issues.push(
+          WARN(
+            "schedule",
+            `schedule-overlap-${key}-${seg.startMin}`,
+            `Schedule ${label}: ${ids.join(" and ")} overlap from ${span} at priority ${seg.block.priority}`,
+          ),
+        );
+      }
+    }
   }
 
   return issues;

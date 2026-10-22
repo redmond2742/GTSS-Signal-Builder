@@ -21,6 +21,7 @@ import {
 } from "./parsers";
 import { identityOf, type CoordinationKey, type CoordinationRows } from "./rows";
 import { inScope } from "./scope";
+import { getFromStorage, saveToStorage } from "../storage-utils";
 
 /** localStorage keys, kept beside the registry rather than in the shared keys
  *  file so the coordination module stays self-contained. */
@@ -174,12 +175,70 @@ export const clearAllCoordination = (): void => {
   COORDINATION_ENTITIES.forEach((e) => e.clear());
 };
 
-/** Signal rename / delete fan-out for the four signal-scoped files. */
+/** Signal delete fan-out for the four signal-scoped files. */
 export const deleteCoordinationBySignal = (signalId: string): void => {
   COORDINATION_ENTITIES.forEach((e) => e.deleteBySignal?.(signalId));
 };
+
+export interface SignalRenameReport {
+  /** Rows re-pointed across the four signal-scoped files. */
+  changed: number;
+  /** Rows left on the old id because the new one would have duplicated a row. */
+  skipped: number;
+  /** `reference_point` values retargeted in Patterns and PatternSignals. */
+  referencePoints: number;
+}
+
+/**
+ * `reference_point` names a signal too (the one a pattern's offsets are measured
+ * from), in both Patterns.txt and PatternSignals.txt, but it isn't in the
+ * registry's `signalRef` — it isn't part of any row's identity. A rename that
+ * missed it would leave every pattern pointing at a signal that no longer exists.
+ */
+const retargetReferencePoints = (oldId: string, newId: string): number => {
+  let count = 0;
+  for (const key of [
+    COORDINATION_STORAGE_KEYS.patterns,
+    COORDINATION_STORAGE_KEYS.patternSignals,
+  ]) {
+    const rows = getFromStorage<{ referencePoint: string | null }[]>(key, []);
+    const next = rows.map((row) => {
+      if (row.referencePoint !== oldId) return row;
+      count++;
+      return { ...row, referencePoint: newId };
+    });
+    if (next.some((row, i) => row !== rows[i])) saveToStorage(key, next);
+  }
+  return count;
+};
+
+/**
+ * Rename a signal throughout the coordination files: every row of the four
+ * signal-scoped files, and the reference points that name it.
+ *
+ * Rows whose move would duplicate an existing row are skipped and reported
+ * rather than merged. If any were skipped the old id is still in use, so the
+ * reference points are left alone too.
+ */
+export const renameSignalInCoordination = (oldId: string, newId: string): SignalRenameReport => {
+  const target = newId.trim();
+  let changed = 0;
+  let skipped = 0;
+  for (const entity of COORDINATION_ENTITIES) {
+    const report = entity.changeSignalInFile?.(oldId, target);
+    if (report) {
+      changed += report.changed;
+      skipped += report.skipped;
+    }
+  }
+  const referencePoints =
+    skipped === 0 && target !== "" && target !== oldId ? retargetReferencePoints(oldId, target) : 0;
+  return { changed, skipped, referencePoints };
+};
+
+/** The signal-rename fan-out called from `signalStorage.update`. */
 export const updateCoordinationSignalId = (oldId: string, newId: string): void => {
-  COORDINATION_ENTITIES.forEach((e) => e.updateSignalId?.(oldId, newId));
+  renameSignalInCoordination(oldId, newId);
 };
 
 /**

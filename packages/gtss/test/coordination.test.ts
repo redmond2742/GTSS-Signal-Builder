@@ -5,9 +5,19 @@ import {
   deleteCoordinationBySignal,
   detectCoordinationFile,
   readAllCoordination,
+  renameSignalInCoordination,
   updateCoordinationSignalId,
 } from "../src/localStorage/coordination/entities";
-import { identityOf, type ParsedCoordination } from "../src/localStorage/coordination/rows";
+import {
+  applyCorridorMove,
+  moveCorridorSignal,
+  sortBySequence,
+} from "../src/localStorage/coordination/corridor-order";
+import {
+  identityOf,
+  type CorridorSignal,
+  type ParsedCoordination,
+} from "../src/localStorage/coordination/rows";
 import { resolveCoordinationScope, UNSCOPED } from "../src/localStorage/coordination/scope";
 import { validateCoordination } from "../src/localStorage/coordination/validate";
 import { clearAllData } from "../src/localStorage/clearAll";
@@ -319,6 +329,43 @@ describe("validation", () => {
       true,
     );
   });
+
+  // A mistyped id in Splits or PhaseSequence used to pass unremarked: only
+  // corridorSignals and patternSignals were checked against the signal list.
+  it("catches an unknown signal id that appears only in Splits or PhaseSequence", () => {
+    const known = new Set([
+      "SIG-022",
+      "SIG-023",
+      "SIG-024",
+      "SIG-025",
+      "SIG-026",
+      "SIG-027",
+      "SIG-028",
+      "SIG-059",
+    ]);
+    const bag = parseSample();
+    COORDINATION_ENTITIES.forEach((e) => e.replaceFrom(bag));
+    const rows = readAllCoordination();
+    expect(validateCoordination(rows, known).some((i) => i.id.startsWith("unknown-signal"))).toBe(
+      false,
+    );
+
+    const inSplits = {
+      ...rows,
+      splits: [{ ...rows.splits[0], signalId: "SIG-TYPO-S" }, ...rows.splits],
+    };
+    expect(
+      validateCoordination(inSplits, known).some((i) => i.id === "unknown-signal-SIG-TYPO-S"),
+    ).toBe(true);
+
+    const inSequence = {
+      ...rows,
+      phaseSequence: [{ ...rows.phaseSequence[0], signalId: "SIG-TYPO-P" }, ...rows.phaseSequence],
+    };
+    expect(
+      validateCoordination(inSequence, known).some((i) => i.id === "unknown-signal-SIG-TYPO-P"),
+    ).toBe(true);
+  });
 });
 
 describe("app wiring", () => {
@@ -472,5 +519,356 @@ describe("row editing", () => {
     } finally {
       setStorageReadOnly(false);
     }
+  });
+});
+
+describe("corridor reordering", () => {
+  const stop = (corridorId: string, sequence: number | null, signalId: string): CorridorSignal => ({
+    corridorId,
+    sequence,
+    signalId,
+    direction: null,
+  });
+  const order = (rows: readonly CorridorSignal[], corridorId: string) =>
+    sortBySequence(rows.filter((r) => r.corridorId === corridorId)).map((r) => r.signalId);
+  const seed = () => COORDINATION_ENTITIES.forEach((e) => e.replaceFrom(parseSample()));
+
+  it("moves a stop and renumbers the corridor 1..N", () => {
+    const rows = [stop("C", 1, "A"), stop("C", 2, "B"), stop("C", 3, "C"), stop("C", 4, "D")];
+
+    const next = applyCorridorMove(rows, "C", 0, 2);
+
+    expect(next?.map((r) => [r.signalId, r.sequence])).toEqual([
+      ["B", 1],
+      ["C", 2],
+      ["A", 3],
+      ["D", 4],
+    ]);
+  });
+
+  it("does not mutate its input", () => {
+    const rows = [stop("C", 1, "A"), stop("C", 2, "B")];
+    const before = JSON.stringify(rows);
+    applyCorridorMove(rows, "C", 0, 1);
+    expect(JSON.stringify(rows)).toBe(before);
+  });
+
+  it("leaves other corridors, and their place in the file, alone", () => {
+    const rows = [
+      stop("X", 1, "x1"),
+      stop("C", 1, "A"),
+      stop("X", 2, "x2"),
+      stop("C", 2, "B"),
+      stop("Y", 1, "y1"),
+    ];
+
+    const next = applyCorridorMove(rows, "C", 1, 0);
+
+    // C's rows land where its first row was, in their new order.
+    expect(next?.map((r) => r.signalId)).toEqual(["x1", "B", "A", "x2", "y1"]);
+    expect(next?.filter((r) => r.corridorId !== "C")).toEqual(
+      rows.filter((r) => r.corridorId !== "C"),
+    );
+  });
+
+  // Addressing by position is what lets a broken corridor be repaired through
+  // the same operation: identities there are ambiguous, positions are not.
+  it("repairs duplicate and skipped sequence numbers", () => {
+    const dupes = [stop("C", 1, "A"), stop("C", 1, "B"), stop("C", 1, "C")];
+    expect(applyCorridorMove(dupes, "C", 0, 0)?.map((r) => r.sequence)).toEqual([1, 2, 3]);
+
+    const gaps = [stop("C", 2, "A"), stop("C", 5, "B"), stop("C", 9, "C")];
+    expect(applyCorridorMove(gaps, "C", 2, 2)?.map((r) => r.sequence)).toEqual([1, 2, 3]);
+  });
+
+  it("treats a missing sequence as first", () => {
+    const rows = [stop("C", 2, "A"), stop("C", null, "B")];
+    expect(order(rows, "C")).toEqual(["B", "A"]);
+  });
+
+  it("rejects out-of-range and non-integer positions", () => {
+    const rows = [stop("C", 1, "A"), stop("C", 2, "B")];
+    expect(applyCorridorMove(rows, "C", 0, 2)).toBeNull();
+    expect(applyCorridorMove(rows, "C", -1, 0)).toBeNull();
+    expect(applyCorridorMove(rows, "C", 0.5, 1)).toBeNull();
+    expect(applyCorridorMove(rows, "missing", 0, 0)).toBeNull();
+  });
+
+  it("persists the move and writes the file in travel order", () => {
+    seed();
+    const before = order(readAllCoordination().corridorSignals, "CAL-SB");
+    expect(before).toHaveLength(8);
+
+    expect(moveCorridorSignal("CAL-SB", 0, 3)).toBe(true);
+
+    const after = readAllCoordination().corridorSignals;
+    expect(order(after, "CAL-SB")).toEqual([...before.slice(1, 4), before[0], ...before.slice(4)]);
+    expect(after.map((r) => r.sequence)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    // Stored rows are already in travel order, so the exported file is too.
+    expect(after.map((r) => r.signalId)).toEqual(order(after, "CAL-SB"));
+  });
+
+  it("changes nothing else: same stops, no validation problems introduced", () => {
+    seed();
+    const ids = new Set(readAllCoordination().corridorSignals.map((r) => r.signalId));
+    const issuesBefore = validateCoordination(readAllCoordination(), ids).length;
+
+    moveCorridorSignal("CAL-SB", 2, 6);
+
+    const after = readAllCoordination();
+    expect(new Set(after.corridorSignals.map((r) => r.signalId))).toEqual(ids);
+    expect(after.patternSignals).toHaveLength(24);
+    expect(after.splits).toHaveLength(100);
+    expect(validateCoordination(after, ids)).toHaveLength(issuesBefore);
+  });
+
+  it("round-trips through the exported file", () => {
+    seed();
+    moveCorridorSignal("CAL-SB", 7, 0);
+
+    const csv = entity("corridorSignals").render(UNSCOPED);
+    const bag: ParsedCoordination = {};
+    entity("corridorSignals").parseInto(csv, bag);
+
+    expect(bag.corridorSignals).toEqual(readAllCoordination().corridorSignals);
+  });
+
+  it("returns false and writes nothing for a bad index", () => {
+    seed();
+    const before = JSON.stringify(readAllCoordination().corridorSignals);
+    expect(moveCorridorSignal("CAL-SB", 0, 99)).toBe(false);
+    expect(JSON.stringify(readAllCoordination().corridorSignals)).toBe(before);
+  });
+
+  it("is blocked by the storage read-only guard", () => {
+    seed();
+    const before = JSON.stringify(readAllCoordination().corridorSignals);
+    setStorageReadOnly(true);
+    try {
+      moveCorridorSignal("CAL-SB", 0, 4);
+    } finally {
+      setStorageReadOnly(false);
+    }
+    expect(JSON.stringify(readAllCoordination().corridorSignals)).toBe(before);
+  });
+});
+
+describe("editing a signal id", () => {
+  const seed = () => COORDINATION_ENTITIES.forEach((e) => e.replaceFrom(parseSample()));
+  const stored = (key: string) =>
+    JSON.stringify(readAllCoordination()[key as keyof ReturnType<typeof readAllCoordination>]);
+  const rowFor = (patternId: string, signalId: string) =>
+    readAllCoordination().patternSignals.find(
+      (r) => r.patternId === patternId && r.signalId === signalId,
+    )!;
+
+  describe("one row", () => {
+    it("re-points a PatternSignals row in place, leaving every other row alone", () => {
+      seed();
+      const ps = entity("patternSignals");
+      const before = readAllCoordination().patternSignals;
+      const id = ps.identityOf(rowFor("CAL-SB-P01", "SIG-022"));
+      const index = before.findIndex((r) => ps.identityOf(r) === id);
+
+      expect(ps.changeRowSignal?.(id, "SIG-122")).toBe("ok");
+
+      const after = readAllCoordination().patternSignals;
+      expect(after).toHaveLength(before.length);
+      expect(after[index].signalId).toBe("SIG-122");
+      // Everything but that one row is byte-identical.
+      expect(after.filter((_, i) => i !== index)).toEqual(before.filter((_, i) => i !== index));
+      // The rest of the row came with it.
+      expect(after[index]).toEqual({ ...before[index], signalId: "SIG-122" });
+    });
+
+    // PatternSignals is keyed (pattern, signal): this would make two rows for
+    // the same signal in the same pattern.
+    it("refuses a move that would duplicate a row, and writes nothing", () => {
+      seed();
+      const ps = entity("patternSignals");
+      const before = stored("patternSignals");
+      const id = ps.identityOf(rowFor("CAL-SB-P01", "SIG-022"));
+
+      expect(ps.changeRowSignal?.(id, "SIG-023")).toBe("duplicate");
+      expect(stored("patternSignals")).toBe(before);
+    });
+
+    it("uses the whole composite key for Splits and PhaseSequence", () => {
+      seed();
+      const splits = entity("splits");
+      const first = readAllCoordination().splits[0];
+      const id = splits.identityOf(first);
+
+      // Same pattern and phase, different signal that already has that split.
+      const other = readAllCoordination().splits.find(
+        (r) =>
+          r.patternId === first.patternId &&
+          r.phaseId === first.phaseId &&
+          r.signalId !== first.signalId,
+      )!;
+      expect(splits.changeRowSignal?.(id, other.signalId)).toBe("duplicate");
+      expect(splits.changeRowSignal?.(id, "SIG-NEW")).toBe("ok");
+
+      const seq = entity("phaseSequence");
+      const row = readAllCoordination().phaseSequence[0];
+      expect(seq.changeRowSignal?.(seq.identityOf(row), "SIG-NEW")).toBe("ok");
+      expect(readAllCoordination().phaseSequence[0].signalId).toBe("SIG-NEW");
+    });
+
+    it("trims the new id and rejects a blank one", () => {
+      seed();
+      const ps = entity("patternSignals");
+      const id = ps.identityOf(rowFor("CAL-SB-P01", "SIG-022"));
+      expect(ps.changeRowSignal?.(id, "   ")).toBe("blank");
+      expect(ps.changeRowSignal?.(id, "")).toBe("blank");
+      expect(ps.changeRowSignal?.(id, "  SIG-122 ")).toBe("ok");
+      expect(rowFor("CAL-SB-P01", "SIG-122")).toBeDefined();
+    });
+
+    it("reports a no-op and a missing row without writing", () => {
+      seed();
+      const ps = entity("patternSignals");
+      const before = stored("patternSignals");
+      const id = ps.identityOf(rowFor("CAL-SB-P01", "SIG-022"));
+      expect(ps.changeRowSignal?.(id, "SIG-022")).toBe("unchanged");
+      expect(ps.changeRowSignal?.("no|such|row", "SIG-122")).toBe("missing");
+      expect(stored("patternSignals")).toBe(before);
+    });
+
+    it("is only offered by the files that have a signal id", () => {
+      for (const key of ["corridors", "coordination", "patterns", "schedule"]) {
+        expect(entity(key).changeRowSignal, key).toBeUndefined();
+      }
+      for (const key of ["corridorSignals", "patternSignals", "splits", "phaseSequence"]) {
+        expect(entity(key).changeRowSignal, key).toBeTypeOf("function");
+      }
+    });
+
+    it("is blocked by the storage read-only guard", () => {
+      seed();
+      const ps = entity("patternSignals");
+      const before = stored("patternSignals");
+      const id = ps.identityOf(rowFor("CAL-SB-P01", "SIG-022"));
+      setStorageReadOnly(true);
+      try {
+        ps.changeRowSignal?.(id, "SIG-122");
+      } finally {
+        setStorageReadOnly(false);
+      }
+      expect(stored("patternSignals")).toBe(before);
+    });
+  });
+
+  describe("every row of one signal in a file", () => {
+    it("moves them all and reports the count", () => {
+      seed();
+      const ps = entity("patternSignals");
+      expect(ps.changeSignalInFile?.("SIG-022", "SIG-122")).toEqual({ changed: 3, skipped: 0 });
+      const after = readAllCoordination().patternSignals;
+      expect(after.filter((r) => r.signalId === "SIG-122")).toHaveLength(3);
+      expect(after.some((r) => r.signalId === "SIG-022")).toBe(false);
+      expect(after).toHaveLength(24);
+    });
+
+    it("skips, and reports, every row that would collide", () => {
+      seed();
+      const ps = entity("patternSignals");
+      const before = stored("patternSignals");
+      // SIG-023 already has a row in P01, P03 and P05.
+      expect(ps.changeSignalInFile?.("SIG-022", "SIG-023")).toEqual({ changed: 0, skipped: 3 });
+      expect(stored("patternSignals")).toBe(before);
+    });
+
+    it("moves the rows that can move when only some collide", () => {
+      seed();
+      const ps = entity("patternSignals");
+      ps.deleteRow(ps.identityOf(rowFor("CAL-SB-P03", "SIG-023")));
+
+      expect(ps.changeSignalInFile?.("SIG-022", "SIG-023")).toEqual({ changed: 1, skipped: 2 });
+      expect(rowFor("CAL-SB-P03", "SIG-023").offsetS).toBe(45); // was SIG-022's P03 row
+      expect(rowFor("CAL-SB-P01", "SIG-022")).toBeDefined(); // collided, left in place
+    });
+
+    it("does nothing for a blank or unchanged target", () => {
+      seed();
+      const ps = entity("patternSignals");
+      expect(ps.changeSignalInFile?.("SIG-022", "")).toEqual({ changed: 0, skipped: 0 });
+      expect(ps.changeSignalInFile?.("SIG-022", "SIG-022")).toEqual({ changed: 0, skipped: 0 });
+    });
+
+    it("still renames corridorSignals, where the signal isn't part of the key", () => {
+      seed();
+      expect(entity("corridorSignals").changeSignalInFile?.("SIG-022", "SIG-122")).toEqual({
+        changed: 1,
+        skipped: 0,
+      });
+    });
+  });
+
+  describe("everywhere in the coordination files", () => {
+    const mentions = (id: string) => {
+      const all = readAllCoordination();
+      return {
+        corridorSignals: all.corridorSignals.filter((r) => r.signalId === id).length,
+        patternSignals: all.patternSignals.filter((r) => r.signalId === id).length,
+        splits: all.splits.filter((r) => r.signalId === id).length,
+        phaseSequence: all.phaseSequence.filter((r) => r.signalId === id).length,
+        patternRefs: all.patterns.filter((r) => r.referencePoint === id).length,
+        patternSignalRefs: all.patternSignals.filter((r) => r.referencePoint === id).length,
+      };
+    };
+
+    it("renames the signal's rows and the reference points that name it", () => {
+      seed();
+      const before = mentions("SIG-022");
+      // The reference intersection: all 4 patterns and all 24 pattern-signal rows point at it.
+      expect(before.patternRefs).toBe(4);
+      expect(before.patternSignalRefs).toBe(24);
+
+      const report = renameSignalInCoordination("SIG-022", "SIG-122");
+
+      const rows =
+        before.corridorSignals + before.patternSignals + before.splits + before.phaseSequence;
+      expect(report).toEqual({ changed: rows, skipped: 0, referencePoints: 28 });
+      expect(Object.values(mentions("SIG-022")).every((n) => n === 0)).toBe(true);
+      expect(mentions("SIG-122")).toEqual({ ...before });
+    });
+
+    it("leaves other signals alone", () => {
+      seed();
+      const before = mentions("SIG-023");
+      renameSignalInCoordination("SIG-022", "SIG-122");
+      expect(mentions("SIG-023")).toEqual(before);
+    });
+
+    // A skipped row means the old id is still in use, so repointing the reference
+    // points would strand them from rows that still carry the old id.
+    it("keeps the reference points where they were if any row had to be skipped", () => {
+      seed();
+      const report = renameSignalInCoordination("SIG-022", "SIG-023");
+      expect(report.skipped).toBeGreaterThan(0);
+      expect(report.referencePoints).toBe(0);
+      expect(mentions("SIG-022").patternRefs).toBe(4);
+    });
+
+    it("is what a signal rename from the Signals page now does, reference points included", () => {
+      seed();
+      updateCoordinationSignalId("SIG-022", "SIG-777");
+      const after = readAllCoordination();
+      expect(after.patterns.every((p) => p.referencePoint === "SIG-777")).toBe(true);
+      expect(after.patternSignals.every((p) => p.referencePoint === "SIG-777")).toBe(true);
+    });
+
+    it("is blocked by the storage read-only guard", () => {
+      seed();
+      const before = JSON.stringify(readAllCoordination());
+      setStorageReadOnly(true);
+      try {
+        renameSignalInCoordination("SIG-022", "SIG-122");
+      } finally {
+        setStorageReadOnly(false);
+      }
+      expect(JSON.stringify(readAllCoordination())).toBe(before);
+    });
   });
 });

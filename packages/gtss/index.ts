@@ -53,8 +53,76 @@ export {
   clearAllCoordination,
   detectCoordinationFile,
   readAllCoordination,
+  renameSignalInCoordination,
 } from "./src/localStorage/coordination/entities";
-export type { Entity as CoordinationEntity } from "./src/localStorage/coordination/factory";
+export type { SignalRenameReport } from "./src/localStorage/coordination/entities";
+export type {
+  Entity as CoordinationEntity,
+  RowSignalChange,
+  SignalMoveReport,
+} from "./src/localStorage/coordination/factory";
+export {
+  applyCorridorMove,
+  moveCorridorSignal,
+  moveInList,
+  sortBySequence,
+} from "./src/localStorage/coordination/corridor-order";
+export {
+  alignDaySchedule,
+  DAY_MINUTES,
+  dayTypesFor,
+  describeDayType,
+  effectiveSegments,
+  expandEntry,
+  formatClock,
+  isFreePattern,
+  parseClock,
+  scheduleEntriesForCorridor,
+} from "./src/localStorage/coordination/schedule";
+export type {
+  AlignedSegment,
+  DayAlignment,
+  DayTypeInfo,
+  ScheduleBlock,
+  Segment,
+  SignalPatternState,
+} from "./src/localStorage/coordination/schedule";
+export {
+  buildSequenceDiagrams,
+  patternsUsingSequences,
+  sequenceForPattern,
+  sequenceFromNotes,
+} from "./src/localStorage/coordination/phaseSequenceLayout";
+export type {
+  BarrierColumn,
+  DiagramCell,
+  SequenceDiagram,
+} from "./src/localStorage/coordination/phaseSequenceLayout";
+export {
+  approachMetres,
+  greenAt,
+  simplifyPolyline,
+  simulateTrajectories,
+} from "./src/localStorage/coordination/trajectories";
+export type {
+  Trajectory,
+  TrajectoryMode,
+  TrajectoryOptions,
+  TrajectoryStop,
+} from "./src/localStorage/coordination/trajectories";
+export {
+  emptyOffsetHistory,
+  MAX_OFFSET_HISTORY,
+  OFFSET_COALESCE_MS,
+  recordOffsetEdit,
+  redoOffsetEdit,
+  undoOffsetEdit,
+} from "./src/localStorage/coordination/offsetHistory";
+export type {
+  HistoryStep,
+  OffsetEdit,
+  OffsetHistory,
+} from "./src/localStorage/coordination/offsetHistory";
 export { emptyCoordinationRows, identityOf } from "./src/localStorage/coordination/rows";
 export type {
   CoordinationFlags,

@@ -1,7 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Lock } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type CellType = "text" | "number";
 
@@ -33,6 +33,11 @@ export default function CoordinationCell({
   const asText = value === null || value === undefined ? "" : String(value);
   const [draft, setDraft] = useState(asText);
   const [editing, setEditing] = useState(false);
+  // Set by Escape so the blur it causes doesn't commit what was typed. Escape
+  // resets `draft` and then blurs the input, but the blur handler runs before the
+  // reset has been applied and still sees the typed value; state can't carry the
+  // "cancelled" signal across that gap, a ref can.
+  const cancelled = useRef(false);
 
   // Keep in step when the row changes underneath (import, undo, another edit).
   useEffect(() => {
@@ -62,6 +67,11 @@ export default function CoordinationCell({
 
   const commit = () => {
     setEditing(false);
+    if (cancelled.current) {
+      cancelled.current = false;
+      setDraft(asText);
+      return;
+    }
     if (draft === asText) return;
     if (type === "number") {
       const trimmed = draft.trim();
@@ -92,6 +102,7 @@ export default function CoordinationCell({
           e.preventDefault();
           (e.target as HTMLInputElement).blur();
         } else if (e.key === "Escape") {
+          cancelled.current = true;
           setDraft(asText);
           setEditing(false);
           (e.target as HTMLInputElement).blur();
