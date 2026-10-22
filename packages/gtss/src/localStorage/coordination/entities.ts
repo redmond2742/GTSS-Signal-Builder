@@ -53,6 +53,7 @@ export const COORDINATION_ENTITIES: readonly Entity[] = [
     generate: generateCorridorsCSV,
     parse: parseCorridorsTXT,
     identity: (r) => identityOf(r.corridorId),
+    keyFields: ["corridorId"],
     applyScope: (rows, scope) => rows.filter((r) => inScope(scope.corridorIds, r.corridorId)),
   }),
 
@@ -66,6 +67,7 @@ export const COORDINATION_ENTITIES: readonly Entity[] = [
     generate: generateCorridorSignalsCSV,
     parse: parseCorridorSignalsTXT,
     identity: (r) => identityOf(r.corridorId, r.sequence),
+    keyFields: ["corridorId", "sequence"],
     applyScope: (rows, scope) => rows.filter((r) => inScope(scope.signalIds, r.signalId)),
     signalRef: { get: (r) => r.signalId, set: (r, signalId) => ({ ...r, signalId }) },
   }),
@@ -79,6 +81,7 @@ export const COORDINATION_ENTITIES: readonly Entity[] = [
     generate: generateCoordinationCSV,
     parse: parseCoordinationTXT,
     identity: (r) => identityOf(r.coordinationId),
+    keyFields: ["coordinationId"],
     applyScope: (rows, scope) =>
       rows.filter((r) => inScope(scope.coordinationIds, r.coordinationId)),
   }),
@@ -92,6 +95,7 @@ export const COORDINATION_ENTITIES: readonly Entity[] = [
     generate: generatePatternsCSV,
     parse: parsePatternsTXT,
     identity: (r) => identityOf(r.patternId),
+    keyFields: ["patternId"],
     applyScope: (rows, scope) => rows.filter((r) => inScope(scope.patternIds, r.patternId)),
   }),
 
@@ -105,6 +109,7 @@ export const COORDINATION_ENTITIES: readonly Entity[] = [
     generate: generatePatternSignalsCSV,
     parse: parsePatternSignalsTXT,
     identity: (r) => identityOf(r.patternId, r.signalId),
+    keyFields: ["patternId", "signalId"],
     applyScope: (rows, scope) =>
       rows.filter(
         (r) => inScope(scope.patternIds, r.patternId) && inScope(scope.signalIds, r.signalId),
@@ -121,6 +126,7 @@ export const COORDINATION_ENTITIES: readonly Entity[] = [
     generate: generateSplitsCSV,
     parse: parseSplitsTXT,
     identity: (r) => identityOf(r.patternId, r.signalId, r.phaseId),
+    keyFields: ["patternId", "signalId", "phaseId"],
     applyScope: (rows, scope) =>
       rows.filter(
         (r) => inScope(scope.patternIds, r.patternId) && inScope(scope.signalIds, r.signalId),
@@ -137,6 +143,7 @@ export const COORDINATION_ENTITIES: readonly Entity[] = [
     generate: generateScheduleCSV,
     parse: parseScheduleTXT,
     identity: (r) => identityOf(r.scheduleId),
+    keyFields: ["scheduleId"],
     applyScope: (rows, scope) => rows.filter((r) => inScope(scope.patternIds, r.patternId)),
   }),
 
@@ -150,6 +157,7 @@ export const COORDINATION_ENTITIES: readonly Entity[] = [
     generate: generatePhaseSequenceCSV,
     parse: parsePhaseSequenceTXT,
     identity: (r) => identityOf(r.signalId, r.sequenceId, r.ring, r.position),
+    keyFields: ["signalId", "sequenceId", "ring", "position"],
     applyScope: (rows, scope) => rows.filter((r) => inScope(scope.signalIds, r.signalId)),
     signalRef: { get: (r) => r.signalId, set: (r, signalId) => ({ ...r, signalId }) },
   }),

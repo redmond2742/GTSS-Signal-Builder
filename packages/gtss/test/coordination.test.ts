@@ -397,3 +397,80 @@ describe("app wiring", () => {
     }
   });
 });
+
+describe("row editing", () => {
+  const splits = () => entity("splits");
+  const seed = () => {
+    COORDINATION_ENTITIES.forEach((e) => e.replaceFrom(parseSample()));
+  };
+
+  it("patches a non-key field in place", () => {
+    seed();
+    const target = readAllCoordination().splits[0];
+    const id = splits().identityOf(target);
+
+    splits().updateRow(id, { splitS: 999 });
+
+    const after = readAllCoordination().splits;
+    expect(after).toHaveLength(100);
+    expect(splits().identityOf(after[0])).toBe(id);
+    expect(after[0].splitS).toBe(999);
+  });
+
+  // Key fields are the row's address. A patch that changed one would move the
+  // row out from under its own identity, so they are dropped rather than trusted.
+  it("ignores key fields in a patch", () => {
+    seed();
+    const target = readAllCoordination().splits[0];
+    const id = splits().identityOf(target);
+
+    splits().updateRow(id, { phaseId: 77, splitS: 12 });
+
+    const row = readAllCoordination().splits.find((r) => splits().identityOf(r) === id);
+    expect(row?.phaseId).toBe(target.phaseId);
+    expect(row?.splitS).toBe(12);
+  });
+
+  it("appends a row and refuses a duplicate key", () => {
+    seed();
+    const fresh = { patternId: "CAL-SB-P01", signalId: "SIG-022", phaseId: 99, splitS: 5 };
+
+    expect(splits().addRow(fresh)).toBe(true);
+    expect(readAllCoordination().splits).toHaveLength(101);
+
+    expect(splits().addRow({ ...fresh, splitS: 7 })).toBe(false);
+    expect(readAllCoordination().splits).toHaveLength(101);
+  });
+
+  it("deletes by identity without touching its neighbours", () => {
+    seed();
+    const target = readAllCoordination().splits[0];
+    const id = splits().identityOf(target);
+
+    splits().deleteRow(id);
+
+    const after = readAllCoordination().splits;
+    expect(after).toHaveLength(99);
+    expect(after.some((r) => splits().identityOf(r) === id)).toBe(false);
+  });
+
+  it("declares keyFields that match its identity", () => {
+    for (const e of COORDINATION_ENTITIES) {
+      expect(e.keyFields.length, `${e.key} keyFields`).toBeGreaterThan(0);
+    }
+    expect(splits().keyFields).toEqual(["patternId", "signalId", "phaseId"]);
+  });
+
+  it("is blocked by the storage read-only guard", () => {
+    seed();
+    const id = splits().identityOf(readAllCoordination().splits[0]);
+    setStorageReadOnly(true);
+    try {
+      splits().updateRow(id, { splitS: 1 });
+      splits().deleteRow(id);
+      expect(readAllCoordination().splits).toHaveLength(100);
+    } finally {
+      setStorageReadOnly(false);
+    }
+  });
+});

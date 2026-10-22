@@ -31,6 +31,9 @@ interface GTSSStore {
    *  weight. Select `s.coordination` and destructure — do not build the
    *  object inside a selector or every consumer re-renders. */
   coordination: CoordinationRows;
+  /** Re-read every coordination collection from storage. Called after an
+   *  edit; cheaper and less disruptive than a full loadFromStorage(). */
+  refreshCoordination: () => void;
 
   // Navigation state (for single-page app without URL routing)
   currentView: "main" | "signal-details";
@@ -98,6 +101,7 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
   detectors: detectorStorage.getAll(),
   basicTimings: basicTimingStorage.getAll(),
   coordination: readAllCoordination(),
+  refreshCoordination: () => set({ coordination: readAllCoordination() }),
 
   // Initial navigation state
   currentView: "main",

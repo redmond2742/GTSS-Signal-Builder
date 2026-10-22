@@ -32,6 +32,12 @@ export interface Descriptor<K extends CoordinationKey> {
   readonly parse: (content: string) => CoordinationRows[K];
   /** Natural key. Never a surrogate id — these rows don't have one. */
   readonly identity: (row: CoordinationRow<K>) => string;
+  /**
+   * Row properties that make up the identity. The cell editor renders these
+   * read-only: changing one would silently relocate the row, and with
+   * composite keys it could collide with an existing one.
+   */
+  readonly keyFields: readonly string[];
   /** Narrow to the rows that survive an agency/signal filter on export. */
   readonly applyScope: (rows: CoordinationRows[K], scope: CoordinationScope) => CoordinationRows[K];
   /** Present only for the four files that carry a signal_id. */
@@ -69,6 +75,17 @@ export interface Entity {
   /** Signal rename / delete fan-out, for the four signal-scoped files. */
   readonly deleteBySignal?: (signalId: string) => void;
   readonly updateSignalId?: (oldId: string, newId: string) => void;
+
+  // --- editing -----------------------------------------------------------
+  /** Row properties that form the identity; the cell editor locks these. */
+  readonly keyFields: readonly string[];
+  /** Natural key for a row, for list keys and row addressing. */
+  readonly identityOf: (row: unknown) => string;
+  /** Patch one row's non-key fields, addressed by natural key. */
+  readonly updateRow: (identity: string, patch: Record<string, unknown>) => void;
+  /** Append a row. Returns false (and writes nothing) if the key already exists. */
+  readonly addRow: (row: unknown) => boolean;
+  readonly deleteRow: (identity: string) => void;
 }
 
 export function defineEntity<K extends CoordinationKey>(d: Descriptor<K>): Entity {
@@ -112,6 +129,39 @@ export function defineEntity<K extends CoordinationKey>(d: Descriptor<K>): Entit
       // `!== undefined`, not truthy: an empty array is a meaningful "this file
       // was present and had no rows", and must clear what is stored.
       if (rows !== undefined) write(rows as CoordinationRows[K]);
+    },
+
+    keyFields: d.keyFields,
+    identityOf: (row) => d.identity(row as CoordinationRow<K>),
+
+    updateRow: (identity, patch) => {
+      const rows = read();
+      let touched = false;
+      const next = rows.map((row) => {
+        if (d.identity(row as CoordinationRow<K>) !== identity) return row;
+        touched = true;
+        // Key fields are dropped rather than trusted: a patch that changed one
+        // would move the row out from under its own identity.
+        const safe = Object.fromEntries(
+          Object.entries(patch).filter(([field]) => !d.keyFields.includes(field)),
+        );
+        return { ...row, ...safe };
+      });
+      if (touched) write(next as CoordinationRows[K]);
+    },
+
+    addRow: (row) => {
+      const rows = read();
+      const key = d.identity(row as CoordinationRow<K>);
+      if (rows.some((r) => d.identity(r as CoordinationRow<K>) === key)) return false;
+      write([...rows, row] as CoordinationRows[K]);
+      return true;
+    },
+
+    deleteRow: (identity) => {
+      const rows = read();
+      const kept = rows.filter((r) => d.identity(r as CoordinationRow<K>) !== identity);
+      if (kept.length !== rows.length) write(kept as CoordinationRows[K]);
     },
 
     mergeFrom: (bag) => {
