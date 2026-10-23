@@ -7,6 +7,8 @@ import {
   generatePhasesCSV,
   generateSignalsCSV,
 } from "./csv-export";
+import { COORDINATION_ENTITIES, readAllCoordination } from "./coordination/entities";
+import { resolveCoordinationScope } from "./coordination/scope";
 import { agencyListStorage, agencyStorage } from "./storage/agencies";
 import { approachStorage } from "./storage/approaches";
 import { basicTimingStorage } from "./storage/basicTimings";
@@ -42,6 +44,9 @@ type ExportOptions = {
   phases: boolean;
   detection: boolean;
   basicTimings: boolean;
+  /** Opt-in: fold the 8 coordination files into the main export. Optional so
+   *  existing six-key callers keep compiling. */
+  coordination?: boolean;
 };
 
 const defaultExportOptions: ExportOptions = {
@@ -68,12 +73,17 @@ const getFilteredExportData = (agencyIds: string[] | null) => {
   return {
     agencies: filteredAgencies,
     signals: filteredSignals,
+    filteredSignalIds,
     approaches: data.approaches.filter((approach) => filteredSignalIds.includes(approach.signalId)),
     phases: data.phases.filter((phase) => filteredSignalIds.includes(phase.signalId)),
     detectors: data.detectors.filter((detector) => filteredSignalIds.includes(detector.signalId)),
     basicTimings: data.basicTimings.filter((timing) => filteredSignalIds.includes(timing.signalId)),
   };
 };
+
+/** Coordination rows that survive the current agency filter. */
+const coordinationScopeFor = (agencyIds: string[] | null, filteredSignalIds: string[]) =>
+  resolveCoordinationScope(agencyIds === null ? null : filteredSignalIds, readAllCoordination());
 
 export const exportAsIndividualFiles = async (
   includeFiles: ExportOptions = defaultExportOptions,
@@ -91,6 +101,13 @@ export const exportAsIndividualFiles = async (
     if (includeFiles.detection) downloadFile(generateDetectionCSV(data.detectors), "detectors.txt");
     if (includeFiles.basicTimings)
       downloadFile(generateBasicTimingsCSV(data.basicTimings), "basic_timings.txt");
+
+    if (includeFiles.coordination) {
+      const scope = coordinationScopeFor(agencyIds, data.filteredSignalIds);
+      COORDINATION_ENTITIES.forEach((entity) =>
+        downloadFile(entity.render(scope), entity.filename),
+      );
+    }
   } catch (error) {
     console.error("Export failed:", error);
     throw error;
@@ -114,6 +131,11 @@ export const exportAsZip = async (
     if (includeFiles.basicTimings)
       zip.file("basic_timings.txt", generateBasicTimingsCSV(data.basicTimings));
 
+    if (includeFiles.coordination) {
+      const scope = coordinationScopeFor(agencyIds, data.filteredSignalIds);
+      COORDINATION_ENTITIES.forEach((entity) => zip.file(entity.filename, entity.render(scope)));
+    }
+
     const zipBlob = await zip.generateAsync({ type: "blob" });
     const url = URL.createObjectURL(zipBlob);
     const link = document.createElement("a");
@@ -125,6 +147,34 @@ export const exportAsZip = async (
     URL.revokeObjectURL(url);
   } catch (error) {
     console.error("Export failed:", error);
+    throw error;
+  }
+};
+
+/**
+ * Export the 8 coordination files on their own, as GTSS-Coordination.zip —
+ * the same shape the timing-sheet converter produces.
+ */
+export const exportCoordinationAsZip = async (agencyIds: string[] | null = null): Promise<void> => {
+  try {
+    const JSZip = (await import("jszip")).default;
+    const zip = new JSZip();
+    const data = getFilteredExportData(agencyIds);
+    const scope = coordinationScopeFor(agencyIds, data.filteredSignalIds);
+
+    COORDINATION_ENTITIES.forEach((entity) => zip.file(entity.filename, entity.render(scope)));
+
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(zipBlob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `GTSS-Coordination-${new Date().toISOString().split("T")[0]}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Coordination export failed:", error);
     throw error;
   }
 };

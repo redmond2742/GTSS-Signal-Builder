@@ -2,6 +2,7 @@ import AgencyDefaultsSettings from "@/components/gtss/agency-defaults-settings";
 import AgencyForm from "@/components/gtss/agency-form";
 import ApproachesTable from "@/components/gtss/approaches-table";
 import BasicTimingsTable from "@/components/gtss/basic-timings-table";
+import CoordinationPage from "@/components/gtss/coordination-page";
 import DemoPage from "@/components/gtss/demo-page";
 import DetectorsTable from "@/components/gtss/detectors-table";
 import ExportPanel from "@/components/gtss/export-panel";
@@ -36,7 +37,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import SignalDetails from "@/pages/signal-details";
-import { clearAllData, isDemoEnabled, useGTSSStore, useLoadFromStorage } from "gtss";
+import {
+  clearAllData,
+  isCoordinationEnabled,
+  isDemoEnabled,
+  useGTSSStore,
+  useLoadFromStorage,
+} from "gtss";
 import {
   ArrowUpDown,
   Building,
@@ -54,6 +61,7 @@ import {
   Plus,
   SlidersHorizontal,
   Sparkles,
+  Waypoints,
   Target,
   TrafficCone,
   Trash2,
@@ -61,7 +69,14 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type TabType =
-  "agency" | "signals" | "approaches" | "phases" | "detectors" | "basic-timings" | "demo";
+  | "agency"
+  | "signals"
+  | "approaches"
+  | "phases"
+  | "detectors"
+  | "basic-timings"
+  | "coordination"
+  | "demo";
 
 const baseTabs = [
   { id: "signals" as const, label: "Traffic Signals", icon: MapPin },
@@ -75,6 +90,10 @@ const baseTabs = [
 const tabTitles: Record<TabType, { title: string; desc: string }> = {
   agency: { title: "Agency Information", desc: "Configure your traffic management agency details" },
   signals: { title: "Traffic Signals", desc: "Manage traffic signal installation locations" },
+  coordination: {
+    title: "Coordination",
+    desc: "Corridors, timing patterns, offsets, splits and time-of-day schedules",
+  },
   approaches: {
     title: "Approaches",
     desc: "Configure approach directions and speeds for each signal",
@@ -123,13 +142,18 @@ export default function GTSSBuilder() {
   const { setSelectedSignalIdForTables, setDeepLinkTarget } = useGTSSStore();
 
   const showDemo = isDemoEnabled(agencyDefaults);
+  const showCoordination = isCoordinationEnabled(agencyDefaults);
 
   const navTabs = useMemo(() => {
-    if (showDemo) {
-      return [...baseTabs, { id: "demo" as const, label: "Demo Gallery", icon: Sparkles }];
+    const tabs: { id: TabType; label: string; icon: typeof MapPin }[] = [...baseTabs];
+    if (showCoordination) {
+      tabs.push({ id: "coordination", label: "Coordination", icon: Waypoints });
     }
-    return baseTabs;
-  }, [showDemo]);
+    if (showDemo) {
+      tabs.push({ id: "demo", label: "Demo Gallery", icon: Sparkles });
+    }
+    return tabs;
+  }, [showDemo, showCoordination]);
 
   // Creating a signal is a modal over the list now, so a signal-details view
   // with no ID is an orphan route (a stale bookmark, or the old "New Signal"
@@ -141,6 +165,12 @@ export default function GTSSBuilder() {
   }, [currentView, currentSignalId, navigateToMain]);
 
   // If active tab is demo and demo mode is disabled, revert to signals
+  useEffect(() => {
+    if (activeTab === "coordination" && !showCoordination) {
+      setActiveTab("signals");
+    }
+  }, [activeTab, showCoordination]);
+
   useEffect(() => {
     if (activeTab === "demo" && !showDemo) {
       setActiveTab("signals");
@@ -195,6 +225,8 @@ export default function GTSSBuilder() {
     switch (activeTab) {
       case "agency":
         return <AgencyForm />;
+      case "coordination":
+        return <CoordinationPage />;
       case "demo":
         return <DemoPage />;
       case "signals":

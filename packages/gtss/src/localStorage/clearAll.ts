@@ -1,3 +1,4 @@
+import { clearAllCoordination } from "./coordination/entities";
 import { agencyListStorage, agencyStorage } from "./storage/agencies";
 import { approachStorage } from "./storage/approaches";
 import { basicTimingStorage } from "./storage/basicTimings";
@@ -13,4 +14,5 @@ export const clearAllData = (): void => {
   phaseStorage.clear();
   detectorStorage.clear();
   basicTimingStorage.clear();
+  clearAllCoordination();
 };

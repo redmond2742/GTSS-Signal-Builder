@@ -17,7 +17,18 @@ import {
   useGTSSStore,
   validatePhaseDirectionStandard,
 } from "gtss";
-import { Eye, Info, Move, RotateCcw, Save, Search, Settings, Sparkles, X } from "lucide-react";
+import {
+  Eye,
+  Info,
+  Move,
+  RotateCcw,
+  Save,
+  Search,
+  Settings,
+  Sparkles,
+  Waypoints,
+  X,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 const DIRECTIONS = [
@@ -101,6 +112,9 @@ export default function AgencyDefaultsSettings() {
   const [defaultPhaseCount, setDefaultPhaseCount] = useState<number>(current.defaultPhaseCount);
   const [mapScrollWheel, setMapScrollWheel] = useState<MapScrollWheelMode>(current.mapScrollWheel);
   const [showDemo, setShowDemo] = useState<boolean>(current.showDemo ?? false);
+  const [showCoordination, setShowCoordination] = useState<boolean>(
+    current.showCoordination ?? false,
+  );
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isDirty, setIsDirty] = useState(false);
 
@@ -111,6 +125,7 @@ export default function AgencyDefaultsSettings() {
     setDefaultPhaseCount(src.defaultPhaseCount);
     setMapScrollWheel(src.mapScrollWheel);
     setShowDemo(src.showDemo ?? false);
+    setShowCoordination(src.showCoordination ?? false);
     setIsDirty(false);
     setValidationErrors([]);
   }, [agencyDefaults]);
@@ -133,6 +148,11 @@ export default function AgencyDefaultsSettings() {
 
   const handleShowDemoChange = (enabled: boolean) => {
     setShowDemo(enabled);
+    setIsDirty(true);
+  };
+
+  const handleShowCoordinationChange = (next: boolean) => {
+    setShowCoordination(next);
     setIsDirty(true);
   };
 
@@ -169,6 +189,7 @@ export default function AgencyDefaultsSettings() {
       defaultPhaseCount,
       mapScrollWheel,
       showDemo,
+      showCoordination,
       updatedAt: new Date().toISOString(),
     };
 
@@ -188,6 +209,7 @@ export default function AgencyDefaultsSettings() {
     setDefaultPhaseCount(src.defaultPhaseCount);
     setMapScrollWheel(src.mapScrollWheel);
     setShowDemo(src.showDemo ?? false);
+    setShowCoordination(src.showCoordination ?? false);
     setIsDirty(false);
     setValidationErrors([]);
   };
@@ -441,6 +463,71 @@ export default function AgencyDefaultsSettings() {
                   key={String(enabled)}
                   type="button"
                   onClick={() => handleShowDemoChange(enabled)}
+                  aria-pressed={selected}
+                  className={`text-left rounded-md border p-3 transition-colors ${
+                    selected
+                      ? "border-primary-600 bg-primary-50"
+                      : "border-grey-200 hover:bg-grey-50"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Icon
+                      className={`w-4 h-4 ${selected ? "text-primary-600" : "text-grey-400"}`}
+                    />
+                    <span
+                      className={`text-sm font-medium ${selected ? "text-primary-700" : "text-grey-700"}`}
+                    >
+                      {title}
+                    </span>
+                  </span>
+                  <span className="block text-xs text-grey-500 mt-1">{blurb}</span>
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="bg-grey-50 border-b border-grey-200 p-3">
+          <div className="flex items-center gap-2">
+            <Waypoints className="w-4 h-4 text-amber-600" />
+            <CardTitle className="text-sm font-semibold text-grey-800">
+              Coordination
+              <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700">
+                Experimental
+              </span>
+            </CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4">
+          <p className="text-xs text-grey-500 mb-3">
+            Adds a <strong>Coordination</strong> section for corridors, timing patterns, offsets,
+            splits and time-of-day schedules. This release can import, view and validate
+            coordination files &mdash; editing is not available yet.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {[
+              {
+                enabled: false,
+                icon: Eye,
+                title: "Hidden (Default)",
+                blurb: "Coordination files are ignored on import and the section stays hidden.",
+              },
+              {
+                enabled: true,
+                icon: Waypoints,
+                title: "Show Coordination",
+                blurb:
+                  "Adds the Coordination section, its validation report and its export package.",
+              },
+            ].map(({ enabled, icon: Icon, title, blurb }) => {
+              const selected = showCoordination === enabled;
+              return (
+                <button
+                  key={String(enabled)}
+                  type="button"
+                  onClick={() => handleShowCoordinationChange(enabled)}
                   aria-pressed={selected}
                   className={`text-left rounded-md border p-3 transition-colors ${
                     selected

@@ -32,8 +32,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import type { LibraryEntry } from "gtss";
+import type { CoordinationKey, LibraryEntry, ParsedCoordination } from "gtss";
 import {
+  COORDINATION_ENTITIES,
+  detectCoordinationFile,
+  isCoordinationEnabled,
   flattenLibraryEntries,
   getLibrarySourceUrls,
   isDemoEnabled,
@@ -53,10 +56,21 @@ import { useEffect, useMemo, useState } from "react";
 import { MapContainer, Rectangle, useMap } from "react-leaflet";
 import { Checkbox } from "../ui/checkbox";
 
+/** A coordination file is identified by its registry key. */
+type FileKind =
+  | "agency"
+  | "signals"
+  | "approaches"
+  | "phases"
+  | "detectors"
+  | "basic_timings"
+  | CoordinationKey
+  | "unknown";
+
 type FileData = {
   name: string;
   content: string;
-  type: "agency" | "signals" | "approaches" | "phases" | "detectors" | "basic_timings" | "unknown";
+  type: FileKind;
 };
 
 type ParsedData = {
@@ -66,7 +80,7 @@ type ParsedData = {
   phases?: Phase[];
   detectors?: Detector[];
   basicTimings?: BasicTiming[];
-};
+} & ParsedCoordination;
 
 type ValidationError = {
   file: string;
@@ -120,6 +134,7 @@ function LibraryMap({ items }: { items: LibraryEntry[] }) {
 export function ImportPanel({ onImportComplete }: { onImportComplete?: () => void }) {
   const { agencyDefaults } = useGTSSStore();
   const showDemo = isDemoEnabled(agencyDefaults);
+  const coordinationEnabled = isCoordinationEnabled(agencyDefaults);
   const { import: runImport } = useImportData();
   const [uploadedFiles, setUploadedFiles] = useState<FileData[]>([]);
   const [importMode, setImportMode] = useState<"replace" | "merge">("replace");
@@ -186,10 +201,13 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
     };
   }, [showDemo]);
 
-  const detectFileType = (
-    filename: string,
-  ): "agency" | "signals" | "approaches" | "phases" | "detectors" | "basic_timings" | "unknown" => {
+  const detectFileType = (filename: string): FileKind => {
     const lower = filename.toLowerCase();
+    // Registry first: the substring chain below would mis-claim three
+    // coordination files ("signal" catches corridorSignals and PatternSignals,
+    // "phase" catches PhaseSequence).
+    const coordination = coordinationEnabled ? detectCoordinationFile(filename) : null;
+    if (coordination) return coordination.key;
     if (lower.includes("agency")) return "agency";
     if (lower.includes("signal")) return "signals";
     if (lower.includes("approach")) return "approaches";
@@ -296,13 +314,19 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
             parsed.basicTimings = [...(parsed.basicTimings || []), ...basicTimings];
             break;
           }
-          case "unknown":
+          default: {
+            const entity = COORDINATION_ENTITIES.find((e) => e.key === file.type);
+            if (entity) {
+              entity.parseInto(file.content, parsed);
+              break;
+            }
             errors.push({
               file: file.name,
               message:
                 'Could not determine file type from filename. File should contain "agency", "signal", "approach", "phase", "detector", or "timing" in the name.',
             });
             break;
+          }
         }
       } catch (error) {
         errors.push({
@@ -403,6 +427,13 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
       if (parsedData.detectors) payload.detectors = filteredDetectors;
       if (parsedData.basicTimings) payload.basicTimings = filteredBasicTimings;
 
+      COORDINATION_ENTITIES.forEach((entity) => {
+        const rows = parsedData[entity.key];
+        if (rows !== undefined) {
+          (payload as ParsedCoordination)[entity.key] = rows as never;
+        }
+      });
+
       runImport(payload, importMode);
       const stats = {
         agency: selectedAgencies.length,
@@ -411,6 +442,10 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
         phases: filteredPhases.length,
         detectors: filteredDetectors.length,
         basicTimings: filteredBasicTimings.length,
+        coordination: COORDINATION_ENTITIES.reduce(
+          (sum, entity) => sum + entity.countIn(parsedData),
+          0,
+        ),
       };
 
       const importedItems = [
@@ -420,6 +455,7 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
         stats.phases > 0 ? `${stats.phases} phases` : null,
         stats.detectors > 0 ? `${stats.detectors} detectors` : null,
         stats.basicTimings > 0 ? `${stats.basicTimings} timings` : null,
+        stats.coordination > 0 ? `${stats.coordination} coordination rows` : null,
       ]
         .filter(Boolean)
         .join(", ");
@@ -861,6 +897,14 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
                           {parsedData.basicTimings.length !== 1 ? "s" : ""}
                         </li>
                       )}
+                      {COORDINATION_ENTITIES.map((entity) => {
+                        const n = entity.countIn(parsedData);
+                        return n > 0 ? (
+                          <li key={entity.key} data-testid={`preview-${entity.key}`}>
+                            ✓ {n} {entity.label}
+                          </li>
+                        ) : null;
+                      })}
                     </ul>
                   </AlertDescription>
                 </Alert>
@@ -1021,6 +1065,14 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
                     {parsedData.basicTimings.length !== 1 ? "s" : ""}
                   </li>
                 )}
+                {COORDINATION_ENTITIES.map((entity) => {
+                  const n = entity.countIn(parsedData);
+                  return n > 0 ? (
+                    <li key={entity.key} data-testid={`preview-${entity.key}`}>
+                      ✓ {n} {entity.label}
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </AlertDescription>
           </Alert>

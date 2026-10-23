@@ -1,5 +1,7 @@
 import { nanoid } from "nanoid";
 import type { Agency, Approach, BasicTiming, Detector, Phase, Signal } from "../../schema/public";
+import { COORDINATION_ENTITIES } from "./coordination/entities";
+import type { ParsedCoordination } from "./coordination/rows";
 import { STORAGE_KEYS } from "./keys";
 import {
   displayDistanceToStored,
@@ -19,7 +21,7 @@ export function importData(
     phases?: Phase[];
     detectors?: Detector[];
     basicTimings?: BasicTiming[];
-  },
+  } & ParsedCoordination,
   mode: "replace" | "merge" = "replace",
 ): void {
   if (mode === "replace") {
@@ -98,6 +100,8 @@ export function importData(
 
     if (parsedData.basicTimings !== undefined)
       saveToStorage(STORAGE_KEYS.BASIC_TIMINGS, parsedData.basicTimings);
+
+    COORDINATION_ENTITIES.forEach((entity) => entity.replaceFrom(parsedData));
     return;
   }
 
@@ -190,4 +194,6 @@ export function importData(
       ),
     ]);
   }
+
+  COORDINATION_ENTITIES.forEach((entity) => entity.mergeFrom(parsedData));
 }
