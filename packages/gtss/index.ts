@@ -63,7 +63,9 @@ export type {
 } from "./src/localStorage/coordination/factory";
 export {
   applyCorridorMove,
+  applyCorridorRemoval,
   moveCorridorSignal,
+  removeCorridorSignal,
   moveInList,
   sortBySequence,
 } from "./src/localStorage/coordination/corridor-order";
@@ -100,12 +102,15 @@ export type {
 } from "./src/localStorage/coordination/phaseSequenceLayout";
 export {
   approachMetres,
+  cumulativeTravel,
   greenAt,
+  orientStops,
   simplifyPolyline,
   simulateTrajectories,
 } from "./src/localStorage/coordination/trajectories";
 export type {
   Trajectory,
+  TrajectoryDirection,
   TrajectoryMode,
   TrajectoryOptions,
   TrajectoryStop,
@@ -123,6 +128,80 @@ export type {
   OffsetEdit,
   OffsetHistory,
 } from "./src/localStorage/coordination/offsetHistory";
+export {
+  opposingPhaseNumber,
+  opposingWindow,
+  phaseWindow,
+} from "./src/localStorage/coordination/opposingPhase";
+export type {
+  OpposingInput,
+  OpposingWindow,
+  PhaseWindow,
+} from "./src/localStorage/coordination/opposingPhase";
+export {
+  approachSpeedFor,
+  baseStreetName,
+  directionBearing,
+  intersectionStreetNames,
+  leftPhaseFor,
+  nemaSameDirectionLeft,
+  reverseDirection,
+  throughApproachFor,
+  throughPhaseFor,
+} from "./src/localStorage/coordination/gtssLink";
+export type { GtssLinkData } from "./src/localStorage/coordination/gtssLink";
+export { progressionBand, resolveCorridorSpeeds } from "./src/localStorage/coordination/bandwidth";
+export type {
+  ProgressionBand,
+  ResolvedSpeed,
+  SpeedSource,
+} from "./src/localStorage/coordination/bandwidth";
+export {
+  applyBuild,
+  orderAlongBearing,
+  planAddSignal,
+  planCorridor,
+  scheduleIdsFor,
+  splitFromTimings,
+  standardPhaseSequence,
+} from "./src/localStorage/coordination/corridorBuilder";
+export type {
+  BuildResult,
+  CorridorPlan,
+  GtssBuildData,
+  PatternPlan,
+  SchedulePlan,
+  SignalPlan,
+} from "./src/localStorage/coordination/corridorBuilder";
+export {
+  OFFSET_REFERENCES,
+  offsetReferenceFor,
+  parseOffsetReference,
+  setPatternOffsetReference,
+  splitStartShift,
+  undoReferenceChange,
+} from "./src/localStorage/coordination/offsetReference";
+export type {
+  OffsetReference,
+  OffsetReferenceSource,
+  ReferenceChange,
+} from "./src/localStorage/coordination/offsetReference";
+export {
+  apportion,
+  fitSplitsToCycle,
+  setSignalsCycle,
+  undoCycleChange,
+} from "./src/localStorage/coordination/fitSplits";
+export type { CycleChange, FitResult } from "./src/localStorage/coordination/fitSplits";
+export { ringSplitTotals } from "./src/localStorage/coordination/splitTotals";
+export {
+  blocksFromSlots,
+  clockText,
+  normaliseBlocks,
+  scheduleRowsFor,
+  WEEKLY_DAY_TYPES,
+} from "./src/localStorage/coordination/scheduleBuilder";
+export type { TimeBlock } from "./src/localStorage/coordination/scheduleBuilder";
 export { emptyCoordinationRows, identityOf } from "./src/localStorage/coordination/rows";
 export type {
   CoordinationFlags,

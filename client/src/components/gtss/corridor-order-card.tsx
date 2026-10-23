@@ -11,10 +11,22 @@ import {
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { SEGMENT_ITEM_CLASS } from "@/lib/segmented";
-import { moveCorridorSignal, sortBySequence, type Corridor, type CorridorSignal } from "gtss";
+import {
+  applyBuild,
+  intersectionStreetNames,
+  naturalCompare,
+  planAddSignal,
+  removeCorridorSignal,
+  moveCorridorSignal,
+  sortBySequence,
+  type CoordinationRows,
+  type Corridor,
+  type CorridorSignal,
+  type GtssBuildData,
+} from "gtss";
 import type { Signal } from "gtss/schema";
-import { ListOrdered, Route } from "lucide-react";
-import { useMemo } from "react";
+import { AlertTriangle, Info, ListOrdered, Plus, Route, X } from "lucide-react";
+import { useMemo, useState } from "react";
 
 interface CorridorOrderCardProps {
   corridors: readonly Corridor[];
@@ -30,6 +42,20 @@ interface CorridorOrderCardProps {
   readOnly: boolean;
   /** Called after a write so the store can reload from storage. */
   onChanged: () => void;
+  /** Everything stored, so adding a signal can see what it already has. */
+  coordination: CoordinationRows;
+  /** GTSS signals, phases, approaches and timings to build new rows from. */
+  gtss: GtssBuildData;
+  /** Open the New corridor dialog. */
+  onNewCorridor?: () => void;
+  /** What the last add, remove or build did. Kept by the page so a new corridor can report too. */
+  notice: CorridorNotice | null;
+  onNotice: (notice: CorridorNotice | null) => void;
+}
+
+export interface CorridorNotice {
+  tone: "info" | "error";
+  lines: string[];
 }
 
 const LABEL_OPTIONS: { value: PinLabelMode; label: string; hint: string }[] = [
@@ -54,7 +80,14 @@ export default function CorridorOrderCard({
   onHover,
   readOnly,
   onChanged,
+  coordination,
+  gtss,
+  onNewCorridor,
+  notice,
+  onNotice,
 }: CorridorOrderCardProps) {
+  // Remounts the "add a signal" select so it goes back to its placeholder.
+  const [pickerKey, setPickerKey] = useState(0);
   const members = useMemo(
     () => corridorSignals.filter((cs) => cs.corridorId === corridorId),
     [corridorSignals, corridorId],
@@ -76,6 +109,66 @@ export default function CorridorOrderCard({
 
   const move = (from: number, to: number) => {
     if (moveCorridorSignal(corridorId, from, to)) onChanged();
+  };
+
+  // GTSS signals that could join: everything not already in the corridor.
+  const candidates = useMemo(() => {
+    const inCorridor = new Set(members.map((m) => m.signalId));
+    return signals
+      .filter((s) => !inCorridor.has(s.signalId))
+      .sort((a, b) => naturalCompare(a.signalId, b.signalId));
+  }, [signals, members]);
+
+  // "SIG-100 — Lake Ave & Colorado Bl": each street once, without directions.
+  const pickerLabel = (s: Signal) => {
+    const streets = intersectionStreetNames(s, gtss.approaches);
+    return streets.length ? `${s.signalId} \u2014 ${streets.join(" & ")}` : s.signalId;
+  };
+
+  const streetsOf = (signalId: string) => {
+    const s = signals.find((x) => x.signalId === signalId);
+    return s ? intersectionStreetNames(s, gtss.approaches).join(" / ") : "";
+  };
+
+  const add = (signalId: string) => {
+    const result = planAddSignal(coordination, corridorId, signalId, gtss);
+    if (result.error) {
+      onNotice({ tone: "error", lines: [result.error] });
+      return;
+    }
+    applyBuild(result.rows);
+    onChanged();
+    const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+    const added = [
+      result.rows.patternSignals?.length
+        ? count(result.rows.patternSignals.length, "pattern row", "pattern rows")
+        : "",
+      result.rows.splits?.length ? count(result.rows.splits.length, "split", "splits") : "",
+      result.rows.phaseSequence?.length ? "a ring-barrier sequence" : "",
+    ].filter(Boolean);
+    const list =
+      added.length < 2
+        ? added.join("")
+        : `${added.slice(0, -1).join(", ")} and ${added[added.length - 1]}`;
+    onNotice({
+      tone: "info",
+      lines: [
+        `Added ${signalId} to ${corridorId}${list ? `, with ${list} built from GTSS` : ""}.`,
+        ...result.notes,
+      ],
+    });
+  };
+
+  const removeAt = (position: number) => {
+    const signalId = sortBySequence(members)[position]?.signalId;
+    if (!signalId || !removeCorridorSignal(corridorId, position)) return;
+    onChanged();
+    onNotice({
+      tone: "info",
+      lines: [
+        `Removed ${signalId} from ${corridorId}. Its offsets and splits are kept, so adding it back restores them.`,
+      ],
+    });
   };
 
   return (
@@ -112,6 +205,12 @@ export default function CorridorOrderCard({
                 ))}
               </ToggleGroup>
             </div>
+            {!readOnly && onNewCorridor && (
+              <Button variant="outline" onClick={onNewCorridor} className="h-7 px-2 text-xs">
+                <Plus className="mr-1 h-3 w-3" />
+                New corridor
+              </Button>
+            )}
             {corridors.length > 1 && (
               <Select value={corridorId} onValueChange={onCorridorChange}>
                 <SelectTrigger className="h-7 w-56 text-xs" aria-label="Corridor">
@@ -138,6 +237,8 @@ export default function CorridorOrderCard({
             labelMode={labelMode}
             highlightedSignalId={hoveredSignalId}
             onSignalHover={onHover}
+            candidates={readOnly ? [] : candidates}
+            onCandidateSelect={readOnly ? undefined : add}
             className="h-[380px] w-full"
           />
           <div className="flex max-h-[380px] flex-col rounded-lg border border-grey-200">
@@ -164,16 +265,75 @@ export default function CorridorOrderCard({
               hoveredSignalId={hoveredSignalId}
               onHover={onHover}
               onMove={move}
+              onRemove={readOnly ? undefined : removeAt}
+              streetsOf={streetsOf}
               className="min-h-0 flex-1 overflow-y-auto"
             />
             {!readOnly && (
+              <div className="border-t border-grey-200 p-1.5">
+                <Select
+                  key={pickerKey}
+                  onValueChange={(id) => {
+                    add(id);
+                    setPickerKey((k) => k + 1);
+                  }}
+                >
+                  <SelectTrigger className="h-7 text-xs" aria-label="Add a signal to the corridor">
+                    <SelectValue
+                      placeholder={
+                        candidates.length > 0
+                          ? "Add a signal\u2026"
+                          : "Every GTSS signal is already in it"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {candidates.map((s) => (
+                      <SelectItem key={s.signalId} value={s.signalId} className="text-xs">
+                        {pickerLabel(s)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {!readOnly && (
               <p className="border-t border-grey-200 bg-grey-50 px-2 py-1.5 text-[11px] text-grey-500">
-                Drag a stop, or use the arrows, to reorder. The map and the time&ndash;space diagram
-                follow the new order.
+                Drag a stop, or use the arrows, to reorder. Click a grey pin on the map, or pick one
+                above, to add a signal. The map and the time&ndash;space diagram follow along.
               </p>
             )}
           </div>
         </div>
+        {notice && (
+          <div
+            role={notice.tone === "error" ? "alert" : "status"}
+            className={`mt-3 flex items-start gap-2 rounded border px-3 py-2 text-xs ${
+              notice.tone === "error"
+                ? "border-red-200 bg-red-50 text-red-800"
+                : "border-blue-200 bg-blue-50 text-blue-900"
+            }`}
+          >
+            {notice.tone === "error" ? (
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            ) : (
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            )}
+            <ul className="min-w-0 flex-1 space-y-0.5">
+              {notice.lines.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+            <Button
+              variant="ghost"
+              onClick={() => onNotice(null)}
+              aria-label="Dismiss"
+              className="h-5 w-5 p-0"
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

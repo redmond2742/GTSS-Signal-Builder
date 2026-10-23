@@ -148,6 +148,28 @@ export function validateCoordination(
     }
   }
 
+  // --- Pattern rows for signals outside the corridor ----------------------
+  // Removing a signal from a corridor keeps its PatternSignals rows so adding it
+  // back restores its offsets. Left there, they would still be exported.
+  const membersOf = new Map<string, Set<string>>();
+  for (const cs of rows.corridorSignals) {
+    const set = membersOf.get(cs.corridorId) ?? new Set<string>();
+    set.add(cs.signalId);
+    membersOf.set(cs.corridorId, set);
+  }
+  for (const ps of rows.patternSignals) {
+    const corridorId = patternById.get(ps.patternId)?.corridorId;
+    if (corridorId == null || !corridorIds.has(corridorId)) continue;
+    if (membersOf.get(corridorId)?.has(ps.signalId)) continue;
+    issues.push(
+      WARN(
+        "patternSignals",
+        `ps-outside-corridor-${ps.patternId}-${ps.signalId}`,
+        `${ps.signalId} has a PatternSignals row in ${ps.patternId} but is not in corridor ${corridorId}. Add it back to the corridor, or delete the row.`,
+      ),
+    );
+  }
+
   // --- Offsets within the cycle ------------------------------------------
 
   for (const ps of rows.patternSignals) {

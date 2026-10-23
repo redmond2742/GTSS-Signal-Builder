@@ -25,9 +25,27 @@ export interface TrajectoryStop {
   greenS: number;
   /** Runs free in this pattern: no cycle to obey. */
   free: boolean;
+  /**
+   * Free-flow speed on the stretch leading TO this signal in the forward
+   * direction (from the one before it), m/s. Falls back to the options' speed.
+   */
+  approachSpeedMps?: number;
+  /**
+   * The green the opposite direction gets here, if it differs from the one above.
+   * The opposing through phase has its own split and often its own start, so
+   * traffic the other way must not be drawn against the coordinated phase's window.
+   * `approachSpeedMps` is the speed arriving here from the signal AFTER this one.
+   */
+  opposing?: { offsetS: number; greenS: number; approachSpeedMps?: number };
 }
 
 export type TrajectoryMode = "stop-at-red" | "green-wave";
+
+/**
+ * "forward" runs from the first signal toward the last, against each signal's
+ * coordinated green. "opposite" runs the other way, against its opposing green.
+ */
+export type TrajectoryDirection = "forward" | "opposite";
 
 /** One vehicle's path: [seconds, metres] points, in time order. */
 export interface Trajectory {
@@ -38,12 +56,14 @@ export interface Trajectory {
 
 export interface TrajectoryOptions {
   cycleS: number;
-  /** Free-flow speed, metres per second. */
+  /** Free-flow speed, metres per second, where a stop doesn't give its own. */
   speedMps: number;
   /** The window to return, in seconds. The simulation starts earlier to warm up. */
   fromS: number;
   toS: number;
   mode: TrajectoryMode;
+  /** Default "forward". */
+  direction?: TrajectoryDirection;
   /** Seconds between vehicles arriving at the first signal. Default 6. */
   headwayS?: number;
 }
@@ -88,6 +108,19 @@ const STOPPED_BELOW = 0.5;
  * vehicle in free flow would cruise a percent or two under the speed asked for.
  */
 const LONG_RANGE_RATIO = 0.25;
+
+/**
+ * A leader at least this many seconds ahead, and not being caught, has no say in
+ * how fast you go. The ratio cutoff above isn't enough on its own at low speeds:
+ * at 10 m/s a vehicle six seconds behind another still falls inside it and cruises
+ * a little under the posted speed.
+ */
+const FREE_FLOW_TIME_GAP_S = 4;
+/**
+ * …and at least this far ahead. Without a distance floor, "four seconds ahead" is
+ * nothing at all for a stopped vehicle, which would then creep into the car in front.
+ */
+const FREE_FLOW_MIN_GAP_M = 20;
 
 const DEFAULT_HEADWAY_S = 6;
 /** Seconds between vehicles leaving a queue, about what a real one manages. */
@@ -140,12 +173,52 @@ function interaction(v: number, gap: number, closing: number): number {
   return ratio < LONG_RANGE_RATIO ? 0 : -ACCEL * ratio * ratio;
 }
 
+/**
+ * The stops as seen by traffic travelling in `direction`, ordered along its
+ * travel, with distances measured from where it enters. "forward" is the stops as
+ * given; "opposite" turns the corridor round and swaps in each stop's opposing
+ * green and opposing approach speed. `toOriginal` maps a distance back.
+ */
+export function orientStops(
+  stops: readonly TrajectoryStop[],
+  direction: TrajectoryDirection = "forward",
+): { stops: TrajectoryStop[]; toOriginal: (x: number) => number } {
+  const sorted = [...stops].sort((a, b) => a.distanceM - b.distanceM);
+  if (direction === "forward") return { stops: sorted, toOriginal: (x) => x };
+  const length = sorted.length > 0 ? sorted[sorted.length - 1].distanceM : 0;
+  const mirrored = sorted
+    .map((s): TrajectoryStop => ({
+      distanceM: length - s.distanceM,
+      offsetS: s.opposing?.offsetS ?? s.offsetS,
+      greenS: s.opposing?.greenS ?? s.greenS,
+      free: s.free,
+      approachSpeedMps: s.opposing?.approachSpeedMps,
+    }))
+    .sort((a, b) => a.distanceM - b.distanceM);
+  return { stops: mirrored, toOriginal: (x) => length - x };
+}
+
+/** Speed on each stretch, by position: the stretch ending at stop i uses stop i's. */
+function speedProfile(sorted: readonly TrajectoryStop[], fallback: number) {
+  const bounds = sorted.map((s) => s.distanceM);
+  const speeds = sorted.map((s) =>
+    s.approachSpeedMps !== undefined && s.approachSpeedMps > 0 ? s.approachSpeedMps : fallback,
+  );
+  const at = (x: number) => {
+    for (let i = 0; i < bounds.length; i++) if (x <= bounds[i]) return speeds[i];
+    return speeds[speeds.length - 1] ?? fallback;
+  };
+  return { at, speeds, slowest: Math.min(...speeds, fallback) };
+}
+
 function simulateStopAtRed(
+  sorted: readonly TrajectoryStop[],
   signals: readonly TrajectoryStop[],
   lengthM: number,
   o: TrajectoryOptions,
 ): Trajectory[] {
   const { cycleS, speedMps, fromS, toS } = o;
+  const profile = speedProfile(sorted, speedMps);
   const tightestGreen = Math.min(...signals.map((s) => Math.min(s.greenS, cycleS)));
   const sustainable = cycleS / ((MAX_UTILISATION * tightestGreen) / DISCHARGE_HEADWAY_S);
   const headway = o.headwayS ?? Math.max(DEFAULT_HEADWAY_S, sustainable);
@@ -156,7 +229,7 @@ function simulateStopAtRed(
 
   // Long enough before the window that the corridor is already full of traffic
   // and the first signal already has the queue from the previous red.
-  const freeFlowTravel = (exitX - spawnX) / speedMps;
+  const freeFlowTravel = (exitX - spawnX) / profile.slowest;
   const start = fromS - (freeFlowTravel + 3 * cycleS);
 
   const active: Vehicle[] = []; // front of the line first
@@ -173,7 +246,7 @@ function simulateStopAtRed(
       if (room > MIN_GAP + 6) {
         // Enter at a speed that can still stop in the room there is, not at full
         // speed into the back of a standing queue.
-        const v = Math.min(speedMps, Math.sqrt(2 * BRAKE * (room - MIN_GAP)));
+        const v = Math.min(profile.at(spawnX), Math.sqrt(2 * BRAKE * (room - MIN_GAP)));
         active.push({
           x: spawnX,
           v,
@@ -196,10 +269,11 @@ function simulateStopAtRed(
       let brake = 0;
       const leader = active[i - 1];
       if (leader) {
-        brake = Math.min(
-          brake,
-          interaction(car.v, leader.x - VEHICLE_LENGTH - car.x, car.v - leader.v),
-        );
+        const gap = leader.x - VEHICLE_LENGTH - car.x;
+        const closing = car.v - leader.v;
+        const remote =
+          closing <= 0 && gap > Math.max(FREE_FLOW_TIME_GAP_S * car.v, FREE_FLOW_MIN_GAP_M);
+        if (!remote) brake = Math.min(brake, interaction(car.v, gap, closing));
       }
       if (car.next < lines.length) {
         if (greenAt(signals[car.next], t, cycleS)) {
@@ -215,7 +289,9 @@ function simulateStopAtRed(
           if (car.obey) brake = Math.min(brake, interaction(car.v, gap, car.v));
         }
       }
-      const free = ACCEL * (1 - Math.pow(car.v / speedMps, DELTA));
+      // Each stretch has its own speed; past a boundary into a slower one this goes
+      // negative and the vehicle eases down to it.
+      const free = ACCEL * (1 - Math.pow(car.v / profile.at(car.x), DELTA));
       accel[i] = Math.max(-9, Math.min(ACCEL, free + brake));
     }
 
@@ -250,27 +326,36 @@ function simulateStopAtRed(
     .map((car) => ({ points: car.points, stopped: car.stopped }));
 }
 
-function simulateGreenWave(stops: readonly TrajectoryStop[], o: TrajectoryOptions): Trajectory[] {
+/** Seconds from the first stop to each stop, at each stretch's own speed. */
+export function cumulativeTravel(sorted: readonly TrajectoryStop[], fallbackMps: number): number[] {
+  const { speeds } = speedProfile(sorted, fallbackMps);
+  const out: number[] = [];
+  sorted.forEach((s, i) => {
+    out.push(i === 0 ? 0 : out[i - 1] + (s.distanceM - sorted[i - 1].distanceM) / speeds[i]);
+  });
+  return out;
+}
+
+function simulateGreenWave(sorted: readonly TrajectoryStop[], o: TrajectoryOptions): Trajectory[] {
   const { cycleS, speedMps, fromS, toS } = o;
-  const ordered = [...stops].sort((a, b) => a.distanceM - b.distanceM);
-  const origin = ordered[0].distanceM;
-  const travel = (ordered[ordered.length - 1].distanceM - origin) / speedMps;
+  const travel = cumulativeTravel(sorted, speedMps);
+  const total = travel[travel.length - 1];
 
   const out: Trajectory[] = [];
-  for (let depart = fromS - travel; depart <= toS; depart += WAVE_SPACING_S) {
+  for (let depart = fromS - total; depart <= toS; depart += WAVE_SPACING_S) {
     let chain: [number, number][] = [];
     const flush = () => {
       const inWindow = chain.some(([t]) => t >= fromS && t <= toS);
       if (chain.length >= 2 && inWindow) out.push({ points: chain, stopped: false });
       chain = [];
     };
-    for (const stop of ordered) {
-      const arrives = depart + (stop.distanceM - origin) / speedMps;
+    sorted.forEach((stop, i) => {
+      const arrives = depart + travel[i];
       // A signal with no cycle to obey doesn't stop the line either.
       const passes = stop.free || stop.greenS <= 0 || greenAt(stop, arrives, cycleS);
       if (passes) chain.push([arrives, stop.distanceM]);
       else flush();
-    }
+    });
     flush();
   }
   return out;
@@ -289,15 +374,27 @@ export function simulateTrajectories(
   const { cycleS, speedMps, fromS, toS } = options;
   if (!(cycleS > 0) || !(speedMps > 0) || !(toS > fromS) || stops.length === 0) return [];
 
+  // Traffic the other way is the same model on the corridor turned round: the last
+  // signal becomes the entry, each signal shows its opposing green, and the paths
+  // are flipped back at the end.
+  if (options.direction === "opposite") {
+    const { stops: turned, toOriginal } = orientStops(stops, "opposite");
+    return simulateTrajectories(turned, { ...options, direction: "forward" }).map((line) => ({
+      stopped: line.stopped,
+      points: line.points.map(([t, x]): [number, number] => [t, toOriginal(x)]),
+    }));
+  }
+
   const signals = stops
     .filter((s) => !s.free && s.greenS > 0)
     .sort((a, b) => a.distanceM - b.distanceM);
   if (signals.length === 0) return [];
 
-  const lengthM = Math.max(...stops.map((s) => s.distanceM));
+  const sorted = [...stops].sort((a, b) => a.distanceM - b.distanceM);
+  const lengthM = sorted[sorted.length - 1].distanceM;
   return options.mode === "green-wave"
-    ? simulateGreenWave(stops, options)
-    : simulateStopAtRed(signals, lengthM, options);
+    ? simulateGreenWave(sorted, options)
+    : simulateStopAtRed(sorted, signals, lengthM, options);
 }
 
 /**

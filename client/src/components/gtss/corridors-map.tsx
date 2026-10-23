@@ -5,7 +5,15 @@ import type { Signal } from "gtss/schema";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
-import { MapContainer, Marker, Polyline, Popup, useMap } from "react-leaflet";
+import {
+  CircleMarker,
+  MapContainer,
+  Marker,
+  Polyline,
+  Popup,
+  Tooltip,
+  useMap,
+} from "react-leaflet";
 
 /** What a pin says: its place in the run, the signal it is, or both. */
 export type PinLabelMode = "sequence" | "signalId" | "both";
@@ -20,6 +28,22 @@ interface CorridorsMapProps {
   /** Pointer entered / left a pin, so the list beside the map can follow. */
   onSignalHover?: (signalId: string | null) => void;
   onSignalSelect?: (signalId: string) => void;
+  /**
+   * GTSS signals not in the corridor, drawn as small grey dots. Clicking one calls
+   * `onCandidateSelect`, which is how a signal is added from the map.
+   */
+  candidates?: readonly Signal[];
+  onCandidateSelect?: (signalId: string) => void;
+  /** A second line for a candidate's tooltip, e.g. its street names. */
+  candidateLabel?: (signalId: string) => string;
+  /** What clicking a stop does, added to its hover title ("click to take it out"). */
+  selectHint?: string;
+  /**
+   * Frame every signal, stops and candidates alike, rather than just the stops.
+   * While a corridor is being picked that set doesn't change, so the map holds
+   * still instead of jumping to each new stop.
+   */
+  frameAll?: boolean;
   className?: string;
 }
 
@@ -114,6 +138,11 @@ export default function CorridorsMap({
   highlightedSignalId,
   onSignalHover,
   onSignalSelect,
+  candidates = [],
+  onCandidateSelect,
+  candidateLabel,
+  selectHint,
+  frameAll = false,
   className,
 }: CorridorsMapProps) {
   const mapScrollZoom = useMapScrollZoom();
@@ -137,7 +166,12 @@ export default function CorridorsMap({
     });
   });
 
-  if (stops.length === 0) {
+  const candidatePoints = candidates
+    .filter((c) => c.latitude != null && c.longitude != null)
+    .map((c) => [c.latitude, c.longitude] as [number, number]);
+
+  // An empty corridor still gets a map if there are signals to add from it.
+  if (stops.length === 0 && candidatePoints.length === 0) {
     return (
       <div
         className={`flex items-center justify-center rounded-lg border border-grey-200 bg-grey-50 p-4 text-center text-sm text-grey-500 ${className ?? ""}`}
@@ -150,8 +184,10 @@ export default function CorridorsMap({
   }
 
   const points = stops.map((s) => [s.lat, s.lng] as [number, number]);
+  // Frame the corridor; with no stops yet, frame the signals it could be built from.
+  const framing = frameAll || points.length === 0 ? [...points, ...candidatePoints] : points;
   // Order-independent on purpose: moving a stop must not move the camera.
-  const fitKey = points
+  const fitKey = framing
     .map(([lat, lng]) => `${lat},${lng}`)
     .sort()
     .join("|");
@@ -159,7 +195,7 @@ export default function CorridorsMap({
   return (
     <div className={className} style={{ position: "relative", zIndex: 1 }}>
       <MapContainer
-        center={points[0]}
+        center={framing[0]}
         zoom={14}
         scrollWheelZoom={mapScrollZoom}
         style={{ height: "100%", width: "100%", zIndex: 1 }}
@@ -167,13 +203,48 @@ export default function CorridorsMap({
         key={fitKey}
       >
         <MapTileLayers />
-        <FitToCorridor points={points} fitKey={fitKey} />
+        <FitToCorridor points={framing} fitKey={fitKey} />
 
         {/* The run itself. `positions` already takes N points — the existing
             approach arrows just happen to pass two. */}
         {points.length > 1 && (
-          <Polyline positions={points} color="#2563eb" weight={4} opacity={0.65} />
+          // Not clickable: drawn after the grey dots, it would otherwise sit on
+          // top of any that lie along it and swallow the click meant for them.
+          <Polyline
+            positions={points}
+            color="#2563eb"
+            weight={4}
+            opacity={0.65}
+            interactive={false}
+          />
         )}
+
+        {/* Signals that could join the corridor. Under the corridor's own pins. */}
+        {candidates
+          .filter((c) => c.latitude != null && c.longitude != null)
+          .map((c) => (
+            <CircleMarker
+              key={`cand-${c.signalId}`}
+              center={[c.latitude, c.longitude]}
+              radius={6}
+              pathOptions={{
+                color: "#6b7280",
+                weight: 1.5,
+                fillColor: "#d1d5db",
+                fillOpacity: 0.9,
+              }}
+              eventHandlers={
+                onCandidateSelect ? { click: () => onCandidateSelect(c.signalId) } : {}
+              }
+            >
+              <Tooltip direction="top" offset={[0, -6]}>
+                {onCandidateSelect ? `Add ${c.signalId} to the corridor` : c.signalId}
+                {candidateLabel?.(c.signalId) ? (
+                  <div className="text-[10px] text-grey-500">{candidateLabel(c.signalId)}</div>
+                ) : null}
+              </Tooltip>
+            </CircleMarker>
+          ))}
 
         {stops.map((stop) => (
           <Marker
@@ -182,7 +253,7 @@ export default function CorridorsMap({
             icon={stopIcon(stop, labelMode, highlightedSignalId === stop.signalId)}
             zIndexOffset={highlightedSignalId === stop.signalId ? 1000 : 0}
             alt={`Stop ${stop.sequence}: signal ${stop.signalId}`}
-            title={`Stop ${stop.sequence}: signal ${stop.signalId}`}
+            title={`Stop ${stop.sequence}: signal ${stop.signalId}${selectHint ? ` (${selectHint})` : ""}`}
             eventHandlers={{
               click: () => onSignalSelect?.(stop.signalId),
               mouseover: () => onSignalHover?.(stop.signalId),

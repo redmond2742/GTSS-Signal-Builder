@@ -52,6 +52,23 @@ const crossing = (tr: Trajectory, x: number): number | null => {
   return null;
 };
 
+// Compared at identical sample times, so there is no interpolation to blame.
+const closest = (lines: Trajectory[]) => {
+  const byTime = new Map<number, number[]>();
+  for (const l of lines) {
+    for (const [t, x] of l.points) {
+      const key = Math.round(t * 100);
+      byTime.set(key, [...(byTime.get(key) ?? []), x]);
+    }
+  }
+  let worst = Infinity;
+  for (const xs of Array.from(byTime.values())) {
+    xs.sort((a, b) => b - a);
+    for (let i = 1; i < xs.length; i++) worst = Math.min(worst, xs[i - 1] - xs[i]);
+  }
+  return worst; // front bumper to front bumper; a vehicle is 5 m long
+};
+
 describe("greenAt", () => {
   const s = stop(0, 76, 49); // green 76s..125s, which wraps a 114s cycle to 11s
   it("is green inside the window and red outside", () => {
@@ -208,23 +225,6 @@ describe("stop-at-red", () => {
   it("is deterministic", () => {
     expect(simulateTrajectories(one, base())).toEqual(simulateTrajectories(one, base()));
   });
-
-  // Compared at identical sample times, so there is no interpolation to blame.
-  const closest = (lines: Trajectory[]) => {
-    const byTime = new Map<number, number[]>();
-    for (const l of lines) {
-      for (const [t, x] of l.points) {
-        const key = Math.round(t * 100);
-        byTime.set(key, [...(byTime.get(key) ?? []), x]);
-      }
-    }
-    let worst = Infinity;
-    for (const xs of Array.from(byTime.values())) {
-      xs.sort((a, b) => b - a);
-      for (let i = 1; i < xs.length; i++) worst = Math.min(worst, xs[i - 1] - xs[i]);
-    }
-    return worst; // front bumper to front bumper; a vehicle is 5 m long
-  };
 
   it("does not run vehicles through each other", () => {
     expect(closest(simulateTrajectories(one, base()))).toBeGreaterThan(4.8);
@@ -415,5 +415,139 @@ describe("approachMetres", () => {
   it("has a floor for a short corridor and scales for a long one", () => {
     expect(approachMetres(200)).toBe(90);
     expect(approachMetres(5000)).toBe(300);
+  });
+});
+
+describe("opposite direction", () => {
+  const opp = (
+    distanceM: number,
+    offsetS: number,
+    greenS: number,
+    opposing?: { offsetS: number; greenS: number },
+  ): TrajectoryStop => ({
+    distanceM,
+    offsetS,
+    greenS,
+    free: false,
+    opposing,
+  });
+  const opposite = (over: Partial<TrajectoryOptions> = {}) =>
+    base({ direction: "opposite", ...over });
+
+  // The first signal is green all cycle so it is only where vehicles enter; the
+  // one that matters is 500 m in. Going out it is green 60-90s; coming back, 10-40s.
+  const corridor = [opp(0, 0, 100), opp(500, 60, 30, { offsetS: 10, greenS: 30 })];
+
+  /** When a downward-moving path reaches `x`, by interpolation. */
+  const crossingDown = (tr: Trajectory, x: number): number | null => {
+    const pts = tr.points;
+    for (let i = 1; i < pts.length; i++) {
+      if (pts[i - 1][1] > x && pts[i][1] <= x) {
+        const [t0, x0] = pts[i - 1];
+        const [t1, x1] = pts[i];
+        return t0 + ((x - x0) * (t1 - t0)) / (x1 - x0);
+      }
+    }
+    return null;
+  };
+
+  it("runs from the last signal back toward the first", () => {
+    const lines = simulateTrajectories(corridor, opposite());
+    expect(lines.length).toBeGreaterThan(20);
+    for (const l of lines) {
+      for (let i = 1; i < l.points.length; i++) {
+        // Never moves back toward where it came from.
+        expect(l.points[i][1]).toBeLessThanOrEqual(l.points[i - 1][1] + 1e-6);
+      }
+    }
+    // And it really does travel the length of the corridor.
+    expect(lines.some((l) => l.points[0][1] > 450 && l.points[l.points.length - 1][1] < 50)).toBe(
+      true,
+    );
+  });
+
+  it("obeys the OPPOSING green, not the coordinated one", () => {
+    const lines = simulateTrajectories(corridor, opposite());
+    const times = lines.map((l) => crossingDown(l, 500)).filter((t): t is number => t !== null);
+    expect(times.length).toBeGreaterThan(10);
+    for (const t of times) {
+      // Opposing green is 10s..40s of each 100s cycle; a vehicle too close to stop
+      // may cross a moment into the red.
+      const ok =
+        greenAt({ ...corridor[1], offsetS: 10, greenS: 30 }, t, 100) ||
+        greenAt({ ...corridor[1], offsetS: 10, greenS: 30 }, t - 2.5, 100);
+      expect(ok, `crossed at ${t.toFixed(1)}s`).toBe(true);
+    }
+  });
+
+  it("differs from the forward direction when the greens differ", () => {
+    const fwd = simulateTrajectories(corridor, base());
+    const back = simulateTrajectories(corridor, opposite());
+    const crossFwd = fwd.map((l) => crossing(l, 500)).filter((t): t is number => t !== null);
+    const crossBack = back.map((l) => crossingDown(l, 500)).filter((t): t is number => t !== null);
+    const phase = (ts: number[]) => ts.map((t) => ((t % 100) + 100) % 100);
+    // Forward crossings sit in 60-95s of the cycle, opposite ones in 10-45s.
+    expect(Math.min(...phase(crossFwd))).toBeGreaterThanOrEqual(55);
+    expect(Math.max(...phase(crossBack))).toBeLessThan(55);
+  });
+
+  it("falls back to the coordinated window where no opposing one is given", () => {
+    const plain = [opp(0, 0, 100), opp(500, 60, 30)];
+    const lines = simulateTrajectories(plain, opposite());
+    const times = lines.map((l) => crossingDown(l, 500)).filter((t): t is number => t !== null);
+    expect(times.length).toBeGreaterThan(10);
+    for (const t of times) {
+      expect(greenAt(plain[1], t, 100) || greenAt(plain[1], t - 2.5, 100)).toBe(true);
+    }
+  });
+
+  it("leaves the forward direction exactly as it was", () => {
+    const withOpposing = simulateTrajectories(corridor, base());
+    const without = simulateTrajectories(
+      corridor.map(({ distanceM, offsetS, greenS, free }) => ({
+        distanceM,
+        offsetS,
+        greenS,
+        free,
+      })),
+      base(),
+    );
+    expect(withOpposing).toEqual(without);
+  });
+
+  it("queues beyond the last signal, where its approach is", () => {
+    const lines = simulateTrajectories(corridor, opposite());
+    // Vehicles waiting at 500 m for the opposing red sit upstream of it, i.e. above 500.
+    expect(lines.some((l) => l.stopped && l.points.some(([, x]) => x > 500.5))).toBe(true);
+  });
+
+  it("stays collision-free", () => {
+    expect(closest(simulateTrajectories(corridor, opposite()))).toBeGreaterThan(4.8);
+  });
+
+  it("is deterministic", () => {
+    expect(simulateTrajectories(corridor, opposite())).toEqual(
+      simulateTrajectories(corridor, opposite()),
+    );
+  });
+
+  it("draws green-wave lines downward, only between signals reached on the opposing green", () => {
+    const stops = [
+      opp(0, 0, 50, { offsetS: 0, greenS: 50 }),
+      opp(600, 40, 50, { offsetS: 0, greenS: 50 }),
+    ];
+    const lines = simulateTrajectories(stops, opposite({ mode: "green-wave", toS: 300 }));
+    expect(lines.length).toBeGreaterThan(0);
+    const opposing = [
+      { ...stops[0], ...stops[0].opposing! },
+      { ...stops[1], ...stops[1].opposing! },
+    ];
+    for (const l of lines) {
+      expect(l.points[0][1]).toBeGreaterThan(l.points[l.points.length - 1][1]); // heading down
+      for (const [t, x] of l.points) {
+        const s = opposing.find((o) => o.distanceM === x)!;
+        expect(greenAt(s, t, 100), `${x} m at ${t.toFixed(1)}s`).toBe(true);
+      }
+    }
   });
 });

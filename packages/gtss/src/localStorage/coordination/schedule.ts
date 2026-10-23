@@ -390,9 +390,15 @@ export function alignDaySchedule(
     return { ...seg, pattern, states, notes };
   });
 
+  // Converted files name the reference intersection here; patterns built in
+  // GTSS Builder put the offset reference (BegGRN…) here instead, which isn't one.
   const reference =
-    rows.patterns.find((p) => p.corridorId === corridorId && p.referencePoint)?.referencePoint ??
-    null;
+    rows.patterns.find(
+      (p) =>
+        p.corridorId === corridorId &&
+        p.referencePoint != null &&
+        signalIds.includes(p.referencePoint),
+    )?.referencePoint ?? null;
 
   return { day, signalIds, referenceSignalId: reference, segments, unplaceable };
 }

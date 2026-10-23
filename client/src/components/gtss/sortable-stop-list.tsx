@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { sortBySequence, type CorridorSignal } from "gtss";
-import { ChevronDown, ChevronUp, GripVertical, MapPinOff } from "lucide-react";
+import { ChevronDown, ChevronUp, GripVertical, MapPinOff, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 interface SortableStopListProps {
@@ -12,6 +12,10 @@ interface SortableStopListProps {
   onHover: (signalId: string | null) => void;
   /** Positions in travel order, 0-based. */
   onMove: (from: number, to: number) => void;
+  /** Take the stop at this position out of the corridor. Omit to hide the button. */
+  onRemove?: (position: number) => void;
+  /** Street names for a signal, shown small beside its id. */
+  streetsOf?: (signalId: string) => string;
   className?: string;
 }
 
@@ -38,6 +42,8 @@ export default function SortableStopList({
   hoveredSignalId,
   onHover,
   onMove,
+  onRemove,
+  streetsOf,
   className,
 }: SortableStopListProps) {
   const ordered = sortBySequence(members);
@@ -151,6 +157,11 @@ export default function SortableStopList({
                 {cs.direction && (
                   <span className="ml-1.5 font-normal text-grey-400">{cs.direction}</span>
                 )}
+                {streetsOf?.(cs.signalId) && (
+                  <span className="block truncate text-[10px] font-normal text-grey-500">
+                    {streetsOf(cs.signalId)}
+                  </span>
+                )}
               </span>
 
               {unplacedIds.has(cs.signalId) && (
@@ -182,6 +193,17 @@ export default function SortableStopList({
                   >
                     <ChevronDown className="h-3.5 w-3.5" />
                   </Button>
+                  {onRemove && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => onRemove(index)}
+                      aria-label={`Remove ${cs.signalId} from the corridor`}
+                      title="Remove from the corridor. Its offsets and splits are kept, so adding it back restores them."
+                      className="h-5 w-5 p-0 text-grey-400 hover:bg-red-50 hover:text-red-600"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </span>
               )}
             </li>

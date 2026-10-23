@@ -1,7 +1,12 @@
 import CoordinationCell, { type CellType } from "@/components/gtss/coordination-cell";
-import CorridorOrderCard from "@/components/gtss/corridor-order-card";
+import CorridorOrderCard, { type CorridorNotice } from "@/components/gtss/corridor-order-card";
+import NewCorridorDialog from "@/components/gtss/new-corridor-dialog";
 import type { PinLabelMode } from "@/components/gtss/corridors-map";
-import TimeSpaceDiagram, { buildStops } from "@/components/gtss/time-space-diagram";
+import CycleFitCard from "@/components/gtss/cycle-fit-card";
+import TimeSpaceDiagram, {
+  buildStops,
+  type TimeSpaceStop,
+} from "@/components/gtss/time-space-diagram";
 import { useOffsetHistory } from "@/hooks/use-offset-history";
 import PhaseSequenceCard from "@/components/gtss/phase-sequence-card";
 import RingBarrierChart from "@/components/gtss/ring-barrier-chart";
@@ -10,7 +15,6 @@ import GTSSFileViewer from "@/components/gtss/gtss-file-viewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -33,16 +37,23 @@ import {
   isStorageReadOnly,
   exportCoordinationAsZip,
   moveCorridorSignal,
+  OFFSET_REFERENCES,
   renameSignalInCoordination,
+  reverseDirection,
   sequenceForPattern,
+  setPatternOffsetReference,
   sortBySequence,
+  splitStartShift,
+  undoReferenceChange,
   summarizeIssues,
   UNSCOPED,
   useGTSSStore,
   validateCoordination,
   type CoordinationIssue,
   type CorridorSignal,
+  type OffsetReference,
   type PatternSignal,
+  type ReferenceChange,
   type TrajectoryMode,
 } from "gtss";
 import {
@@ -268,7 +279,8 @@ function IssueList({ issues }: { issues: readonly CoordinationIssue[] }) {
  * here creates, changes or deletes a row.
  */
 export default function CoordinationPage() {
-  const { coordination, signals, refreshCoordination } = useGTSSStore();
+  const { coordination, signals, phases, approaches, basicTimings, agencies, refreshCoordination } =
+    useGTSSStore();
   // Lookup mode blocks writes at the storage layer; reflect that in the UI
   // instead of offering edits that silently no-op.
   const readOnly = isStorageReadOnly();
@@ -279,13 +291,28 @@ export default function CoordinationPage() {
   const [splitPattern, setSplitPattern] = useState<string>("");
   const [tsPattern, setTsPattern] = useState<string>("");
   const [showTrajectories, setShowTrajectories] = useState(true);
+  const [showOpposite, setShowOpposite] = useState(true);
   const [trajectoryMode, setTrajectoryMode] = useState<TrajectoryMode>("stop-at-red");
   // Display units; converted to m/s for the geometry.
-  const [speed, setSpeed] = useState<string>("30");
   const [splitSignal, setSplitSignal] = useState<string>("");
   // PhaseSequence view: "" shows every signal.
   const [seqSignal, setSeqSignal] = useState<string>("");
   const [notice, setNotice] = useState<SignalNotice | null>(null);
+  const [newCorridorOpen, setNewCorridorOpen] = useState(false);
+  const [corridorNotice, setCorridorNotice] = useState<CorridorNotice | null>(null);
+  // The last offset-reference change, kept so it can be undone or turned into
+  // "keep the greens where they were".
+  const [referenceNotice, setReferenceNotice] = useState<{
+    change: ReferenceChange;
+    /** The stops as drawn before the change. */
+    before: readonly TimeSpaceStop[];
+    keptGreens: boolean;
+  } | null>(null);
+  // What corridors and their coordination rows are built from.
+  const gtssData = useMemo(
+    () => ({ signals, phases, approaches, basicTimings }),
+    [signals, phases, approaches, basicTimings],
+  );
 
   // Writing one offset is the only thing undo and redo need to be able to do.
   const writeOffset = (patternId: string, signalId: string, offsetS: number | null): boolean => {
@@ -346,6 +373,18 @@ export default function CoordinationPage() {
       coordination.splits.filter((r) => r.patternId === activeSplitPattern).map((r) => r.signalId),
     ),
   ).sort();
+  // The same signals in corridor order, then any outside the corridor.
+  const splitSignalsInOrder = (() => {
+    const corridorOfPattern =
+      coordination.patterns.find((p) => p.patternId === activeSplitPattern)?.corridorId ?? null;
+    const order = sortBySequence(
+      coordination.corridorSignals.filter((cs) => cs.corridorId === corridorOfPattern),
+    ).map((cs) => cs.signalId);
+    return [
+      ...order.filter((id) => splitSignals.includes(id)),
+      ...splitSignals.filter((id) => !order.includes(id)),
+    ];
+  })();
   const activeSplitSignal = splitSignals.includes(splitSignal)
     ? splitSignal
     : (splitSignals[0] ?? "");
@@ -395,23 +434,98 @@ export default function CoordinationPage() {
   const tsCorridorId = tsPatternRow?.corridorId ?? coordination.corridors[0]?.corridorId ?? "";
   const isMetric = isMetricForSignalId(signals[0]?.signalId);
 
+  // Speeds come from each approach's posted speed in GTSS. This is only for a
+  // stretch where neither direction has one: 30 mph, or 50 km/h.
+  const defaultSpeedMps = isMetric ? 50 / 3.6 : 30 * 0.44704;
+
   const tsStops = useMemo(
     () =>
-      buildStops(
-        coordination.corridorSignals.filter((cs) => cs.corridorId === tsCorridorId),
+      buildStops({
+        corridorSignals: coordination.corridorSignals.filter(
+          (cs) => cs.corridorId === tsCorridorId,
+        ),
         signals,
-        coordination.patternSignals.filter((ps) => ps.patternId === activeTsPattern),
-        coordination.splits.filter((sp) => sp.patternId === activeTsPattern),
-      ),
-    [coordination, signals, tsCorridorId, activeTsPattern],
+        patternSignals: coordination.patternSignals.filter(
+          (ps) => ps.patternId === activeTsPattern,
+        ),
+        splits: coordination.splits.filter((sp) => sp.patternId === activeTsPattern),
+        phaseSequence: coordination.phaseSequence,
+        pattern: tsPatternRow,
+        basicTimings,
+        phases,
+        approaches,
+        defaultSpeedMps,
+        isMetricFor: isMetricForSignalId,
+      }),
+    [
+      coordination,
+      signals,
+      phases,
+      approaches,
+      basicTimings,
+      tsCorridorId,
+      tsPatternRow,
+      activeTsPattern,
+      defaultSpeedMps,
+    ],
   );
 
-  // mph or km/h in the box, metres per second in the maths.
-  const speedMps = (() => {
-    const v = Number(speed);
-    if (!Number.isFinite(v) || v <= 0) return isMetric ? 30 / 3.6 : 30 * 0.44704;
-    return isMetric ? v / 3.6 : v * 0.44704;
+  // What the pattern's offsets are measured to; blank when its signals disagree.
+  const tsReference: OffsetReference | "" = (() => {
+    const refs = new Set(tsStops.filter((s) => !s.free).map((s) => s.offsetReference));
+    if (refs.size === 0) return "BegGRN";
+    return refs.size === 1 ? Array.from(refs)[0] : "";
   })();
+  const tsReferenceAssumed =
+    tsStops.some((s) => !s.free) &&
+    tsStops.every((s) => s.free || s.offsetReferenceSource === "default");
+
+  const changeReference = (reference: OffsetReference) => {
+    if (!activeTsPattern) return;
+    const change = setPatternOffsetReference(activeTsPattern, reference);
+    if (!change) return;
+    refreshCoordination();
+    setReferenceNotice({ change, before: tsStops, keptGreens: false });
+  };
+
+  // Rewrite the offsets so each green starts where it did before the change.
+  const keepGreensInPlace = () => {
+    if (!referenceNotice) return;
+    const { change, before } = referenceNotice;
+    const cycle =
+      coordination.patterns.find((p) => p.patternId === change.patternId)?.cycleLengthS ?? 0;
+    const offsets = new Map(
+      before
+        .filter((s) => !s.free)
+        .map((s) => {
+          const stored = Math.round(
+            s.offsetS - splitStartShift(change.reference, s.greenS, s.clearanceS),
+          );
+          return [s.signalId, cycle > 0 ? ((stored % cycle) + cycle) % cycle : stored] as const;
+        }),
+    );
+    undoReferenceChange(change);
+    const redone = setPatternOffsetReference(change.patternId, change.reference, offsets);
+    refreshCoordination();
+    if (redone) setReferenceNotice({ change: redone, before, keptGreens: true });
+  };
+
+  const undoReference = () => {
+    if (!referenceNotice) return;
+    undoReferenceChange(referenceNotice.change);
+    refreshCoordination();
+    setReferenceNotice(null);
+  };
+  const referenceName = (r: OffsetReference) =>
+    OFFSET_REFERENCES.find((o) => o.value === r)?.label.toLowerCase() ?? r;
+
+  // The corridor's direction and its reverse, to name the two bands.
+  const tsCorridor = coordination.corridors.find((c) => c.corridorId === tsCorridorId);
+  const tsForward =
+    tsCorridor?.primaryDirection ??
+    coordination.corridorSignals.find((cs) => cs.corridorId === tsCorridorId)?.direction ??
+    null;
+  const tsDirections = { forward: tsForward, opposite: reverseDirection(tsForward) };
 
   // Every way of changing an offset goes through here — drag, arrow keys, the
   // buttons, the number box, the table — so undo means the same thing for all.
@@ -432,9 +546,6 @@ export default function CoordinationPage() {
       offsetHistory.record({ patternId, signalId, from, to: next }, { coalesce });
     }
   };
-
-  const setOffset = (signalId: string, next: number) =>
-    commitOffset(activeTsPattern, signalId, next, true);
 
   const undoOffset = () => {
     const edit = undoEdit();
@@ -587,6 +698,29 @@ export default function CoordinationPage() {
       onHover={setHoveredSignalId}
       readOnly={readOnly}
       onChanged={refreshCoordination}
+      coordination={coordination}
+      gtss={gtssData}
+      onNewCorridor={() => setNewCorridorOpen(true)}
+      notice={corridorNotice}
+      onNotice={setCorridorNotice}
+    />
+  );
+
+  const newCorridorDialog = (
+    <NewCorridorDialog
+      open={newCorridorOpen}
+      onOpenChange={setNewCorridorOpen}
+      gtss={gtssData}
+      coordination={coordination}
+      timezoneOf={(agencyId) =>
+        (agencies.find((a) => a.agencyId === agencyId) ?? agencies[0])?.agencyTimezone ?? null
+      }
+      onCreated={(id, notes) => {
+        refreshCoordination();
+        setCorridorId(id);
+        setView("overview");
+        setCorridorNotice({ tone: "info", lines: [`Created corridor ${id}.`, ...notes] });
+      }}
     />
   );
 
@@ -612,14 +746,24 @@ export default function CoordinationPage() {
               <code>Patterns.txt</code>, <code>Splits.txt</code> and the rest &mdash; from{" "}
               <strong>Data Management &rsaquo; Import</strong>. A zip containing them works too.
             </p>
+            {!readOnly && signals.length > 0 && (
+              <>
+                <p className="text-xs text-grey-500">Or start one from your GTSS signals:</p>
+                <Button onClick={() => setNewCorridorOpen(true)} className="h-8 text-xs">
+                  New corridor
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
+        {newCorridorDialog}
       </div>
     );
   }
 
   return (
     <div className="max-w-6xl space-y-3">
+      {newCorridorDialog}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="text-xs text-grey-500">View</span>
@@ -731,6 +875,15 @@ export default function CoordinationPage() {
                       />
                       Trajectories
                     </label>
+                    <label className="flex items-center gap-1.5 text-xs text-grey-600">
+                      <Checkbox
+                        checked={showOpposite}
+                        disabled={!showTrajectories}
+                        onCheckedChange={(c) => setShowOpposite(c as boolean)}
+                        aria-label="Show opposite direction"
+                      />
+                      Opposite direction
+                    </label>
                     <Select
                       value={trajectoryMode}
                       onValueChange={(v) => setTrajectoryMode(v as TrajectoryMode)}
@@ -748,18 +901,34 @@ export default function CoordinationPage() {
                         </SelectItem>
                       </SelectContent>
                     </Select>
-                    <label className="flex items-center gap-1.5 text-xs text-grey-600">
-                      Speed
-                      <Input
-                        type="number"
-                        min={1}
-                        value={speed}
-                        onChange={(e) => setSpeed(e.target.value)}
-                        aria-label={`Travel speed in ${isMetric ? "km/h" : "mph"}`}
-                        className="h-7 w-16 px-1 text-xs"
-                      />
-                      <span className="text-grey-400">{isMetric ? "km/h" : "mph"}</span>
-                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-grey-500">Offset ref.</span>
+                      <Select
+                        value={tsReference}
+                        onValueChange={(v) => changeReference(v as OffsetReference)}
+                        disabled={readOnly || !activeTsPattern}
+                      >
+                        <SelectTrigger
+                          className="h-7 w-36 text-xs"
+                          aria-label="Offset reference"
+                          title={
+                            tsReferenceAssumed
+                              ? "The files don't say what offsets are measured to, so begin of green is assumed. Pick one to write it to the pattern."
+                              : "What each offset is measured to in the coordinated phase"
+                          }
+                        >
+                          <SelectValue placeholder="Mixed" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {OFFSET_REFERENCES.map((r) => (
+                            <SelectItem key={r.value} value={r.value} className="text-xs">
+                              {r.label}
+                              {tsReferenceAssumed && r.value === "BegGRN" ? " (assumed)" : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <Select value={activeTsPattern} onValueChange={setTsPattern}>
                       <SelectTrigger className="h-7 w-44 text-xs" aria-label="Time-space pattern">
                         <SelectValue />
@@ -814,9 +983,11 @@ export default function CoordinationPage() {
                   stops={tsStops}
                   cycleLengthS={tsPatternRow?.cycleLengthS ?? 0}
                   showTrajectories={showTrajectories}
+                  showOpposite={showOpposite}
                   trajectoryMode={trajectoryMode}
-                  speedMps={speedMps}
+                  defaultSpeedMps={defaultSpeedMps}
                   isMetric={isMetric}
+                  directions={tsDirections}
                   highlightedSignalId={hoveredSignalId}
                   editable={!readOnly}
                   onOffsetChange={(signalId, offsetS, options) =>
@@ -824,6 +995,48 @@ export default function CoordinationPage() {
                   }
                 />
 
+                {!readOnly &&
+                  referenceNotice &&
+                  referenceNotice.change.patternId === activeTsPattern && (
+                    <div
+                      role="status"
+                      className="flex flex-wrap items-center gap-2 border-t border-blue-200 bg-blue-50 px-3 py-1.5 text-xs text-blue-900"
+                    >
+                      <Info className="h-3.5 w-3.5 shrink-0" />
+                      <span className="min-w-0 flex-1">
+                        {referenceNotice.change.patternId} offsets are now measured to{" "}
+                        {referenceName(referenceNotice.change.reference)}.{" "}
+                        {referenceNotice.keptGreens
+                          ? "Each offset was changed so its green stays where it was."
+                          : "The numbers are unchanged, so any green whose reference moved has moved with it."}
+                      </span>
+                      {!referenceNotice.keptGreens && (
+                        <Button
+                          variant="outline"
+                          onClick={keepGreensInPlace}
+                          className="h-6 bg-white px-2 text-[11px]"
+                        >
+                          Keep greens in place
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        onClick={undoReference}
+                        className="h-6 bg-white px-2 text-[11px]"
+                      >
+                        <Undo2 className="mr-1 h-3 w-3" />
+                        Undo
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => setReferenceNotice(null)}
+                        aria-label="Dismiss"
+                        className="h-6 w-6 p-0"
+                      >
+                        &times;
+                      </Button>
+                    </div>
+                  )}
                 {!readOnly && (
                   <div
                     role="status"
@@ -845,58 +1058,6 @@ export default function CoordinationPage() {
                     )}
                   </div>
                 )}
-
-                {/* Offsets, adjustable against the diagram above. Nudging by a
-                    second redraws immediately, which is the point: you are
-                    tuning the band, not editing a number in isolation. */}
-                <div className="flex flex-wrap gap-2 border-t border-grey-200 p-3">
-                  {tsStops.map((stop) => (
-                    <div
-                      key={stop.signalId}
-                      onMouseEnter={() => setHoveredSignalId(stop.signalId)}
-                      onMouseLeave={() => setHoveredSignalId(null)}
-                      className="flex items-center gap-1 rounded border border-grey-200 px-2 py-1"
-                    >
-                      <span className="font-mono text-[11px] text-grey-700">{stop.signalId}</span>
-                      {stop.free ? (
-                        <span className="text-[11px] italic text-grey-400">free</span>
-                      ) : (
-                        <>
-                          <Button
-                            variant="ghost"
-                            disabled={readOnly}
-                            onClick={() => setOffset(stop.signalId, stop.offsetS - 1)}
-                            aria-label={`Decrease ${stop.signalId} offset`}
-                            className="h-5 w-5 p-0 text-xs"
-                          >
-                            &minus;
-                          </Button>
-                          <Input
-                            type="number"
-                            value={stop.offsetS}
-                            readOnly={readOnly}
-                            onChange={(e) => {
-                              const n = Number(e.target.value);
-                              if (Number.isFinite(n)) setOffset(stop.signalId, n);
-                            }}
-                            aria-label={`${stop.signalId} offset in seconds`}
-                            className="h-6 w-14 px-1 text-center text-xs"
-                          />
-                          <Button
-                            variant="ghost"
-                            disabled={readOnly}
-                            onClick={() => setOffset(stop.signalId, stop.offsetS + 1)}
-                            aria-label={`Increase ${stop.signalId} offset`}
-                            className="h-5 w-5 p-0 text-xs"
-                          >
-                            +
-                          </Button>
-                          <span className="text-[10px] text-grey-400">s</span>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
               </CardContent>
             </Card>
           )}
@@ -949,6 +1110,17 @@ export default function CoordinationPage() {
                 )}
               </CardContent>
             </Card>
+          )}
+
+          {view === "splits" && activeSplitPattern && (
+            <CycleFitCard
+              key={activeSplitPattern}
+              coordination={coordination}
+              patternId={activeSplitPattern}
+              signalIds={splitSignalsInOrder}
+              readOnly={readOnly}
+              onChanged={refreshCoordination}
+            />
           )}
 
           <Card>

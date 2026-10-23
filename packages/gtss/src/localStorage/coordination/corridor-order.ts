@@ -76,3 +76,45 @@ export function moveCorridorSignal(corridorId: string, from: number, to: number)
   if (JSON.stringify(next) !== JSON.stringify(rows)) saveToStorage(key, next);
   return true;
 }
+
+/**
+ * Take the stop at `position` out of a corridor and renumber the rest 1..N.
+ *
+ * Membership only. The signal's PatternSignals and Splits rows are kept, so
+ * adding it back restores its offsets and splits rather than starting again;
+ * validation points out pattern rows left behind for a signal no longer in the
+ * corridor. Returns null for an out-of-range position.
+ */
+export function applyCorridorRemoval(
+  rows: readonly CorridorSignal[],
+  corridorId: string,
+  position: number,
+): CorridorSignal[] | null {
+  const members = sortBySequence(rows.filter((r) => r.corridorId === corridorId));
+  if (!Number.isInteger(position) || position < 0 || position >= members.length) return null;
+  const kept = members
+    .filter((_, i) => i !== position)
+    .map((row, i) => ({ ...row, sequence: i + 1 }));
+
+  const out: CorridorSignal[] = [];
+  let placed = false;
+  for (const row of rows) {
+    if (row.corridorId !== corridorId) {
+      out.push(row);
+    } else if (!placed) {
+      out.push(...kept);
+      placed = true;
+    }
+  }
+  return out;
+}
+
+/** Persist `applyCorridorRemoval`. False if the position was out of range. */
+export function removeCorridorSignal(corridorId: string, position: number): boolean {
+  const key = COORDINATION_STORAGE_KEYS.corridorSignals;
+  const rows = getFromStorage<CorridorSignal[]>(key, []);
+  const next = applyCorridorRemoval(rows, corridorId, position);
+  if (!next) return false;
+  saveToStorage(key, next);
+  return true;
+}
