@@ -4,6 +4,7 @@ import {
   effectiveSegments,
   expandEntry,
   formatClock,
+  scheduleCorridorId,
   type ScheduleBlock,
 } from "./schedule";
 import { ringSplitTotals } from "./splitTotals";
@@ -53,7 +54,6 @@ export function validateCoordination(
 
   const patternById = new Map(rows.patterns.map((p) => [p.patternId, p]));
   const corridorIds = new Set(rows.corridors.map((c) => c.corridorId));
-  const coordinationIds = new Set(rows.coordination.map((c) => c.coordinationId));
 
   // --- Referential integrity ---------------------------------------------
 
@@ -79,12 +79,23 @@ export function validateCoordination(
         ),
       );
     }
-    if (s.coordinationId != null && !coordinationIds.has(s.coordinationId)) {
+    if (s.corridorId != null && !corridorIds.has(s.corridorId)) {
       issues.push(
         ERR(
           "schedule",
-          `schedule-coord-${s.scheduleId}`,
-          `Schedule ${s.scheduleId} references coordination ${s.coordinationId}, which is not in Coordination.txt`,
+          `schedule-corridor-${s.scheduleId}`,
+          `Schedule ${s.scheduleId} references corridor ${s.corridorId}, which is not in corridors.txt`,
+        ),
+      );
+    }
+    // The row and its pattern should agree on which corridor this is.
+    const patternCorridor = s.patternId == null ? null : patternById.get(s.patternId)?.corridorId;
+    if (s.corridorId != null && patternCorridor != null && patternCorridor !== s.corridorId) {
+      issues.push(
+        WARN(
+          "schedule",
+          `schedule-corridor-mismatch-${s.scheduleId}`,
+          `Schedule ${s.scheduleId} is for corridor ${s.corridorId} but runs ${s.patternId}, which belongs to ${patternCorridor}`,
         ),
       );
     }
@@ -250,7 +261,9 @@ export function validateCoordination(
       );
     }
     const day = describeDayType(entry.dayType);
-    const key = `${entry.coordinationId ?? ""}|${day.dayType}`;
+    // Each corridor's day is checked on its own: two corridors may well run
+    // different patterns at the same time.
+    const key = `${scheduleCorridorId(entry, rows.patterns) ?? ""}|${day.dayType}`;
     const group = dayGroups.get(key) ?? { label: day.dayType || day.label, blocks: [] };
     group.blocks.push(...expanded.blocks);
     dayGroups.set(key, group);

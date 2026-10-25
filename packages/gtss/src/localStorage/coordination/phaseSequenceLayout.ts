@@ -159,7 +159,7 @@ function buildOne(
 
 /**
  * PatternSignals has no sequence column, but the converter writes one into the
- * free-text notes ("split table 1; seq 4; offset ref BegGRN"). That number is
+ * free-text notes ("split table 1; seq 4; offset ref BegGreen"). That number is
  * the trailing digits of a PhaseSequence sequence_id (SEQ-04 → 4).
  *
  * Returns the sequence ids that note names, or null when it names none — blank

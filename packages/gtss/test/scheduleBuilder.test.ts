@@ -55,7 +55,7 @@ describe("painted slots to time blocks", () => {
 describe("schedule rows", () => {
   const base = {
     idPrefix: "MAIN",
-    coordinationId: "MAIN-COORD",
+    corridorId: "MAIN",
     patternId: "MAIN-P1",
   };
 
@@ -83,7 +83,7 @@ describe("schedule rows", () => {
       "MAIN-S06",
       "MAIN-S07",
     ]);
-    expect(rows.every((r) => r.coordinationId === "MAIN-COORD" && r.priority === 10)).toBe(true);
+    expect(rows.every((r) => r.corridorId === "MAIN" && r.priority === 10)).toBe(true);
   });
 
   it("leaves the rest unscheduled when there's no free pattern", () => {
@@ -117,28 +117,29 @@ describe("schedule rows", () => {
     });
     const rows = {
       ...emptyCoordinationRows(),
-      coordination: [
+      corridors: [
         {
-          coordinationId: "MAIN-COORD",
+          corridorId: "MAIN",
           name: null,
-          referenceClock: null,
-          timezone: null,
           description: null,
+          primaryDirection: "SB",
+          referenceClock: "LOCAL",
+          timezone: null,
         },
       ],
       patterns: [
         {
           patternId: "MAIN-P1",
           patternNumber: 1,
-          corridorId: null,
+          corridorId: "MAIN",
           cycleLengthS: 100,
-          referencePoint: "BegGRN",
+          referencePoint: "BegGreen",
           description: null,
         },
         {
           patternId: "MAIN-FREE",
           patternNumber: 254,
-          corridorId: null,
+          corridorId: "MAIN",
           cycleLengthS: 0,
           referencePoint: null,
           description: null,

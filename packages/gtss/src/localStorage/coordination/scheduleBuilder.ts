@@ -84,7 +84,7 @@ export function clockText(minutes: number): string {
 
 export interface ScheduleRowsInput {
   idPrefix: string;
-  coordinationId: string;
+  corridorId: string;
   patternId: string;
   /** Fill the rest of each weekly day type with this pattern. Null leaves it unscheduled. */
   freePatternId: string | null;
@@ -104,7 +104,7 @@ export function scheduleRowsFor(input: ScheduleRowsInput): ScheduleEntry[] {
   const add = (dayType: string, startMin: number, endMin: number, patternId: string) =>
     rows.push({
       scheduleId: `${input.idPrefix}-S${String(rows.length + 1).padStart(2, "0")}`,
-      coordinationId: input.coordinationId,
+      corridorId: input.corridorId,
       dayType,
       startTime: clockText(startMin),
       endTime: clockText(endMin),

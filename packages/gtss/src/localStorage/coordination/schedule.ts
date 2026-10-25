@@ -241,18 +241,31 @@ export interface DayAlignment {
   unplaceable: string[];
 }
 
-/** Schedule rows that belong to a corridor, found through their pattern. */
+/**
+ * The corridor a schedule row belongs to: its own corridor_id, or else its
+ * pattern's (rows imported from the old layout, which named a coordination plan
+ * instead, have none of their own).
+ */
+export function scheduleCorridorId(
+  entry: Pick<ScheduleEntry, "corridorId" | "patternId">,
+  patterns: readonly Pick<Pattern, "patternId" | "corridorId">[],
+): string | null {
+  if (entry.corridorId != null) return entry.corridorId;
+  if (entry.patternId == null) return null;
+  return patterns.find((p) => p.patternId === entry.patternId)?.corridorId ?? null;
+}
+
+/** Schedule rows that belong to a corridor. */
 export function scheduleEntriesForCorridor(
   rows: Pick<CoordinationRows, "schedule" | "patterns">,
   corridorId: string,
 ): ScheduleEntry[] {
-  const corridorOf = new Map(rows.patterns.map((p) => [p.patternId, p.corridorId]));
   return rows.schedule.filter((entry) => {
-    // Schedule has no corridor column; the pattern is the only link. An entry
-    // whose pattern is unknown, or has no corridor, can't be attributed — so it
-    // is shown rather than hidden. Validation reports it, and hiding it here
-    // would hide the very problem this view exists to expose.
-    const owner = entry.patternId == null ? undefined : corridorOf.get(entry.patternId);
+    // An entry that can't be attributed (no corridor of its own, and a pattern
+    // that is unknown or has none) is shown rather than hidden. Validation
+    // reports it, and hiding it here would hide the very problem this view
+    // exists to expose.
+    const owner = scheduleCorridorId(entry, rows.patterns);
     return owner == null || owner === corridorId;
   });
 }
@@ -270,6 +283,34 @@ export function dayTypesFor(
   return Array.from(seen.values()).sort(
     (a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || a.label.localeCompare(b.label),
   );
+}
+
+/**
+ * The corridor's reference intersection: the signal its offsets are counted
+ * from. Converted files name it in PatternSignals' reference_point, and older
+ * ones in Patterns' too; Patterns' now holds the offset reference (BegGreen…)
+ * instead, which isn't a signal. The most-named corridor signal wins.
+ */
+export function referenceSignalFor(
+  rows: Pick<CoordinationRows, "patterns" | "patternSignals">,
+  corridorId: string,
+  signalIds: readonly string[],
+): string | null {
+  const patternIds = new Set(
+    rows.patterns.filter((p) => p.corridorId === corridorId).map((p) => p.patternId),
+  );
+  const named = [
+    ...rows.patterns.filter((p) => patternIds.has(p.patternId)).map((p) => p.referencePoint),
+    ...rows.patternSignals
+      .filter((ps) => patternIds.has(ps.patternId))
+      .map((ps) => ps.referencePoint),
+  ].filter((id): id is string => id != null && signalIds.includes(id));
+  const counts = new Map<string, number>();
+  for (const id of named) counts.set(id, (counts.get(id) ?? 0) + 1);
+  let best: string | null = null;
+  for (const [id, n] of Array.from(counts))
+    if (best === null || n > (counts.get(best) ?? 0)) best = id;
+  return best;
 }
 
 /** Names for a note. Long enough to be a checklist; elided only on huge corridors. */
@@ -390,15 +431,7 @@ export function alignDaySchedule(
     return { ...seg, pattern, states, notes };
   });
 
-  // Converted files name the reference intersection here; patterns built in
-  // GTSS Builder put the offset reference (BegGRN…) here instead, which isn't one.
-  const reference =
-    rows.patterns.find(
-      (p) =>
-        p.corridorId === corridorId &&
-        p.referencePoint != null &&
-        signalIds.includes(p.referencePoint),
-    )?.referencePoint ?? null;
+  const reference = referenceSignalFor(rows, corridorId, signalIds);
 
   return { day, signalIds, referenceSignalId: reference, segments, unplaceable };
 }

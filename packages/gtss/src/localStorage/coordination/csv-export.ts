@@ -1,6 +1,5 @@
 import { sanitizeCSVField } from "../csv-utils";
 import {
-  COORDINATION_COLUMNS,
   CORRIDOR_COLUMNS,
   CORRIDOR_SIGNAL_COLUMNS,
   PATTERN_COLUMNS,
@@ -10,7 +9,6 @@ import {
   SPLIT_COLUMNS,
 } from "./columns";
 import type {
-  CoordinationPlan,
   Corridor,
   CorridorSignal,
   Pattern,
@@ -47,6 +45,8 @@ export const generateCorridorsCSV = (rows: readonly Corridor[]): string =>
     r.name,
     r.description,
     r.primaryDirection,
+    r.referenceClock,
+    r.timezone,
   ]);
 
 export const generateCorridorSignalsCSV = (rows: readonly CorridorSignal[]): string =>
@@ -55,15 +55,6 @@ export const generateCorridorSignalsCSV = (rows: readonly CorridorSignal[]): str
     r.sequence,
     r.signalId,
     r.direction,
-  ]);
-
-export const generateCoordinationCSV = (rows: readonly CoordinationPlan[]): string =>
-  generate(COORDINATION_COLUMNS, rows, (r) => [
-    r.coordinationId,
-    r.name,
-    r.referenceClock,
-    r.timezone,
-    r.description,
   ]);
 
 export const generatePatternsCSV = (rows: readonly Pattern[]): string =>
@@ -92,7 +83,7 @@ export const generateSplitsCSV = (rows: readonly Split[]): string =>
 export const generateScheduleCSV = (rows: readonly ScheduleEntry[]): string =>
   generate(SCHEDULE_COLUMNS, rows, (r) => [
     r.scheduleId,
-    r.coordinationId,
+    r.corridorId,
     r.dayType,
     r.startTime,
     r.endTime,

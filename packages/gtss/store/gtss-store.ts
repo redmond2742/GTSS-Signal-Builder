@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { Agency, Approach, BasicTiming, Detector, Phase, Signal } from "../schema/public";
 import { AgencyDefaults } from "../src/agencyDefaults";
 import { readAllCoordination } from "../src/localStorage/coordination/entities";
+import { upgradeStoredCoordination } from "../src/localStorage/coordination/legacy";
 import type { CoordinationRows } from "../src/localStorage/coordination/rows";
 import {
   agencyDefaultsStorage,
@@ -90,6 +91,12 @@ interface GTSSStore {
   loadFromStorage: () => void;
 }
 
+/** Coordination rows, after upgrading any saved before Coordination.txt was folded into corridors. */
+const loadCoordination = () => {
+  upgradeStoredCoordination();
+  return readAllCoordination();
+};
+
 export const useGTSSStore = create<GTSSStore>((set) => ({
   agency: agencyStorage.get(),
   agencies: agencyListStorage.getAll(),
@@ -100,7 +107,7 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
   phases: phaseStorage.getAll(),
   detectors: detectorStorage.getAll(),
   basicTimings: basicTimingStorage.getAll(),
-  coordination: readAllCoordination(),
+  coordination: loadCoordination(),
   refreshCoordination: () => set({ coordination: readAllCoordination() }),
 
   // Initial navigation state
@@ -222,6 +229,6 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
       phases: phaseStorage.getAll(),
       detectors: detectorStorage.getAll(),
       basicTimings: basicTimingStorage.getAll(),
-      coordination: readAllCoordination(),
+      coordination: loadCoordination(),
     }),
 }));

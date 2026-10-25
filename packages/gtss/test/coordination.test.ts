@@ -18,6 +18,8 @@ import {
   type CorridorSignal,
   type ParsedCoordination,
 } from "../src/localStorage/coordination/rows";
+import { offsetReferenceFor } from "../src/localStorage/coordination/offsetReference";
+import { referenceSignalFor, scheduleCorridorId } from "../src/localStorage/coordination/schedule";
 import { resolveCoordinationScope, UNSCOPED } from "../src/localStorage/coordination/scope";
 import { validateCoordination } from "../src/localStorage/coordination/validate";
 import { clearAllData } from "../src/localStorage/clearAll";
@@ -59,7 +61,6 @@ const parseSample = (): ParsedCoordination => {
   const bag: ParsedCoordination = {};
   entity("corridors").parseInto(sample.corridorsTxt, bag);
   entity("corridorSignals").parseInto(sample.corridorSignalsTxt, bag);
-  entity("coordination").parseInto(sample.coordinationTxt, bag);
   entity("patterns").parseInto(sample.patternsTxt, bag);
   entity("patternSignals").parseInto(sample.patternSignalsTxt, bag);
   entity("splits").parseInto(sample.splitsTxt, bag);
@@ -80,7 +81,6 @@ describe("coordination parsers", () => {
     const bag = parseSample();
     expect(bag.corridors).toHaveLength(1);
     expect(bag.corridorSignals).toHaveLength(8);
-    expect(bag.coordination).toHaveLength(1);
     expect(bag.patterns).toHaveLength(4);
     // 3 coordinated patterns x 8 signals. The fourth pattern (CAL-SB-FREE) has
     // no per-signal rows at all — free operation is expressed by the pattern's
@@ -109,6 +109,48 @@ describe("coordination parsers", () => {
     expect(free?.patternNumber).toBe(254);
   });
 
+  it("reads the corridor's reference clock and timezone, which used to be Coordination.txt's", () => {
+    expect(parseSample().corridors?.[0]).toMatchObject({
+      corridorId: "CAL-SB",
+      referenceClock: "LOCAL",
+      timezone: "America/Los_Angeles",
+    });
+  });
+
+  it("reads which corridor each schedule row is for", () => {
+    const schedule = parseSample().schedule ?? [];
+    expect(schedule.every((s) => s.corridorId === "CAL-SB")).toBe(true);
+  });
+
+  it("reads the offset reference from Patterns and the reference signal from PatternSignals", () => {
+    const bag = parseSample();
+    const pattern = bag.patterns?.find((p) => p.patternId === "CAL-SB-P01");
+    const ps = bag.patternSignals?.find(
+      (p) => p.patternId === "CAL-SB-P01" && p.signalId === "SIG-024",
+    );
+    expect(offsetReferenceFor(ps, pattern)).toEqual({ reference: "BegGreen", source: "pattern" });
+    expect(
+      referenceSignalFor(
+        { patterns: bag.patterns ?? [], patternSignals: bag.patternSignals ?? [] },
+        "CAL-SB",
+        (bag.corridorSignals ?? []).map((c) => c.signalId),
+      ),
+    ).toBe("SIG-022");
+  });
+
+  it("doesn't take an old Schedule.txt's coordination id for a corridor", () => {
+    const bag: ParsedCoordination = {};
+    entity("patterns").parseInto(sample.patternsTxt, bag);
+    entity("schedule").parseInto(sample.legacyScheduleTxt, bag);
+    expect(bag.schedule).toHaveLength(11);
+    expect(bag.schedule?.every((s) => s.corridorId === null)).toBe(true);
+    // Its pattern says which corridor it is.
+    expect(bag.schedule?.map((s) => scheduleCorridorId(s, bag.patterns ?? []))).toEqual(
+      Array(11).fill("CAL-SB"),
+    );
+    expect(bag.schedule?.[1]).toMatchObject({ dayType: "WEEKDAY", patternId: "CAL-SB-P01" });
+  });
+
   it("reports every bad row in one error rather than the first", () => {
     const bad = ["corridor_id,sequence,signal_id,direction", ",1,SIG-1,SB", "C-1,2,,SB"].join("\n");
     expect(() => entity("corridorSignals").parseInto(bad, {})).toThrow(
@@ -123,7 +165,6 @@ describe("coordination round-trip", () => {
     const sources: Record<string, string> = {
       corridors: sample.corridorsTxt,
       corridorSignals: sample.corridorSignalsTxt,
-      coordination: sample.coordinationTxt,
       patterns: sample.patternsTxt,
       patternSignals: sample.patternSignalsTxt,
       splits: sample.splitsTxt,
@@ -222,9 +263,14 @@ describe("filename detection", () => {
     ["Patterns.txt", "patterns"],
     ["Splits.txt", "splits"],
     ["Schedule.txt", "schedule"],
-    ["Coordination.txt", "coordination"],
   ])("routes %s to %s", (filename, expected) => {
     expect(detectCoordinationFile(filename)?.key).toBe(expected);
+  });
+
+  it("claims neither the old Coordination.txt nor the converter's side files", () => {
+    for (const name of ["Coordination.txt", "warnings.txt"]) {
+      expect(detectCoordinationFile(name), name).toBeNull();
+    }
   });
 
   it("ignores files that belong to the original GTSS export", () => {
@@ -250,7 +296,7 @@ describe("export scope", () => {
     // No signals in scope -> nothing reachable survives.
     const empty = resolveCoordinationScope([], rows);
     expect(entity("corridors").render(empty).trim()).toBe(
-      "corridor_id,name,description,primary_direction",
+      "corridor_id,name,description,primary_direction,reference_clock,timezone",
     );
     expect(entity("patterns").render(empty).trim()).toBe(
       "pattern_id,pattern_number,corridor_id,cycle_length_s,reference_point,description",
@@ -736,7 +782,7 @@ describe("editing a signal id", () => {
     });
 
     it("is only offered by the files that have a signal id", () => {
-      for (const key of ["corridors", "coordination", "patterns", "schedule"]) {
+      for (const key of ["corridors", "patterns", "schedule"]) {
         expect(entity(key).changeRowSignal, key).toBeUndefined();
       }
       for (const key of ["corridorSignals", "patternSignals", "splits", "phaseSequence"]) {
@@ -821,17 +867,30 @@ describe("editing a signal id", () => {
     it("renames the signal's rows and the reference points that name it", () => {
       seed();
       const before = mentions("SIG-022");
-      // The reference intersection: all 4 patterns and all 24 pattern-signal rows point at it.
-      expect(before.patternRefs).toBe(4);
+      // The reference intersection: all 24 pattern-signal rows point at it. The
+      // patterns' own reference_point holds the offset reference (BegGreen) now.
+      expect(before.patternRefs).toBe(0);
       expect(before.patternSignalRefs).toBe(24);
 
       const report = renameSignalInCoordination("SIG-022", "SIG-122");
 
       const rows =
         before.corridorSignals + before.patternSignals + before.splits + before.phaseSequence;
-      expect(report).toEqual({ changed: rows, skipped: 0, referencePoints: 28 });
+      expect(report).toEqual({ changed: rows, skipped: 0, referencePoints: 24 });
       expect(Object.values(mentions("SIG-022")).every((n) => n === 0)).toBe(true);
       expect(mentions("SIG-122")).toEqual({ ...before });
+    });
+
+    it("also renames a reference signal named in Patterns, as older exports did", () => {
+      seed();
+      COORDINATION_ENTITIES.find((e) => e.key === "patterns")!.replaceFrom({
+        patterns: readAllCoordination().patterns.map((p) => ({ ...p, referencePoint: "SIG-022" })),
+      });
+      const report = renameSignalInCoordination("SIG-022", "SIG-122");
+      expect(report.referencePoints).toBe(28);
+      expect(readAllCoordination().patterns.every((p) => p.referencePoint === "SIG-122")).toBe(
+        true,
+      );
     });
 
     it("leaves other signals alone", () => {
@@ -848,15 +907,21 @@ describe("editing a signal id", () => {
       const report = renameSignalInCoordination("SIG-022", "SIG-023");
       expect(report.skipped).toBeGreaterThan(0);
       expect(report.referencePoints).toBe(0);
-      expect(mentions("SIG-022").patternRefs).toBe(4);
+      expect(mentions("SIG-022").patternSignalRefs).toBe(24);
     });
 
     it("is what a signal rename from the Signals page now does, reference points included", () => {
       seed();
       updateCoordinationSignalId("SIG-022", "SIG-777");
       const after = readAllCoordination();
-      expect(after.patterns.every((p) => p.referencePoint === "SIG-777")).toBe(true);
       expect(after.patternSignals.every((p) => p.referencePoint === "SIG-777")).toBe(true);
+      // The offset reference isn't a signal, so it stays.
+      expect(after.patterns.map((p) => p.referencePoint)).toEqual([
+        "BegGreen",
+        "BegGreen",
+        "BegGreen",
+        null,
+      ]);
     });
 
     it("is blocked by the storage read-only guard", () => {

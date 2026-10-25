@@ -6,13 +6,13 @@ import type { CoordinationRows } from "./rows";
  * `null` on a set means "no filtering" — export everything.
  *
  * This is not as simple as testing each row for a signal_id, because only four
- * of the eight files carry one. Note in particular that `corridors.txt` has NO
+ * of the seven files carry one. Note in particular that `corridors.txt` has NO
  * agency_id column in the real converter output, so a corridor's agency is only
  * knowable through its signals. The reachability chain is:
  *
  *   signal ──< corridorSignals ──> corridor ──< pattern ──< patternSignals
  *                                                      ├──< splits
- *                                                      └──< schedule ──> coordination
+ *                                                      └──< schedule
  *   signal ──< phaseSequence
  *
  * Skipping this and exporting coordination unfiltered is a visible bug for any
@@ -23,7 +23,6 @@ export interface CoordinationScope {
   signalIds: Set<string> | null;
   corridorIds: Set<string> | null;
   patternIds: Set<string> | null;
-  coordinationIds: Set<string> | null;
 }
 
 /** No filtering — every row is in scope. */
@@ -31,7 +30,6 @@ export const UNSCOPED: CoordinationScope = {
   signalIds: null,
   corridorIds: null,
   patternIds: null,
-  coordinationIds: null,
 };
 
 /** `null`/absent set means unfiltered, so everything passes. */
@@ -63,13 +61,5 @@ export function resolveCoordinationScope(
       .map((p) => p.patternId),
   );
 
-  // A coordination plan is reachable only through the schedules that use it.
-  const coordinationIds = new Set(
-    rows.schedule
-      .filter((s) => s.patternId != null && patternIds.has(s.patternId))
-      .map((s) => s.coordinationId)
-      .filter((id): id is string => id != null),
-  );
-
-  return { signalIds: keptSignals, corridorIds, patternIds, coordinationIds };
+  return { signalIds: keptSignals, corridorIds, patternIds };
 }

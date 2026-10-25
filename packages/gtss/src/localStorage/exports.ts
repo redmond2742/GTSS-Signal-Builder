@@ -44,7 +44,7 @@ type ExportOptions = {
   phases: boolean;
   detection: boolean;
   basicTimings: boolean;
-  /** Opt-in: fold the 8 coordination files into the main export. Optional so
+  /** Opt-in: fold the 7 coordination files into the main export. Optional so
    *  existing six-key callers keep compiling. */
   coordination?: boolean;
 };
@@ -152,7 +152,7 @@ export const exportAsZip = async (
 };
 
 /**
- * Export the 8 coordination files on their own, as GTSS-Coordination.zip —
+ * Export the 7 coordination files on their own, as GTSS-Coordination.zip —
  * the same shape the timing-sheet converter produces.
  */
 export const exportCoordinationAsZip = async (agencyIds: string[] | null = null): Promise<void> => {

@@ -1,4 +1,4 @@
-// Row types for the 8 coordination entities, plus the key→row map that the
+// Row types for the 7 coordination entities, plus the key→row map that the
 // registry is generic over.
 //
 // Deliberately different from the six original entities in one respect: these
@@ -13,6 +13,10 @@ export interface Corridor {
   name: string | null;
   description: string | null;
   primaryDirection: string | null;
+  /** The clock offsets count from, e.g. "LOCAL". Absent in files from before it moved here. */
+  referenceClock?: string | null;
+  /** IANA name, e.g. "America/Los_Angeles". */
+  timezone?: string | null;
 }
 
 export interface CorridorSignal {
@@ -20,14 +24,6 @@ export interface CorridorSignal {
   sequence: number | null;
   signalId: string;
   direction: string | null;
-}
-
-export interface CoordinationPlan {
-  coordinationId: string;
-  name: string | null;
-  referenceClock: string | null;
-  timezone: string | null;
-  description: string | null;
 }
 
 export interface Pattern {
@@ -59,7 +55,12 @@ export interface Split {
 
 export interface ScheduleEntry {
   scheduleId: string;
-  coordinationId: string | null;
+  /**
+   * The corridor this row schedules. Null (or absent, in data stored before
+   * Coordination.txt was folded into corridors.txt) means "the corridor of its
+   * pattern" — see `scheduleCorridorId`.
+   */
+  corridorId?: string | null;
   /** WEEKDAY / SATURDAY / SUNDAY, or a SPECIAL_* range whose higher priority wins. */
   dayType: string | null;
   startTime: string | null;
@@ -87,7 +88,6 @@ export interface PhaseSequenceEntry {
 export type CoordinationRows = {
   corridors: Corridor[];
   corridorSignals: CorridorSignal[];
-  coordination: CoordinationPlan[];
   patterns: Pattern[];
   patternSignals: PatternSignal[];
   splits: Split[];
@@ -98,7 +98,7 @@ export type CoordinationRows = {
 export type CoordinationKey = keyof CoordinationRows;
 export type CoordinationRow<K extends CoordinationKey> = CoordinationRows[K][number];
 
-/** What an import produces: any subset of the 8 files. */
+/** What an import produces: any subset of the 7 files. */
 export type ParsedCoordination = Partial<CoordinationRows>;
 
 /** Per-file export toggles. Adding a registry key makes exhaustive consumers fail to compile. */
@@ -107,7 +107,6 @@ export type CoordinationFlags = { [K in CoordinationKey]: boolean };
 export const emptyCoordinationRows = (): CoordinationRows => ({
   corridors: [],
   corridorSignals: [],
-  coordination: [],
   patterns: [],
   patternSignals: [],
   splits: [],

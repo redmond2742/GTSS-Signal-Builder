@@ -24,6 +24,7 @@ import {
   reverseDirection,
   throughPhaseFor,
 } from "../src/localStorage/coordination/gtssLink";
+import { offsetReferenceFor } from "../src/localStorage/coordination/offsetReference";
 import { opposingWindow, phaseWindow } from "../src/localStorage/coordination/opposingPhase";
 import { emptyCoordinationRows, type CorridorSignal } from "../src/localStorage/coordination/rows";
 import { validateCoordination } from "../src/localStorage/coordination/validate";
@@ -204,6 +205,8 @@ describe("planning a new corridor", () => {
         name: "Main St southbound",
         description: null,
         primaryDirection: "SB",
+        referenceClock: null,
+        timezone: null,
       },
     ]);
     expect(rows.corridorSignals?.map((c) => `${c.sequence}:${c.signalId}:${c.direction}`)).toEqual([
@@ -217,7 +220,7 @@ describe("planning a new corridor", () => {
         corridorId: "MAIN-SB",
         cycleLengthS: 120,
         // What offsets are measured to, not a signal.
-        referencePoint: "BegGRN",
+        referencePoint: "BegGreen",
       }),
     ]);
   });
@@ -447,16 +450,26 @@ describe("building a corridor by hand", () => {
   });
 
   it("measures offsets to begin of green by default, or to begin of yellow if chosen", () => {
+    // Laid out as the converter does: the offset reference in Patterns and in
+    // the notes, the reference intersection (the first signal) in PatternSignals.
     const green = planCorridor({ ...base, pattern }, gtss, emptyCoordinationRows()).rows;
-    expect(green.patterns?.[0].referencePoint).toBe("BegGRN");
-    expect(green.patternSignals?.every((p) => p.referencePoint === "BegGRN")).toBe(true);
+    expect(green.patterns?.[0].referencePoint).toBe("BegGreen");
+    expect(green.patternSignals?.every((p) => p.referencePoint === "A")).toBe(true);
+    expect(green.patternSignals?.every((p) => p.notes?.endsWith("offset ref BegGreen"))).toBe(true);
     const yellow = planCorridor(
-      { ...base, pattern: { ...pattern, offsetReference: "BegYEL" } },
+      { ...base, pattern: { ...pattern, offsetReference: "BegYellow" } },
       gtss,
       emptyCoordinationRows(),
     ).rows;
-    expect(yellow.patterns?.[0].referencePoint).toBe("BegYEL");
-    expect(yellow.patternSignals?.every((p) => p.referencePoint === "BegYEL")).toBe(true);
+    expect(yellow.patterns?.[0].referencePoint).toBe("BegYellow");
+    expect(yellow.patternSignals?.every((p) => p.referencePoint === "A")).toBe(true);
+    expect(
+      yellow.patternSignals?.every((p) => offsetReferenceFor(p, yellow.patterns?.[0]).reference),
+    ).toBe(true);
+    expect(offsetReferenceFor(yellow.patternSignals?.[1], yellow.patterns?.[0])).toEqual({
+      reference: "BegYellow",
+      source: "pattern",
+    });
   });
 
   it("schedules the pattern in the picked times and runs free the rest of the week", () => {
@@ -464,8 +477,9 @@ describe("building a corridor by hand", () => {
       {
         ...base,
         pattern: { ...pattern, fitSplits: true },
+        timezone: "America/Los_Angeles",
+        referenceClock: "LOCAL",
         schedule: {
-          timezone: "America/Los_Angeles",
           freeRest: true,
           blocks: [
             { dayType: "WEEKDAY", startMin: 360, endMin: 600 },
@@ -477,9 +491,12 @@ describe("building a corridor by hand", () => {
       emptyCoordinationRows(),
     );
     expect(error).toBeNull();
-    expect(rows.coordination).toEqual([
-      expect.objectContaining({ coordinationId: "MAIN-SB-COORD", timezone: "America/Los_Angeles" }),
-    ]);
+    // The clock and timezone go on the corridor; each schedule row names it.
+    expect(rows.corridors?.[0]).toMatchObject({
+      referenceClock: "LOCAL",
+      timezone: "America/Los_Angeles",
+    });
+    expect(rows.schedule?.every((r) => r.corridorId === "MAIN-SB")).toBe(true);
     expect(
       rows.patterns?.map((p) => `${p.patternId}:${p.patternNumber}:${p.cycleLengthS}`),
     ).toEqual(["MAIN-SB-P01:1:120", "MAIN-SB-FREE:254:0"]);
@@ -504,7 +521,7 @@ describe("building a corridor by hand", () => {
     expect(issues).toEqual([]);
   });
 
-  it("writes the built schedule so the calendar reads it, without naming a reference signal", () => {
+  it("writes the built schedule so the calendar reads it, with the first signal as reference", () => {
     const { rows } = planCorridor(
       {
         ...base,
@@ -522,8 +539,8 @@ describe("building a corridor by hand", () => {
       "MAIN-SB-FREE",
     ]);
     expect(day.segments[1].states.get("B")).toMatchObject({ kind: "coordinated", phase: 6 });
-    // "BegGRN" is an offset reference, not an intersection.
-    expect(day.referenceSignalId).toBeNull();
+    // Patterns' "BegGreen" is an offset reference; PatternSignals name the signal.
+    expect(day.referenceSignalId).toBe("A");
   });
 
   it("refuses a schedule it can't build, and says why", () => {
@@ -532,20 +549,6 @@ describe("building a corridor by hand", () => {
     expect(planCorridor({ ...base, schedule }, gtss, empty).error).toMatch(
       /needs a starter pattern/,
     );
-    expect(
-      planCorridor({ ...base, pattern, schedule }, gtss, {
-        ...empty,
-        coordination: [
-          {
-            coordinationId: "MAIN-SB-COORD",
-            name: null,
-            referenceClock: null,
-            timezone: null,
-            description: null,
-          },
-        ],
-      }).error,
-    ).toMatch(/already a coordination plan called MAIN-SB-COORD/);
     expect(
       planCorridor(
         { ...base, pattern: { ...pattern, patternId: "MAIN-SB-FREE" }, schedule },
@@ -559,7 +562,7 @@ describe("building a corridor by hand", () => {
         schedule: [
           {
             scheduleId: "MAIN-SB-S01",
-            coordinationId: null,
+            corridorId: null,
             dayType: "WEEKDAY",
             startTime: "00:00",
             endTime: "24:00",
@@ -635,14 +638,14 @@ describe("adding and removing corridor signals", () => {
           offsetS: 0,
           coordinatedPhase: 6,
           referencePoint: "A",
-          notes: "Reference intersection; seq 1; offset ref BegYEL",
+          notes: "Reference intersection; seq 1; offset ref BegYellow",
         },
       ],
     });
     const result = planAddSignal(readAllCoordination(), "CAL", "B", gtss);
     const ps = result.rows.patternSignals?.[0];
     expect(ps?.referencePoint).toBe("A");
-    expect(ps?.notes).toContain("offset ref BegYEL");
+    expect(ps?.notes).toContain("offset ref BegYellow");
   });
 
   it("adds nothing for the corridor's free pattern, which has no offsets or splits", () => {

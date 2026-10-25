@@ -242,6 +242,14 @@ export default function ScheduleCalendar({
     };
 
   const hasData = days.length > 0;
+  // The schedule's times are on the corridor's clock.
+  const corridor = coordination.corridors.find((c) => c.corridorId === corridorId);
+  const clock = [
+    corridor?.timezone,
+    corridor?.referenceClock ? `${corridor.referenceClock} clock` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <Card>
@@ -250,6 +258,14 @@ export default function ScheduleCalendar({
           <CardTitle className="flex items-center gap-2 text-base font-semibold text-grey-800">
             <CalendarClock className="h-4 w-4 text-primary-600" />
             Schedule calendar
+            {clock && (
+              <span
+                className="text-xs font-normal text-grey-500"
+                title="From the corridor's timezone and reference_clock in corridors.txt"
+              >
+                {clock}
+              </span>
+            )}
           </CardTitle>
           <div className="flex flex-wrap items-center gap-3">
             <ToggleGroup
