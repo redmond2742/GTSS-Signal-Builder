@@ -10,7 +10,7 @@ import type { Pattern, PatternSignal } from "./rows";
  * the moment it turns green, or the moment its yellow starts. The same number
  * means a different picture under each, so the diagram has to know which.
  */
-export type OffsetReference = "BegGRN" | "BegYEL";
+export type OffsetReference = "BegGreen" | "BegYellow";
 
 export const OFFSET_REFERENCES: readonly {
   value: OffsetReference;
@@ -18,12 +18,12 @@ export const OFFSET_REFERENCES: readonly {
   hint: string;
 }[] = [
   {
-    value: "BegGRN",
+    value: "BegGreen",
     label: "Begin of green",
     hint: "The offset is when the coordinated phase turns green.",
   },
   {
-    value: "BegYEL",
+    value: "BegYellow",
     label: "Begin of yellow",
     hint: "The offset is when the coordinated phase's yellow starts, i.e. the end of its green.",
   },
@@ -31,18 +31,18 @@ export const OFFSET_REFERENCES: readonly {
 
 /** Normalised forms (see `parseOffsetReference`) and what they mean. */
 const ALIASES: Record<string, OffsetReference> = {
-  BEGGRN: "BegGRN",
-  BOG: "BegGRN",
-  BEGYEL: "BegYEL",
-  BOY: "BegYEL",
+  BEGGRN: "BegGreen",
+  BOG: "BegGreen",
+  BEGYEL: "BegYellow",
+  BOY: "BegYellow",
   // The green ends exactly where the yellow begins.
-  ENDGRN: "BegYEL",
-  EOG: "BegYEL",
+  ENDGRN: "BegYellow",
+  EOG: "BegYellow",
 };
 
 /**
- * "BegGRN", "Begin of green", "BOG" → "BegGRN"; "Start of yellow", "EndGRN" →
- * "BegYEL". Null for anything else — including a signal id, which is what some
+ * "BegGreen", "Begin of green", "BOG" → "BegGreen"; "Start of yellow", "EndGRN" →
+ * "BegYellow". Null for anything else — including a signal id, which is what some
  * exports put in reference_point.
  */
 export function parseOffsetReference(text: string | null | undefined): OffsetReference | null {
@@ -63,6 +63,18 @@ export type OffsetReferenceSource = "pattern signal" | "pattern" | "notes" | "de
  * wins, then the pattern's, then an "offset ref X" in the notes (converted
  * timing sheets put it there), then begin of green.
  */
+/** "offset ref BegGreen" in PatternSignals' notes, as converted files write it. */
+const NOTES_REFERENCE = /offset\s*ref(?:erence)?\s*[:=]?\s*([A-Za-z ]+?)(?=;|$)/i;
+
+/** Notes with any "offset ref X" changed to say `reference`. */
+export const withNotesReference = (notes: string | null, reference: OffsetReference) =>
+  notes == null
+    ? notes
+    : notes.replace(
+        new RegExp(NOTES_REFERENCE.source, "gi"),
+        (match: string, old: string) => match.slice(0, match.length - old.length) + reference,
+      );
+
 export function offsetReferenceFor(
   patternSignal: Pick<PatternSignal, "referencePoint" | "notes"> | undefined,
   pattern: Pick<Pattern, "referencePoint"> | undefined,
@@ -71,12 +83,10 @@ export function offsetReferenceFor(
   if (own) return { reference: own, source: "pattern signal" };
   const shared = parseOffsetReference(pattern?.referencePoint);
   if (shared) return { reference: shared, source: "pattern" };
-  const noted = /offset\s*ref(?:erence)?\s*[:=]?\s*([A-Za-z ]+?)(?:;|$)/i.exec(
-    patternSignal?.notes ?? "",
-  );
+  const noted = NOTES_REFERENCE.exec(patternSignal?.notes ?? "");
   const fromNotes = parseOffsetReference(noted?.[1]);
   if (fromNotes) return { reference: fromNotes, source: "notes" };
-  return { reference: "BegGRN", source: "default" };
+  return { reference: "BegGreen", source: "default" };
 }
 
 /**
@@ -91,7 +101,7 @@ export function splitStartShift(
   splitS: number,
   clearanceS: number,
 ): number {
-  if (reference === "BegGRN") return 0;
+  if (reference === "BegGreen") return 0;
   return -Math.max(0, splitS - Math.max(0, clearanceS));
 }
 
@@ -102,14 +112,22 @@ export interface ReferenceChange {
   reference: OffsetReference;
   /** What to put back to undo it. */
   previousPatternReference: string | null;
-  previous: { signalId: string; referencePoint: string | null; offsetS: number | null }[];
+  previous: {
+    signalId: string;
+    referencePoint: string | null;
+    offsetS: number | null;
+    notes: string | null;
+  }[];
 }
 
 /**
- * Say what a pattern's offsets are measured to: the token goes in the pattern's
- * reference_point and in each of its PatternSignals rows'. Offsets are left as
- * they are unless `offsets` gives new ones (signal id → seconds), which is how a
- * caller keeps each green where it was when the reference changes underneath it.
+ * Say what a pattern's offsets are measured to. The token goes in the pattern's
+ * reference_point. Its PatternSignals rows keep theirs, which name the reference
+ * intersection, unless one holds an offset reference itself; an "offset ref X"
+ * in their notes is changed to match, so the file doesn't contradict itself.
+ * Offsets are left as they are unless `offsets` gives new ones (signal id →
+ * seconds), which is how a caller keeps each green where it was when the
+ * reference changes underneath it.
  */
 export function setPatternOffsetReference(
   patternId: string,
@@ -128,7 +146,12 @@ export function setPatternOffsetReference(
     previousPatternReference: pattern.referencePoint,
     previous: rows
       .filter((r) => r.patternId === patternId)
-      .map((r) => ({ signalId: r.signalId, referencePoint: r.referencePoint, offsetS: r.offsetS })),
+      .map((r) => ({
+        signalId: r.signalId,
+        referencePoint: r.referencePoint,
+        offsetS: r.offsetS,
+        notes: r.notes,
+      })),
   };
   saveToStorage(
     keys.patterns,
@@ -141,8 +164,9 @@ export function setPatternOffsetReference(
         ? r
         : {
             ...r,
-            referencePoint: reference,
+            referencePoint: parseOffsetReference(r.referencePoint) ? reference : r.referencePoint,
             offsetS: offsets?.has(r.signalId) ? (offsets.get(r.signalId) as number) : r.offsetS,
+            notes: withNotesReference(r.notes, reference),
           },
     ),
   );
@@ -167,7 +191,9 @@ export function undoReferenceChange(change: ReferenceChange): void {
     keys.patternSignals,
     rows.map((r) => {
       const was = r.patternId === change.patternId ? before.get(r.signalId) : undefined;
-      return was ? { ...r, referencePoint: was.referencePoint, offsetS: was.offsetS } : r;
+      return was
+        ? { ...r, referencePoint: was.referencePoint, offsetS: was.offsetS, notes: was.notes }
+        : r;
     }),
   );
 }

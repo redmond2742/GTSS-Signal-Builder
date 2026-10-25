@@ -192,7 +192,7 @@ describe("opposing window, hand-built", () => {
     const splits = [split(3, 30), split(4, 35), split(7, 15), split(8, 50)];
     const first = run(rows, splits); // no note: the first listed, SEQ-01
     const named = run(rows, splits, {
-      patternSignals: [ps("split table 1; seq 2; offset ref BegGRN")],
+      patternSignals: [ps("split table 1; seq 2; offset ref BegGreen")],
     });
     expect(first.offsetS).toBe(85);
     expect(named.offsetS).toBe(100);

@@ -155,7 +155,7 @@ describe("which pattern uses which sequence", () => {
   const ids = ["SEQ-01", "SEQ-11"];
 
   it("reads the sequence number out of the notes", () => {
-    expect(sequenceFromNotes("split table 1; seq 1; offset ref BegGRN", ids)).toBe("SEQ-01");
+    expect(sequenceFromNotes("split table 1; seq 1; offset ref BegGreen", ids)).toBe("SEQ-01");
     expect(sequenceFromNotes("seq 11", ids)).toBe("SEQ-11");
     expect(sequenceFromNotes("Sequence #1", ids)).toBe("SEQ-01");
   });

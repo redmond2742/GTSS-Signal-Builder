@@ -347,8 +347,8 @@ const OFFSET_LABEL = Object.fromEntries(OFFSET_REFERENCES.map((r) => [r.value, r
 
 /** Short forms for the column header. */
 const REFERENCE_SHORT: Record<OffsetReference, string> = {
-  BegGRN: "BEG GRN",
-  BegYEL: "BEG YEL",
+  BegGreen: "BEG GRN",
+  BegYellow: "BEG YEL",
 };
 
 const truncate = (text: string, max: number) =>
@@ -520,7 +520,7 @@ export default function TimeSpaceDiagram({
     coordinatedRefs.size === 1
       ? Array.from(coordinatedRefs)[0]
       : coordinatedRefs.size === 0
-        ? "BegGRN"
+        ? "BegGreen"
         : null;
   const referenceLabel = (stop: TimeSpaceStop) =>
     `${OFFSET_LABEL[stop.offsetReference].toLowerCase()}${

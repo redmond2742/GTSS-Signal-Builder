@@ -4,8 +4,8 @@
 // because its known quirks (signals running cycles that differ from their
 // pattern's reference) are exactly what the validator has to catch.
 
-export const corridorsTxt = `corridor_id,name,description,primary_direction
-CAL-SB,California Blvd Southbound,California Blvd coordinated arterial (verify order/direction),SB`;
+export const corridorsTxt = `corridor_id,name,description,primary_direction,reference_clock,timezone
+CAL-SB,California Blvd Southbound,California Blvd coordinated arterial (verify order/direction),SB,LOCAL,America/Los_Angeles`;
 
 export const corridorSignalsTxt = `corridor_id,sequence,signal_id,direction
 CAL-SB,1,SIG-022,SB
@@ -17,33 +17,30 @@ CAL-SB,6,SIG-027,SB
 CAL-SB,7,SIG-028,SB
 CAL-SB,8,SIG-059,SB`;
 
-export const coordinationTxt = `coordination_id,name,reference_clock,timezone,description
-COORD-CAL,California Blvd Southbound Coordination,LOCAL,America/Los_Angeles,California Blvd coordinated arterial (verify order/direction)`;
-
 export const patternsTxt = `pattern_id,pattern_number,corridor_id,cycle_length_s,reference_point,description
-CAL-SB-P01,1,CAL-SB,114,SIG-022,Pattern 1 - WEEKDAY 07:15-09:00; WEEKDAY 11:30-16:00
-CAL-SB-P03,3,CAL-SB,110,SIG-022,Pattern 3 - WEEKDAY 16:00-18:30
-CAL-SB-P05,5,CAL-SB,80,SIG-022,Pattern 5 - SATURDAY 12:00-15:30
-CAL-SB-FREE,254,CAL-SB,0,SIG-022,Free operation - SUNDAY 00:00-24:00; WEEKDAY 09:00-11:30; WEEKDAY 18:30-07:15; SATURDAY 15:30-12:00; SPECIAL_MONDAY_MAY_D25-31 00:00-24:00; SPECIAL_MONDAY_SEP_D01-07 00:00-24:00; SPECIAL_THURSDAY_NOV_D22-28 00:00-24:00`;
+CAL-SB-P01,1,CAL-SB,114,BegGreen,Pattern 1 - WEEKDAY 07:15-09:00; WEEKDAY 11:30-16:00
+CAL-SB-P03,3,CAL-SB,110,BegGreen,Pattern 3 - WEEKDAY 16:00-18:30
+CAL-SB-P05,5,CAL-SB,80,BegGreen,Pattern 5 - SATURDAY 12:00-15:30
+CAL-SB-FREE,254,CAL-SB,0,,Free operation - SUNDAY 00:00-24:00; WEEKDAY 09:00-11:30; WEEKDAY 18:30-07:15; SATURDAY 15:30-12:00; SPECIAL_MONDAY_MAY_D25-31 00:00-24:00; SPECIAL_MONDAY_SEP_D01-07 00:00-24:00; SPECIAL_THURSDAY_NOV_D22-28 00:00-24:00`;
 
 export const patternSignalsTxt = `pattern_id,signal_id,offset_s,coordinated_phase,reference_point,notes
-CAL-SB-P01,SIG-022,76,4,SIG-022,Reference intersection; split table 1; seq 1; offset ref BegGRN
-CAL-SB-P01,SIG-023,54,4,SIG-022,split table 1; seq 1; offset ref BegGRN
-CAL-SB-P01,SIG-024,72,4,SIG-022,split table 1; seq 4; offset ref BegGRN
-CAL-SB-P01,SIG-025,21,4,SIG-022,split table 1; seq 1; offset ref BegGRN
-CAL-SB-P01,SIG-026,0,4,SIG-022,split table 1; seq 5; offset ref BegGRN
-CAL-SB-P01,SIG-027,110,8,SIG-022,split table 1; seq 10; offset ref BegGRN
+CAL-SB-P01,SIG-022,76,4,SIG-022,Reference intersection; split table 1; seq 1; offset ref BegGreen
+CAL-SB-P01,SIG-023,54,4,SIG-022,split table 1; seq 1; offset ref BegGreen
+CAL-SB-P01,SIG-024,72,4,SIG-022,split table 1; seq 4; offset ref BegGreen
+CAL-SB-P01,SIG-025,21,4,SIG-022,split table 1; seq 1; offset ref BegGreen
+CAL-SB-P01,SIG-026,0,4,SIG-022,split table 1; seq 5; offset ref BegGreen
+CAL-SB-P01,SIG-027,110,8,SIG-022,split table 1; seq 10; offset ref BegGreen
 CAL-SB-P01,SIG-028,0,,SIG-022,Free at this signal (pattern 1 cycle 0)
-CAL-SB-P01,SIG-059,115,4,SIG-022,split table 1; seq 1; offset ref BegGRN
-CAL-SB-P03,SIG-022,45,4,SIG-022,Reference intersection; split table 3; seq 1; offset ref BegGRN
-CAL-SB-P03,SIG-023,14,8,SIG-022,split table 3; seq 3; offset ref BegGRN
-CAL-SB-P03,SIG-024,28,8,SIG-022,split table 3; seq 7; offset ref BegGRN
-CAL-SB-P03,SIG-025,3,4,SIG-022,split table 3; seq 1; offset ref BegGRN
-CAL-SB-P03,SIG-026,0,8,SIG-022,split table 3; seq 13; offset ref BegGRN
-CAL-SB-P03,SIG-027,8,8,SIG-022,split table 3; seq 10; offset ref BegGRN
+CAL-SB-P01,SIG-059,115,4,SIG-022,split table 1; seq 1; offset ref BegGreen
+CAL-SB-P03,SIG-022,45,4,SIG-022,Reference intersection; split table 3; seq 1; offset ref BegGreen
+CAL-SB-P03,SIG-023,14,8,SIG-022,split table 3; seq 3; offset ref BegGreen
+CAL-SB-P03,SIG-024,28,8,SIG-022,split table 3; seq 7; offset ref BegGreen
+CAL-SB-P03,SIG-025,3,4,SIG-022,split table 3; seq 1; offset ref BegGreen
+CAL-SB-P03,SIG-026,0,8,SIG-022,split table 3; seq 13; offset ref BegGreen
+CAL-SB-P03,SIG-027,8,8,SIG-022,split table 3; seq 10; offset ref BegGreen
 CAL-SB-P03,SIG-028,0,,SIG-022,Free at this signal (pattern 3 cycle 0)
-CAL-SB-P03,SIG-059,8,8,SIG-022,split table 3; seq 1; offset ref BegGRN
-CAL-SB-P05,SIG-022,47,4,SIG-022,Reference intersection; split table 5; seq 11; offset ref BegGRN
+CAL-SB-P03,SIG-059,8,8,SIG-022,split table 3; seq 1; offset ref BegGreen
+CAL-SB-P05,SIG-022,47,4,SIG-022,Reference intersection; split table 5; seq 11; offset ref BegGreen
 CAL-SB-P05,SIG-023,0,,SIG-022,Free at this signal (pattern 5 cycle 0)
 CAL-SB-P05,SIG-024,0,,SIG-022,Free at this signal (pattern 5 cycle 0)
 CAL-SB-P05,SIG-025,0,,SIG-022,Free at this signal (pattern 5 cycle 0)
@@ -154,18 +151,18 @@ CAL-SB-P05,SIG-022,6,25
 CAL-SB-P05,SIG-022,7,15
 CAL-SB-P05,SIG-022,8,40`;
 
-export const scheduleTxt = `schedule_id,coordination_id,day_type,start_time,end_time,pattern_id,priority
-SCH-001,COORD-CAL,SUNDAY,00:00:00,24:00:00,CAL-SB-FREE,10
-SCH-002,COORD-CAL,WEEKDAY,07:15:00,09:00:00,CAL-SB-P01,10
-SCH-003,COORD-CAL,WEEKDAY,09:00:00,11:30:00,CAL-SB-FREE,10
-SCH-004,COORD-CAL,WEEKDAY,11:30:00,16:00:00,CAL-SB-P01,10
-SCH-005,COORD-CAL,WEEKDAY,16:00:00,18:30:00,CAL-SB-P03,10
-SCH-006,COORD-CAL,WEEKDAY,18:30:00,07:15:00,CAL-SB-FREE,10
-SCH-007,COORD-CAL,SATURDAY,12:00:00,15:30:00,CAL-SB-P05,10
-SCH-008,COORD-CAL,SATURDAY,15:30:00,12:00:00,CAL-SB-FREE,10
-SCH-009,COORD-CAL,SPECIAL_MONDAY_MAY_D25-31,00:00:00,24:00:00,CAL-SB-FREE,20
-SCH-010,COORD-CAL,SPECIAL_MONDAY_SEP_D01-07,00:00:00,24:00:00,CAL-SB-FREE,20
-SCH-011,COORD-CAL,SPECIAL_THURSDAY_NOV_D22-28,00:00:00,24:00:00,CAL-SB-FREE,20`;
+export const scheduleTxt = `schedule_id,corridor_id,day_type,start_time,end_time,pattern_id,priority
+SCH-001,CAL-SB,SUNDAY,00:00:00,24:00:00,CAL-SB-FREE,10
+SCH-002,CAL-SB,WEEKDAY,07:15:00,09:00:00,CAL-SB-P01,10
+SCH-003,CAL-SB,WEEKDAY,09:00:00,11:30:00,CAL-SB-FREE,10
+SCH-004,CAL-SB,WEEKDAY,11:30:00,16:00:00,CAL-SB-P01,10
+SCH-005,CAL-SB,WEEKDAY,16:00:00,18:30:00,CAL-SB-P03,10
+SCH-006,CAL-SB,WEEKDAY,18:30:00,07:15:00,CAL-SB-FREE,10
+SCH-007,CAL-SB,SATURDAY,12:00:00,15:30:00,CAL-SB-P05,10
+SCH-008,CAL-SB,SATURDAY,15:30:00,12:00:00,CAL-SB-FREE,10
+SCH-009,CAL-SB,SPECIAL_MONDAY_MAY_D25-31,00:00:00,24:00:00,CAL-SB-FREE,20
+SCH-010,CAL-SB,SPECIAL_MONDAY_SEP_D01-07,00:00:00,24:00:00,CAL-SB-FREE,20
+SCH-011,CAL-SB,SPECIAL_THURSDAY_NOV_D22-28,00:00:00,24:00:00,CAL-SB-FREE,20`;
 
 export const phaseSequenceTxt = `signal_id,sequence_id,ring,position,phase_id,barrier_id
 SIG-022,SEQ-01,1,1,1,A
@@ -272,3 +269,22 @@ SIG-022,SEQ-11,2,3,13,A
 SIG-022,SEQ-11,2,4,15,B
 SIG-022,SEQ-11,2,5,8,B
 SIG-022,SEQ-11,2,6,7,B`;
+
+// --- The layout before Coordination.txt was folded into corridors.txt ---------
+// Kept to test that older exports still import.
+
+export const legacyCoordinationTxt = `coordination_id,name,reference_clock,timezone,description
+COORD-CAL,California Blvd Southbound Coordination,LOCAL,America/Los_Angeles,California Blvd coordinated arterial (verify order/direction)`;
+
+export const legacyScheduleTxt = `schedule_id,coordination_id,day_type,start_time,end_time,pattern_id,priority
+SCH-001,COORD-CAL,SUNDAY,00:00:00,24:00:00,CAL-SB-FREE,10
+SCH-002,COORD-CAL,WEEKDAY,07:15:00,09:00:00,CAL-SB-P01,10
+SCH-003,COORD-CAL,WEEKDAY,09:00:00,11:30:00,CAL-SB-FREE,10
+SCH-004,COORD-CAL,WEEKDAY,11:30:00,16:00:00,CAL-SB-P01,10
+SCH-005,COORD-CAL,WEEKDAY,16:00:00,18:30:00,CAL-SB-P03,10
+SCH-006,COORD-CAL,WEEKDAY,18:30:00,07:15:00,CAL-SB-FREE,10
+SCH-007,COORD-CAL,SATURDAY,12:00:00,15:30:00,CAL-SB-P05,10
+SCH-008,COORD-CAL,SATURDAY,15:30:00,12:00:00,CAL-SB-FREE,10
+SCH-009,COORD-CAL,SPECIAL_MONDAY_MAY_D25-31,00:00:00,24:00:00,CAL-SB-FREE,20
+SCH-010,COORD-CAL,SPECIAL_MONDAY_SEP_D01-07,00:00:00,24:00:00,CAL-SB-FREE,20
+SCH-011,COORD-CAL,SPECIAL_THURSDAY_NOV_D22-28,00:00:00,24:00:00,CAL-SB-FREE,20`;

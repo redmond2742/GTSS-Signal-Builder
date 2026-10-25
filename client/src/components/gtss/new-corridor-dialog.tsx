@@ -45,7 +45,7 @@ interface NewCorridorDialogProps {
   onOpenChange: (open: boolean) => void;
   gtss: GtssBuildData;
   coordination: CoordinationRows;
-  /** An agency's timezone, for the coordination plan if a schedule is built. */
+  /** An agency's timezone, for the corridor's timezone column. */
   timezoneOf?: (agencyId: string) => string | null;
   /** The corridor was written; `notes` says what was filled in and what wasn't. */
   onCreated: (corridorId: string, notes: string[]) => void;
@@ -90,7 +90,7 @@ export default function NewCorridorDialog({
   const [patternId, setPatternId] = useState("");
   const [patternEdited, setPatternEdited] = useState(false);
   const [cycle, setCycle] = useState(DEFAULT_CYCLE_S);
-  const [offsetReference, setOffsetReference] = useState<OffsetReference>("BegGRN");
+  const [offsetReference, setOffsetReference] = useState<OffsetReference>("BegGreen");
   const [fitSplits, setFitSplits] = useState(true);
   const [withSchedule, setWithSchedule] = useState(false);
   const [slots, setSlots] = useState<DaySlots>(emptySlots);
@@ -149,6 +149,10 @@ export default function NewCorridorDialog({
       direction,
       signalIds: selected,
       perSignal,
+      // The clock and timezone the corridor's offsets and schedule run on, as
+      // the converter writes them.
+      referenceClock: "LOCAL",
+      timezone: timezone ?? null,
       pattern: withPattern
         ? {
             patternId: effectivePatternId,
@@ -158,10 +162,7 @@ export default function NewCorridorDialog({
             fitSplits,
           }
         : null,
-      schedule:
-        withPattern && withSchedule
-          ? { blocks: slotsToBlocks(slots), freeRest, timezone: timezone ?? null }
-          : null,
+      schedule: withPattern && withSchedule ? { blocks: slotsToBlocks(slots), freeRest } : null,
     };
   }, [
     corridorId,
@@ -193,7 +194,7 @@ export default function NewCorridorDialog({
     setPatternId("");
     setPatternEdited(false);
     setCycle(DEFAULT_CYCLE_S);
-    setOffsetReference("BegGRN");
+    setOffsetReference("BegGreen");
     setFitSplits(true);
     setWithSchedule(false);
     setSlots(emptySlots());
@@ -599,7 +600,7 @@ export default function NewCorridorDialog({
               ) : (
                 <p className="w-[250px] text-[11px] text-grey-500">
                   {withPattern
-                    ? "Paint the times of the week the pattern runs. Builds Coordination.txt and Schedule.txt rows."
+                    ? "Paint the times of the week the pattern runs. Builds Schedule.txt rows for the corridor."
                     : "Needs a starter pattern."}
                 </p>
               )}

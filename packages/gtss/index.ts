@@ -79,6 +79,8 @@ export {
   formatClock,
   isFreePattern,
   parseClock,
+  referenceSignalFor,
+  scheduleCorridorId,
   scheduleEntriesForCorridor,
 } from "./src/localStorage/coordination/schedule";
 export type {
@@ -180,7 +182,16 @@ export {
   setPatternOffsetReference,
   splitStartShift,
   undoReferenceChange,
+  withNotesReference,
 } from "./src/localStorage/coordination/offsetReference";
+export { isLegacyScheduleHeader } from "./src/localStorage/coordination/parsers";
+export {
+  foldLegacyCoordination,
+  isLegacyCoordinationFile,
+  parseLegacyCoordination,
+  upgradeStoredCoordination,
+} from "./src/localStorage/coordination/legacy";
+export type { LegacyCoordinationPlan } from "./src/localStorage/coordination/legacy";
 export type {
   OffsetReference,
   OffsetReferenceSource,
@@ -206,7 +217,6 @@ export { emptyCoordinationRows, identityOf } from "./src/localStorage/coordinati
 export type {
   CoordinationFlags,
   CoordinationKey,
-  CoordinationPlan,
   CoordinationRows,
   Corridor,
   CorridorSignal,

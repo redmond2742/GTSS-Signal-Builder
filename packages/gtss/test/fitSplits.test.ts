@@ -160,7 +160,6 @@ describe("setting several signals' cycle in storage", () => {
   const files: Record<string, string> = {
     corridors: sample.corridorsTxt,
     corridorSignals: sample.corridorSignalsTxt,
-    coordination: sample.coordinationTxt,
     patterns: sample.patternsTxt,
     patternSignals: sample.patternSignalsTxt,
     splits: sample.splitsTxt,

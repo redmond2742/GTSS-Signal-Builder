@@ -36,7 +36,11 @@ import type { CoordinationKey, LibraryEntry, ParsedCoordination } from "gtss";
 import {
   COORDINATION_ENTITIES,
   detectCoordinationFile,
+  foldLegacyCoordination,
   isCoordinationEnabled,
+  isLegacyCoordinationFile,
+  isLegacyScheduleHeader,
+  parseLegacyCoordination,
   flattenLibraryEntries,
   getLibrarySourceUrls,
   isDemoEnabled,
@@ -65,7 +69,17 @@ type FileKind =
   | "detectors"
   | "basic_timings"
   | CoordinationKey
+  /** The old Coordination.txt: its clock and timezone now live in corridors.txt. */
+  | "legacy_coordination"
+  /** The converter's warnings.txt: notes about the data, not data. */
+  | "converter_notes"
   | "unknown";
+
+/** Labels for kinds whose key doesn't read well as one. */
+const FILE_KIND_LABEL: Partial<Record<FileKind, string>> = {
+  legacy_coordination: "Old Coordination.txt",
+  converter_notes: "Converter notes",
+};
 
 type FileData = {
   name: string;
@@ -141,6 +155,8 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
   const [parsedData, setParsedData] = useState<ParsedData>({});
   const [selectedAgencyIds, setSelectedAgencyIds] = useState<string[]>([]);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  // Things worth knowing about the files that don't stop the import.
+  const [importNotes, setImportNotes] = useState<string[]>([]);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [pasteContent, setPasteContent] = useState<string>("");
@@ -208,6 +224,10 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
     // "phase" catches PhaseSequence).
     const coordination = coordinationEnabled ? detectCoordinationFile(filename) : null;
     if (coordination) return coordination.key;
+    // The converter writes these beside the data. Neither is a GTSS file, and
+    // neither should stop the rest of the zip importing.
+    if (coordinationEnabled && isLegacyCoordinationFile(filename)) return "legacy_coordination";
+    if (/^warnings\.txt$/i.test(filename.split("/").pop() ?? "")) return "converter_notes";
     if (lower.includes("agency")) return "agency";
     if (lower.includes("signal")) return "signals";
     if (lower.includes("approach")) return "approaches";
@@ -277,10 +297,23 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
   const parseFiles = (files: FileData[]) => {
     const parsed: ParsedData = {};
     const errors: ValidationError[] = [];
+    const notes: string[] = [];
+    let legacyPlans: ReturnType<typeof parseLegacyCoordination> | null = null;
 
     files.forEach((file) => {
       try {
         switch (file.type) {
+          case "converter_notes": {
+            const count = file.content.split("\n").filter((l) => l.trim()).length;
+            notes.push(
+              `${file.name}: ${count} note${count === 1 ? "" : "s"} from the converter, for reading rather than importing.`,
+            );
+            break;
+          }
+          case "legacy_coordination": {
+            legacyPlans = [...(legacyPlans ?? []), ...parseLegacyCoordination(file.content)];
+            break;
+          }
           case "agency": {
             const agencies = parseAgenciesTXT(file.content);
             if (agencies && agencies.length > 0) {
@@ -318,6 +351,11 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
             const entity = COORDINATION_ENTITIES.find((e) => e.key === file.type);
             if (entity) {
               entity.parseInto(file.content, parsed);
+              if (entity.key === "schedule" && isLegacyScheduleHeader(file.content)) {
+                notes.push(
+                  `${file.name} is in the older layout (coordination_id, not corridor_id), so each row takes its pattern's corridor.`,
+                );
+              }
               break;
             }
             errors.push({
@@ -335,6 +373,10 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
         });
       }
     });
+
+    // After every file, so the corridors are there to take the old plan's clock.
+    if (legacyPlans) notes.push(foldLegacyCoordination(parsed, legacyPlans));
+    setImportNotes(notes);
 
     setParsedData(parsed);
     // Initialize selected agencies to all parsed agencies
@@ -469,6 +511,7 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
       setUploadedFiles([]);
       setParsedData({});
       setValidationErrors([]);
+      setImportNotes([]);
       setShowConfirmDialog(false);
 
       // Notify parent to refresh data
@@ -521,6 +564,7 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
     setUploadedFiles([]);
     setParsedData({});
     setValidationErrors([]);
+    setImportNotes([]);
     setPasteContent("");
   };
 
@@ -806,7 +850,9 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
                       >
                         <FileText className="h-4 w-4 text-blue-500" />
                         <span className="flex-1">{file.name}</span>
-                        <span className="text-xs text-gray-500 capitalize">{file.type}</span>
+                        <span className="text-xs text-gray-500 capitalize">
+                          {FILE_KIND_LABEL[file.type] ?? file.type}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -905,6 +951,11 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
                           </li>
                         ) : null;
                       })}
+                      {importNotes.map((note) => (
+                        <li key={note} className="text-xs text-grey-600" data-testid="import-note">
+                          {note}
+                        </li>
+                      ))}
                     </ul>
                   </AlertDescription>
                 </Alert>
@@ -974,7 +1025,9 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
                 >
                   <FileText className="h-4 w-4 text-blue-500" />
                   <span className="flex-1">{file.name}</span>
-                  <span className="text-xs text-gray-500 capitalize">{file.type}</span>
+                  <span className="text-xs text-gray-500 capitalize">
+                    {FILE_KIND_LABEL[file.type] ?? file.type}
+                  </span>
                 </div>
               ))}
             </div>
@@ -1073,6 +1126,11 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
                     </li>
                   ) : null;
                 })}
+                {importNotes.map((note) => (
+                  <li key={note} className="text-xs text-grey-600" data-testid="import-note">
+                    {note}
+                  </li>
+                ))}
               </ul>
             </AlertDescription>
           </Alert>

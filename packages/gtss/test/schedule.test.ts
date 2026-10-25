@@ -26,7 +26,6 @@ import * as sample from "./fixtures/coordination-sample";
 const files: Record<string, string> = {
   corridors: sample.corridorsTxt,
   corridorSignals: sample.corridorSignalsTxt,
-  coordination: sample.coordinationTxt,
   patterns: sample.patternsTxt,
   patternSignals: sample.patternSignalsTxt,
   splits: sample.splitsTxt,
@@ -52,7 +51,8 @@ const entry = (
   priority = 10,
 ): ScheduleEntry => ({
   scheduleId,
-  coordinationId: "C",
+  // Blank: the corridor is its pattern's, so hand-built corridors work too.
+  corridorId: null,
   dayType,
   startTime: start,
   endTime: end,
@@ -415,10 +415,7 @@ describe("schedule validation", () => {
   });
   const scheduleIssues = (rows: CoordinationRows) =>
     validateCoordination(rows).filter(
-      (i) =>
-        i.scope === "schedule" &&
-        !i.id.startsWith("schedule-pattern") &&
-        !i.id.startsWith("schedule-coord"),
+      (i) => i.scope === "schedule" && !i.id.startsWith("schedule-pattern-"),
     );
 
   it("raises nothing for the real sample", () => {
@@ -453,11 +450,36 @@ describe("schedule validation", () => {
     expect(bad[0].level).toBe("error");
   });
 
-  it("keeps different coordination plans' day types apart", () => {
+  it("keeps different corridors' day types apart", () => {
     const rows = withSchedule([
-      { ...entry("A", "WEEKDAY", "00:00", "24:00", "CAL-SB-P01"), coordinationId: "ONE" },
-      { ...entry("B", "WEEKDAY", "00:00", "24:00", "CAL-SB-P03"), coordinationId: "TWO" },
+      { ...entry("A", "WEEKDAY", "00:00", "24:00", "CAL-SB-P01"), corridorId: "ONE" },
+      { ...entry("B", "WEEKDAY", "00:00", "24:00", "CAL-SB-P03"), corridorId: "TWO" },
     ]);
     expect(scheduleIssues(rows).filter((i) => i.id.startsWith("schedule-overlap"))).toEqual([]);
+  });
+
+  it("checks each row's corridor exists and agrees with its pattern's", () => {
+    const rows = withSchedule([
+      entry("A", "WEEKDAY", "00:00", "24:00", "CAL-SB-P01"),
+      { ...entry("B", "SATURDAY", "00:00", "24:00", "CAL-SB-P01"), corridorId: "NOPE" },
+    ]);
+    const issues = scheduleIssues(rows);
+    expect(issues.find((i) => i.id === "schedule-corridor-B")).toMatchObject({
+      level: "error",
+      message: "Schedule B references corridor NOPE, which is not in corridors.txt",
+    });
+    expect(issues.find((i) => i.id === "schedule-corridor-mismatch-B")?.message).toBe(
+      "Schedule B is for corridor NOPE but runs CAL-SB-P01, which belongs to CAL-SB",
+    );
+    expect(issues.some((i) => i.id.endsWith("-A") && i.level === "error")).toBe(false);
+  });
+
+  it("takes a row with no corridor of its own as its pattern's", () => {
+    const rows = withSchedule([
+      { ...entry("A", "WEEKDAY", "00:00", "24:00", "CAL-SB-P01"), corridorId: null },
+    ]);
+    expect(scheduleIssues(rows).filter((i) => i.id.includes("corridor"))).toEqual([]);
+    expect(scheduleEntriesForCorridor(rows, "CAL-SB").map((e) => e.scheduleId)).toEqual(["A"]);
+    expect(scheduleEntriesForCorridor(rows, "OTHER")).toEqual([]);
   });
 });

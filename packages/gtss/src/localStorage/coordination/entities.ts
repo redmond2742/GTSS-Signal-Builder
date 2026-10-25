@@ -1,5 +1,4 @@
 import {
-  generateCoordinationCSV,
   generateCorridorSignalsCSV,
   generateCorridorsCSV,
   generatePatternSignalsCSV,
@@ -10,7 +9,6 @@ import {
 } from "./csv-export";
 import { defineEntity, type Entity } from "./factory";
 import {
-  parseCoordinationTXT,
   parseCorridorSignalsTXT,
   parseCorridorsTXT,
   parsePatternSignalsTXT,
@@ -21,20 +19,22 @@ import {
 } from "./parsers";
 import { identityOf, type CoordinationKey, type CoordinationRows } from "./rows";
 import { inScope } from "./scope";
-import { getFromStorage, saveToStorage } from "../storage-utils";
+import { getFromStorage, removeFromStorage, saveToStorage } from "../storage-utils";
 
 /** localStorage keys, kept beside the registry rather than in the shared keys
  *  file so the coordination module stays self-contained. */
 export const COORDINATION_STORAGE_KEYS = {
   corridors: "gtss_corridors",
   corridorSignals: "gtss_corridor_signals",
-  coordination: "gtss_coordination",
   patterns: "gtss_patterns",
   patternSignals: "gtss_pattern_signals",
   splits: "gtss_splits",
   schedule: "gtss_schedule",
   phaseSequence: "gtss_phase_sequence",
 } as const satisfies Record<CoordinationKey, string>;
+
+/** Where Coordination.txt was kept before it was folded into corridors.txt. See legacy.ts. */
+export const LEGACY_COORDINATION_STORAGE_KEY = "gtss_coordination";
 
 /**
  * The registry. Declaration order is topological — parents before children —
@@ -71,20 +71,6 @@ export const COORDINATION_ENTITIES: readonly Entity[] = [
     keyFields: ["corridorId", "sequence"],
     applyScope: (rows, scope) => rows.filter((r) => inScope(scope.signalIds, r.signalId)),
     signalRef: { get: (r) => r.signalId, set: (r, signalId) => ({ ...r, signalId }) },
-  }),
-
-  defineEntity({
-    key: "coordination",
-    storageKey: COORDINATION_STORAGE_KEYS.coordination,
-    filename: "Coordination.txt",
-    label: "Coordination plans",
-    filenameMatch: ["coordination"],
-    generate: generateCoordinationCSV,
-    parse: parseCoordinationTXT,
-    identity: (r) => identityOf(r.coordinationId),
-    keyFields: ["coordinationId"],
-    applyScope: (rows, scope) =>
-      rows.filter((r) => inScope(scope.coordinationIds, r.coordinationId)),
   }),
 
   defineEntity({
@@ -145,7 +131,13 @@ export const COORDINATION_ENTITIES: readonly Entity[] = [
     parse: parseScheduleTXT,
     identity: (r) => identityOf(r.scheduleId),
     keyFields: ["scheduleId"],
-    applyScope: (rows, scope) => rows.filter((r) => inScope(scope.patternIds, r.patternId)),
+    // A blank corridor means "its pattern's", which the pattern test already covers.
+    applyScope: (rows, scope) =>
+      rows.filter(
+        (r) =>
+          inScope(scope.patternIds, r.patternId) &&
+          (r.corridorId == null || inScope(scope.corridorIds, r.corridorId)),
+      ),
   }),
 
   defineEntity({
@@ -173,6 +165,7 @@ export const readAllCoordination = (): CoordinationRows =>
 /** Clear every coordination key — called from `clearAllData`. */
 export const clearAllCoordination = (): void => {
   COORDINATION_ENTITIES.forEach((e) => e.clear());
+  removeFromStorage(LEGACY_COORDINATION_STORAGE_KEY);
 };
 
 /** Signal delete fan-out for the four signal-scoped files. */

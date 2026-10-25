@@ -1,4 +1,4 @@
-// Column order for the 8 coordination files — the single source of truth.
+// Column order for the 7 coordination files — the single source of truth.
 //
 // The six original GTSS entities couple their CSV generator to their parser by
 // hand: the generator writes a header literal and the parser reads `values[7]`,
@@ -16,6 +16,9 @@ export const CORRIDOR_COLUMNS = [
   "name",
   "description",
   "primary_direction",
+  // Folded in from the old Coordination.txt, which is no longer exported.
+  "reference_clock",
+  "timezone",
 ] as const;
 
 export const CORRIDOR_SIGNAL_COLUMNS = [
@@ -23,14 +26,6 @@ export const CORRIDOR_SIGNAL_COLUMNS = [
   "sequence",
   "signal_id",
   "direction",
-] as const;
-
-export const COORDINATION_COLUMNS = [
-  "coordination_id",
-  "name",
-  "reference_clock",
-  "timezone",
-  "description",
 ] as const;
 
 export const PATTERN_COLUMNS = [
@@ -55,7 +50,7 @@ export const SPLIT_COLUMNS = ["pattern_id", "signal_id", "phase_id", "split_s"] 
 
 export const SCHEDULE_COLUMNS = [
   "schedule_id",
-  "coordination_id",
+  "corridor_id",
   "day_type",
   "start_time",
   "end_time",

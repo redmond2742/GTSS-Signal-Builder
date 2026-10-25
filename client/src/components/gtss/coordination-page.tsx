@@ -50,6 +50,7 @@ import {
   useGTSSStore,
   validateCoordination,
   type CoordinationIssue,
+  type CoordinationKey,
   type CorridorSignal,
   type OffsetReference,
   type PatternSignal,
@@ -75,25 +76,21 @@ type View = "overview" | (typeof COORDINATION_ENTITIES)[number]["key"];
 /** Columns rendered for each file, in the order the spec declares them. */
 type Column = { key: string; label: string; type?: CellType };
 
-const TABLE_COLUMNS: Record<string, readonly Column[]> = {
+// Keyed by file so a file added to or dropped from the registry fails to compile here.
+const TABLE_COLUMNS: Record<CoordinationKey, readonly Column[]> = {
   corridors: [
     { key: "corridorId", label: "Corridor" },
     { key: "name", label: "Name" },
     { key: "primaryDirection", label: "Direction" },
     { key: "description", label: "Description" },
+    { key: "referenceClock", label: "Clock" },
+    { key: "timezone", label: "Timezone" },
   ],
   corridorSignals: [
     { key: "corridorId", label: "Corridor" },
     { type: "number", key: "sequence", label: "Seq" },
     { key: "signalId", label: "Signal" },
     { key: "direction", label: "Direction" },
-  ],
-  coordination: [
-    { key: "coordinationId", label: "Coordination" },
-    { key: "name", label: "Name" },
-    { key: "referenceClock", label: "Clock" },
-    { key: "timezone", label: "Timezone" },
-    { key: "description", label: "Description" },
   ],
   patterns: [
     { key: "patternId", label: "Pattern" },
@@ -118,6 +115,7 @@ const TABLE_COLUMNS: Record<string, readonly Column[]> = {
   ],
   schedule: [
     { key: "scheduleId", label: "Schedule" },
+    { key: "corridorId", label: "Corridor" },
     { key: "dayType", label: "Day type" },
     { key: "startTime", label: "Start" },
     { key: "endTime", label: "End" },
@@ -473,7 +471,7 @@ export default function CoordinationPage() {
   // What the pattern's offsets are measured to; blank when its signals disagree.
   const tsReference: OffsetReference | "" = (() => {
     const refs = new Set(tsStops.filter((s) => !s.free).map((s) => s.offsetReference));
-    if (refs.size === 0) return "BegGRN";
+    if (refs.size === 0) return "BegGreen";
     return refs.size === 1 ? Array.from(refs)[0] : "";
   })();
   const tsReferenceAssumed =
@@ -616,7 +614,9 @@ export default function CoordinationPage() {
       const sameKey = joinWords(
         activeEntity.keyFields
           .filter((f) => f !== "signalId")
-          .map((f) => (TABLE_COLUMNS[view]?.find((c) => c.key === f)?.label ?? f).toLowerCase()),
+          .map((f) =>
+            (TABLE_COLUMNS[activeEntity.key].find((c) => c.key === f)?.label ?? f).toLowerCase(),
+          ),
       );
       setNotice({
         view,
@@ -923,7 +923,7 @@ export default function CoordinationPage() {
                           {OFFSET_REFERENCES.map((r) => (
                             <SelectItem key={r.value} value={r.value} className="text-xs">
                               {r.label}
-                              {tsReferenceAssumed && r.value === "BegGRN" ? " (assumed)" : ""}
+                              {tsReferenceAssumed && r.value === "BegGreen" ? " (assumed)" : ""}
                             </SelectItem>
                           ))}
                         </SelectContent>

@@ -1,6 +1,5 @@
 import { parseCSVLine } from "../csv-utils";
 import {
-  COORDINATION_COLUMNS,
   CORRIDOR_COLUMNS,
   CORRIDOR_SIGNAL_COLUMNS,
   fieldReader,
@@ -13,7 +12,6 @@ import {
   text,
 } from "./columns";
 import type {
-  CoordinationPlan,
   Corridor,
   CorridorSignal,
   Pattern,
@@ -24,7 +22,7 @@ import type {
 } from "./rows";
 
 /**
- * Shared skeleton for all 8 parsers.
+ * Shared skeleton for all 7 parsers.
  *
  * Fields are read by NAME against the column array rather than by positional
  * index, so generator and parser cannot drift. Rows that are missing a required
@@ -77,6 +75,8 @@ export const parseCorridorsTXT = (content: string): Corridor[] =>
         name: text(col("name")),
         description: text(col("description")),
         primaryDirection: text(col("primary_direction")),
+        referenceClock: text(col("reference_clock")),
+        timezone: text(col("timezone")),
       }
     );
   });
@@ -92,20 +92,6 @@ export const parseCorridorSignalsTXT = (content: string): CorridorSignal[] =>
         sequence: int(col("sequence")),
         signalId,
         direction: text(col("direction")),
-      }
-    );
-  });
-
-export const parseCoordinationTXT = (content: string): CoordinationPlan[] =>
-  parseRows(content, COORDINATION_COLUMNS, "Coordination", (col, row) => {
-    const coordinationId = col("coordination_id");
-    return (
-      required(coordinationId, "coordination_id", row) ?? {
-        coordinationId,
-        name: text(col("name")),
-        referenceClock: text(col("reference_clock")),
-        timezone: text(col("timezone")),
-        description: text(col("description")),
       }
     );
   });
@@ -158,13 +144,27 @@ export const parseSplitsTXT = (content: string): Split[] =>
     );
   });
 
-export const parseScheduleTXT = (content: string): ScheduleEntry[] =>
-  parseRows(content, SCHEDULE_COLUMNS, "Schedule", (col, row) => {
+/**
+ * True for a Schedule.txt from before Coordination.txt was folded into
+ * corridors.txt: its second column is coordination_id, not corridor_id. Read
+ * positionally like any other, that id would be taken for a corridor's.
+ */
+export const isLegacyScheduleHeader = (content: string): boolean => {
+  const header = content.trimStart().split("\n", 1)[0].toLowerCase();
+  return /(^|,)\s*coordination_id\s*(,|$)/.test(header) && !header.includes("corridor_id");
+};
+
+export const parseScheduleTXT = (content: string): ScheduleEntry[] => {
+  // The old layout has the same columns in the same places, with coordination_id
+  // where corridor_id now is. A coordination plan isn't a corridor, so leave the
+  // corridor blank: it is then taken from the row's pattern.
+  const legacy = isLegacyScheduleHeader(content);
+  return parseRows(content, SCHEDULE_COLUMNS, "Schedule", (col, row) => {
     const scheduleId = col("schedule_id");
     return (
       required(scheduleId, "schedule_id", row) ?? {
         scheduleId,
-        coordinationId: text(col("coordination_id")),
+        corridorId: legacy ? null : text(col("corridor_id")),
         dayType: text(col("day_type")),
         startTime: text(col("start_time")),
         endTime: text(col("end_time")),
@@ -173,6 +173,7 @@ export const parseScheduleTXT = (content: string): ScheduleEntry[] =>
       }
     );
   });
+};
 
 export const parsePhaseSequenceTXT = (content: string): PhaseSequenceEntry[] =>
   parseRows(content, PHASE_SEQUENCE_COLUMNS, "Phase sequence", (col, row) => {

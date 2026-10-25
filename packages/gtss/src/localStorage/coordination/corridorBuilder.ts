@@ -3,7 +3,7 @@ import { sortBySequence } from "./corridor-order";
 import { COORDINATION_ENTITIES } from "./entities";
 import { fitSplitsToCycle } from "./fitSplits";
 import { directionBearing, throughPhaseFor, type GtssLinkData } from "./gtssLink";
-import { offsetReferenceFor, type OffsetReference } from "./offsetReference";
+import { offsetReferenceFor, parseOffsetReference, type OffsetReference } from "./offsetReference";
 import { isFreePattern } from "./schedule";
 import { scheduleRowsFor, type TimeBlock } from "./scheduleBuilder";
 import type {
@@ -139,7 +139,22 @@ interface SignalBuildOptions extends SignalPlan {
   direction: string;
   /** Fit the splits built from timings to the cycle. */
   fitSplits?: boolean;
+  /**
+   * The corridor's reference intersection, for PatternSignals' reference_point
+   * where the pattern's other rows don't already name one.
+   */
+  referenceSignal?: string | null;
 }
+
+/** The value most of `values` share, ignoring blanks; ties go to the first seen. */
+const mostCommon = (values: readonly (string | null)[]): string | null => {
+  const counts = new Map<string, number>();
+  for (const v of values) if (v != null && v !== "") counts.set(v, (counts.get(v) ?? 0) + 1);
+  let best: string | null = null;
+  for (const [v, n] of Array.from(counts))
+    if (best === null || n > (counts.get(best) ?? 0)) best = v;
+  return best;
+};
 
 /** What one signal needs to take part in a corridor's patterns. */
 function rowsForSignal(
@@ -189,22 +204,32 @@ function rowsForSignal(
     const siblings = existing.patternSignals.filter((ps) => ps.patternId === pattern.patternId);
     const already = siblings.some((ps) => ps.signalId === signalId);
     if (!already) {
-      // "seq 1" names the sequence built above, which is how the diagrams find
-      // which sequence a pattern runs. Where the pattern's other signals say
-      // their offset reference in their notes (as converted files do), say the
-      // same, so this one is read the same way.
+      // Laid out as converted files are: Patterns' reference_point says what
+      // offsets are measured to (BegGreen…), PatternSignals' names the reference
+      // intersection, and the notes repeat the offset reference. "seq 1" names
+      // the sequence built above, which is how the diagrams find it.
       const noteParts = [BUILT_NOTE];
       if (ownSequence) noteParts.push("seq 1");
-      const shared = siblings
-        .map((ps) => offsetReferenceFor(ps, pattern))
-        .find((r) => r.source === "notes");
-      if (shared) noteParts.push(`offset ref ${shared.reference}`);
+      const reference =
+        parseOffsetReference(pattern.referencePoint) ??
+        siblings.map((ps) => offsetReferenceFor(ps, pattern)).find((r) => r.source === "notes")
+          ?.reference;
+      if (reference) noteParts.push(`offset ref ${reference}`);
+      // Follow the pattern's other rows where they name a reference signal.
+      const referenceSignal =
+        mostCommon(
+          siblings
+            .map((ps) => ps.referencePoint)
+            .filter((r) => r != null && parseOffsetReference(r) === null),
+        ) ??
+        options.referenceSignal ??
+        null;
       const row: PatternSignal = {
         patternId: pattern.patternId,
         signalId,
         offsetS: 0,
         coordinatedPhase: coordinated,
-        referencePoint: pattern.referencePoint,
+        referencePoint: referenceSignal,
         notes: noteParts.join("; "),
       };
       out.patternSignals.push(row);
@@ -278,9 +303,6 @@ export interface PatternPlan {
 }
 
 export interface SchedulePlan {
-  /** Defaults to `<corridor>-COORD`. */
-  coordinationId?: string;
-  timezone?: string | null;
   /** When the starter pattern runs. */
   blocks: readonly TimeBlock[];
   /** Run a free pattern the rest of the time, so every day is accounted for. */
@@ -293,6 +315,10 @@ export interface CorridorPlan {
   description?: string | null;
   /** NB, SB, EB, WB… — the way the corridor's coordinated traffic travels. */
   direction: string;
+  /** The clock offsets count from, e.g. "LOCAL". */
+  referenceClock?: string | null;
+  /** IANA timezone the schedule's times are in. */
+  timezone?: string | null;
   /** In travel order. */
   signalIds: readonly string[];
   /** Where a signal differs from the corridor: a bend, a chosen phase, its own cycle. */
@@ -305,7 +331,6 @@ export interface CorridorPlan {
 
 /** Ids a schedule build would use, so a dialog can check them before building. */
 export const scheduleIdsFor = (corridorId: string) => ({
-  coordinationId: `${corridorId}-COORD`,
   freePatternId: `${corridorId}-FREE`,
   schedulePrefix: corridorId,
 });
@@ -354,7 +379,7 @@ export function planCorridor(
       patternNumber: plan.pattern.patternNumber,
       corridorId,
       cycleLengthS: plan.pattern.cycleS,
-      referencePoint: plan.pattern.offsetReference ?? "BegGRN",
+      referencePoint: plan.pattern.offsetReference ?? "BegGreen",
       description: `Starter pattern created in GTSS Builder`,
     };
   }
@@ -363,10 +388,6 @@ export function planCorridor(
   const schedulePlan = plan.schedule ?? null;
   if (schedulePlan) {
     if (!pattern) return failed("A schedule needs a starter pattern to run.");
-    const coordinationId = schedulePlan.coordinationId?.trim() || ids.coordinationId;
-    if (existing.coordination.some((c) => c.coordinationId === coordinationId)) {
-      return failed(`There is already a coordination plan called ${coordinationId}.`);
-    }
     if (schedulePlan.freeRest && existing.patterns.some((p) => p.patternId === ids.freePatternId)) {
       return failed(`There is already a pattern called ${ids.freePatternId}.`);
     }
@@ -386,6 +407,8 @@ export function planCorridor(
         name: plan.name?.trim() || null,
         description: plan.description?.trim() || null,
         primaryDirection: direction,
+        referenceClock: plan.referenceClock?.trim() || null,
+        timezone: plan.timezone?.trim() || null,
       },
     ],
     corridorSignals: signalIds.map((signalId, i) => ({
@@ -407,6 +430,8 @@ export function planCorridor(
         ...own,
         direction: own.direction?.trim().toUpperCase() || direction,
         fitSplits: plan.pattern?.fitSplits ?? false,
+        // Offsets are counted from the first signal, which starts at 0.
+        referenceSignal: signalIds[0],
       },
       pattern ? [pattern] : [],
       gtss,
@@ -419,7 +444,6 @@ export function planCorridor(
   }
 
   if (schedulePlan && pattern) {
-    const coordinationId = schedulePlan.coordinationId?.trim() || ids.coordinationId;
     const free: Pattern | null = schedulePlan.freeRest
       ? {
           patternId: ids.freePatternId,
@@ -432,7 +456,7 @@ export function planCorridor(
       : null;
     const schedule = scheduleRowsFor({
       idPrefix: ids.schedulePrefix,
-      coordinationId,
+      corridorId,
       patternId: pattern.patternId,
       freePatternId: free?.patternId ?? null,
       blocks: schedulePlan.blocks,
@@ -450,15 +474,6 @@ export function planCorridor(
       rows: {
         ...rows,
         patterns: free ? [...rows.patterns, free] : rows.patterns,
-        coordination: [
-          {
-            coordinationId,
-            name: plan.name?.trim() || corridorId,
-            referenceClock: null,
-            timezone: schedulePlan.timezone?.trim() || null,
-            description: "Created in GTSS Builder",
-          },
-        ],
         schedule,
       },
       notes,
@@ -491,7 +506,14 @@ export function planAddSignal(
 
   const notes: string[] = [];
   const patterns = existing.patterns.filter((p) => p.corridorId === corridorId);
-  const built = rowsForSignal(signalId, { direction }, patterns, gtss, existing, notes);
+  const built = rowsForSignal(
+    signalId,
+    { direction, referenceSignal: members[0]?.signalId ?? null },
+    patterns,
+    gtss,
+    existing,
+    notes,
+  );
   return {
     rows: {
       corridorSignals: [{ corridorId, sequence: last + 1, signalId, direction: direction || null }],
