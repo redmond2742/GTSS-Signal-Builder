@@ -3,6 +3,7 @@ import AgencyForm from "@/components/gtss/agency-form";
 import ApproachesTable from "@/components/gtss/approaches-table";
 import BasicTimingsTable from "@/components/gtss/basic-timings-table";
 import CoordinationPage from "@/components/gtss/coordination-page";
+import CoordinationValidation from "@/components/gtss/coordination-validation";
 import DemoPage from "@/components/gtss/demo-page";
 import DetectorsTable from "@/components/gtss/detectors-table";
 import ExportPanel from "@/components/gtss/export-panel";
@@ -43,6 +44,7 @@ import {
   isDemoEnabled,
   useGTSSStore,
   useLoadFromStorage,
+  type CoordinationKey,
 } from "gtss";
 import {
   ArrowUpDown,
@@ -59,6 +61,7 @@ import {
   Menu,
   Navigation,
   Plus,
+  ShieldCheck,
   SlidersHorizontal,
   Sparkles,
   Waypoints,
@@ -123,6 +126,8 @@ export default function GTSSBuilder() {
   const [showImportPanel, setShowImportPanel] = useState(false);
   const [showDataManagement, setShowDataManagement] = useState(false);
   const [dataManagementTab, setDataManagementTab] = useState("export");
+  // The coordination file to open on, when Validation sends you to one.
+  const [coordinationFile, setCoordinationFile] = useState<CoordinationKey | null>(null);
   const [showAgencyDefaults, setShowAgencyDefaults] = useState(false);
   const {
     agency,
@@ -169,7 +174,11 @@ export default function GTSSBuilder() {
     if (activeTab === "coordination" && !showCoordination) {
       setActiveTab("signals");
     }
-  }, [activeTab, showCoordination]);
+    // Validation only covers the coordination files, so it goes when they do.
+    if (dataManagementTab === "validation" && !showCoordination) {
+      setDataManagementTab("export");
+    }
+  }, [activeTab, showCoordination, dataManagementTab]);
 
   useEffect(() => {
     if (activeTab === "demo" && !showDemo) {
@@ -226,7 +235,20 @@ export default function GTSSBuilder() {
       case "agency":
         return <AgencyForm />;
       case "coordination":
-        return <CoordinationPage />;
+        return (
+          <CoordinationPage
+            // A file chosen from Validation opens the page afresh on that file.
+            key={coordinationFile ?? "start"}
+            initialView={coordinationFile ?? undefined}
+            onOpenValidation={() => {
+              setDataManagementTab("validation");
+              setShowDataManagement(true);
+              setShowAgencyDefaults(false);
+              setShowImportPanel(false);
+              setShowExportPanel(false);
+            }}
+          />
+        );
       case "demo":
         return <DemoPage />;
       case "signals":
@@ -319,7 +341,12 @@ export default function GTSSBuilder() {
   const DataManagementPanel = () => (
     <div className="space-y-6 p-4 md:p-6">
       <Tabs value={dataManagementTab} onValueChange={setDataManagementTab} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-3">
+        <TabsList
+          className={cn(
+            "grid w-full",
+            showCoordination ? "max-w-lg grid-cols-4" : "max-w-md grid-cols-3",
+          )}
+        >
           <TabsTrigger value="export" className="gap-2">
             <FolderOutput className="h-4 w-4" />
             Export
@@ -328,6 +355,12 @@ export default function GTSSBuilder() {
             <FolderInput className="h-4 w-4" />
             Import
           </TabsTrigger>
+          {showCoordination && (
+            <TabsTrigger value="validation" className="gap-2">
+              <ShieldCheck className="h-4 w-4" />
+              Validation
+            </TabsTrigger>
+          )}
           <TabsTrigger
             value="clear"
             className="gap-2 text-red-700 data-[state=active]:text-red-700"
@@ -344,6 +377,18 @@ export default function GTSSBuilder() {
         <TabsContent value="import" className="mt-6">
           <ImportPanel onImportComplete={() => setShowDataManagement(false)} />
         </TabsContent>
+
+        {showCoordination && (
+          <TabsContent value="validation" className="mt-6">
+            <CoordinationValidation
+              onOpenFile={(key) => {
+                setCoordinationFile(key);
+                setActiveTab("coordination");
+                setShowDataManagement(false);
+              }}
+            />
+          </TabsContent>
+        )}
 
         <TabsContent value="clear" className="mt-6">
           <div className="rounded-lg border border-red-200 bg-red-50 p-4 shadow-sm">
@@ -602,6 +647,8 @@ export default function GTSSBuilder() {
                   setTriggerBulkDetector(0);
                   setTriggerAddBasicTiming(0);
                   setActiveTab(tab.id as TabType);
+                  // Coming from the sidebar, Coordination opens on its first file.
+                  setCoordinationFile(null);
                   setShowDataManagement(false);
                   setShowExportPanel(false);
                   setShowImportPanel(false);
@@ -778,7 +825,9 @@ export default function GTSSBuilder() {
                 </h2>
                 <p className="text-xs text-grey-500 hidden sm:block">
                   {showDataManagement
-                    ? "Import, export, or clear all GTSS data for this workspace"
+                    ? showCoordination
+                      ? "Import, export, validate or clear all GTSS data for this workspace"
+                      : "Import, export, or clear all GTSS data for this workspace"
                     : showExportPanel
                       ? "Export your traffic signal data to files"
                       : showImportPanel

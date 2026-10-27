@@ -15,6 +15,12 @@
  * picture.
  */
 
+/** A stretch of green on the cycle: when it starts after the system reference, and how long. */
+export interface GreenWindow {
+  offsetS: number;
+  greenS: number;
+}
+
 /** The parts of a signal the simulation needs. */
 export interface TrajectoryStop {
   /** Metres from the first signal. */
@@ -23,6 +29,12 @@ export interface TrajectoryStop {
   offsetS: number;
   /** Coordinated-phase green, in seconds. */
   greenS: number;
+  /**
+   * Other greens this direction's traffic can go through on: an overlap that
+   * carries the through movement, or a left turn the route takes. Each is its
+   * own window on the cycle; traffic passes in any of them.
+   */
+  extraGreens?: readonly GreenWindow[];
   /** Runs free in this pattern: no cycle to obey. */
   free: boolean;
   /**
@@ -36,7 +48,12 @@ export interface TrajectoryStop {
    * traffic the other way must not be drawn against the coordinated phase's window.
    * `approachSpeedMps` is the speed arriving here from the signal AFTER this one.
    */
-  opposing?: { offsetS: number; greenS: number; approachSpeedMps?: number };
+  opposing?: {
+    offsetS: number;
+    greenS: number;
+    approachSpeedMps?: number;
+    extraGreens?: readonly GreenWindow[];
+  };
 }
 
 export type TrajectoryMode = "stop-at-red" | "green-wave";
@@ -142,12 +159,45 @@ const WAVE_SPACING_S = 2;
 export const approachMetres = (corridorLengthM: number): number =>
   Math.max(90, corridorLengthM * 0.06);
 
-/** Is this signal showing its coordinated green at time `t`? */
+/** Every window this stop lets traffic through in: the coordinated green, then any others. */
+export const greenWindowsOf = (stop: TrajectoryStop): GreenWindow[] =>
+  [{ offsetS: stop.offsetS, greenS: stop.greenS }, ...(stop.extraGreens ?? [])].filter(
+    (w) => w.greenS > 0,
+  );
+
+/** Is this signal showing a green its traffic can go on at time `t`? */
 export function greenAt(stop: TrajectoryStop, t: number, cycleS: number): boolean {
   if (cycleS <= 0) return true;
-  const start = ((stop.offsetS % cycleS) + cycleS) % cycleS;
-  const phase = (((t - start) % cycleS) + cycleS) % cycleS;
-  return phase < Math.min(stop.greenS, cycleS);
+  return greenWindowsOf(stop).some((w) => {
+    const start = ((w.offsetS % cycleS) + cycleS) % cycleS;
+    const phase = (((t - start) % cycleS) + cycleS) % cycleS;
+    return phase < Math.min(w.greenS, cycleS);
+  });
+}
+
+/**
+ * Seconds per cycle a stop shows some usable green: its windows merged, so
+ * time where two overlap counts once.
+ */
+export function greenSecondsPerCycle(stop: TrajectoryStop, cycleS: number): number {
+  if (cycleS <= 0) return 0;
+  const spans: [number, number][] = [];
+  for (const w of greenWindowsOf(stop)) {
+    if (w.greenS >= cycleS) return cycleS;
+    const s = ((w.offsetS % cycleS) + cycleS) % cycleS;
+    const e = s + w.greenS;
+    if (e <= cycleS) spans.push([s, e]);
+    else spans.push([s, cycleS], [0, e - cycleS]);
+  }
+  spans.sort((a, b) => a[0] - b[0]);
+  let total = 0;
+  let at = -Infinity;
+  for (const [s, e] of spans) {
+    const from = Math.max(s, at);
+    if (e > from) total += e - from;
+    at = Math.max(at, e);
+  }
+  return total;
 }
 
 interface Vehicle {
@@ -191,6 +241,8 @@ export function orientStops(
       distanceM: length - s.distanceM,
       offsetS: s.opposing?.offsetS ?? s.offsetS,
       greenS: s.opposing?.greenS ?? s.greenS,
+      // The forward direction's extra greens are its own; the way back has its own list.
+      extraGreens: s.opposing?.extraGreens ?? [],
       free: s.free,
       approachSpeedMps: s.opposing?.approachSpeedMps,
     }))
@@ -219,7 +271,7 @@ function simulateStopAtRed(
 ): Trajectory[] {
   const { cycleS, speedMps, fromS, toS } = o;
   const profile = speedProfile(sorted, speedMps);
-  const tightestGreen = Math.min(...signals.map((s) => Math.min(s.greenS, cycleS)));
+  const tightestGreen = Math.min(...signals.map((s) => greenSecondsPerCycle(s, cycleS)));
   const sustainable = cycleS / ((MAX_UTILISATION * tightestGreen) / DISCHARGE_HEADWAY_S);
   const headway = o.headwayS ?? Math.max(DEFAULT_HEADWAY_S, sustainable);
 
@@ -352,7 +404,8 @@ function simulateGreenWave(sorted: readonly TrajectoryStop[], o: TrajectoryOptio
     sorted.forEach((stop, i) => {
       const arrives = depart + travel[i];
       // A signal with no cycle to obey doesn't stop the line either.
-      const passes = stop.free || stop.greenS <= 0 || greenAt(stop, arrives, cycleS);
+      const passes =
+        stop.free || greenWindowsOf(stop).length === 0 || greenAt(stop, arrives, cycleS);
       if (passes) chain.push([arrives, stop.distanceM]);
       else flush();
     });
@@ -386,7 +439,7 @@ export function simulateTrajectories(
   }
 
   const signals = stops
-    .filter((s) => !s.free && s.greenS > 0)
+    .filter((s) => !s.free && greenWindowsOf(s).length > 0)
     .sort((a, b) => a.distanceM - b.distanceM);
   if (signals.length === 0) return [];
 

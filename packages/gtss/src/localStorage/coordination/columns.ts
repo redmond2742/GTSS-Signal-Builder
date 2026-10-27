@@ -65,6 +65,11 @@ export const PHASE_SEQUENCE_COLUMNS = [
   "position",
   "phase_id",
   "barrier_id",
+  // GTSS Builder's addition, not the converter's: the directions whose traffic
+  // can go through the signal while this phase is green, beyond the coordinated
+  // phase (an overlap carrying the through movement, or a left turn the route
+  // takes). Only written when some row uses it.
+  "progression",
 ] as const;
 
 /**

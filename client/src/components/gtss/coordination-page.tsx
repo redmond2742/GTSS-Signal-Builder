@@ -2,6 +2,7 @@ import CoordinationCell, { type CellType } from "@/components/gtss/coordination-
 import CorridorOrderCard, { type CorridorNotice } from "@/components/gtss/corridor-order-card";
 import NewCorridorDialog from "@/components/gtss/new-corridor-dialog";
 import type { PinLabelMode } from "@/components/gtss/corridors-map";
+import CorridorsOverviewMap from "@/components/gtss/corridors-overview-map";
 import CycleFitCard from "@/components/gtss/cycle-fit-card";
 import TimeSpaceDiagram, {
   buildStops,
@@ -9,10 +10,11 @@ import TimeSpaceDiagram, {
 } from "@/components/gtss/time-space-diagram";
 import { useOffsetHistory } from "@/hooks/use-offset-history";
 import PhaseSequenceCard from "@/components/gtss/phase-sequence-card";
-import RingBarrierChart from "@/components/gtss/ring-barrier-chart";
+import ProgressionPanel from "@/components/gtss/progression-panel";
+import SplitBuilderCard from "@/components/gtss/split-builder-card";
 import ScheduleCalendar from "@/components/gtss/schedule-calendar";
-import GTSSFileViewer from "@/components/gtss/gtss-file-viewer";
-import { Badge } from "@/components/ui/badge";
+import { GTSSFileText } from "@/components/gtss/gtss-file-viewer";
+import { useCoordinationIssues } from "@/hooks/use-coordination-issues";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -35,12 +38,11 @@ import {
   COORDINATION_ENTITIES,
   isMetricForSignalId,
   isStorageReadOnly,
-  exportCoordinationAsZip,
   moveCorridorSignal,
   OFFSET_REFERENCES,
   renameSignalInCoordination,
   reverseDirection,
-  sequenceForPattern,
+  isFreePattern,
   setPatternOffsetReference,
   sortBySequence,
   splitStartShift,
@@ -48,9 +50,8 @@ import {
   summarizeIssues,
   UNSCOPED,
   useGTSSStore,
-  validateCoordination,
-  type CoordinationIssue,
   type CoordinationKey,
+  type ParsedCoordination,
   type CorridorSignal,
   type OffsetReference,
   type PatternSignal,
@@ -60,7 +61,7 @@ import {
 import {
   AlertTriangle,
   CheckCircle2,
-  Download,
+  FileText,
   GitBranch,
   Info,
   Redo2,
@@ -70,8 +71,8 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-/** The sub-views: an overview plus one per file. */
-type View = "overview" | (typeof COORDINATION_ENTITIES)[number]["key"];
+/** One page per file. */
+type View = CoordinationKey;
 
 /** Columns rendered for each file, in the order the spec declares them. */
 type Column = { key: string; label: string; type?: CellType };
@@ -129,6 +130,7 @@ const TABLE_COLUMNS: Record<CoordinationKey, readonly Column[]> = {
     { type: "number", key: "position", label: "Pos" },
     { type: "number", key: "phaseId", label: "Phase" },
     { key: "barrierId", label: "Barrier" },
+    { key: "progression", label: "Progression" },
   ],
 };
 
@@ -245,44 +247,29 @@ function SignalNoticeBar({
   );
 }
 
-function IssueList({ issues }: { issues: readonly CoordinationIssue[] }) {
-  if (issues.length === 0) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-green-700">
-        <CheckCircle2 className="h-4 w-4" />
-        No problems found.
-      </div>
-    );
-  }
-  return (
-    <ul className="space-y-1">
-      {issues.map((issue) => (
-        <li key={issue.id} className="flex items-start gap-2 text-xs">
-          <AlertTriangle
-            className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${
-              issue.level === "error" ? "text-red-600" : "text-amber-600"
-            }`}
-          />
-          <span className={issue.level === "error" ? "text-red-700" : "text-grey-700"}>
-            {issue.message}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 /**
  * Coordination: import, view and validate. Read-only in this release — nothing
  * here creates, changes or deletes a row.
  */
-export default function CoordinationPage() {
+interface CoordinationPageProps {
+  /** The file to open on, e.g. when coming from Validation. Defaults to corridors.txt. */
+  initialView?: CoordinationKey;
+  /** Show the validation results (in Data Management). */
+  onOpenValidation?: () => void;
+}
+
+export default function CoordinationPage({
+  initialView,
+  onOpenValidation,
+}: CoordinationPageProps = {}) {
   const { coordination, signals, phases, approaches, basicTimings, agencies, refreshCoordination } =
     useGTSSStore();
   // Lookup mode blocks writes at the storage layer; reflect that in the UI
   // instead of offering edits that silently no-op.
   const readOnly = isStorageReadOnly();
-  const [view, setView] = useState<View>("overview");
+  const [view, setView] = useState<View>(initialView ?? "corridors");
+  const [showOnlyTableRows, setShowOnlyTableRows] = useState(false);
+  const rowCount = (n: number) => `${n} row${n === 1 ? "" : "s"}`;
   const [corridorId, setCorridorId] = useState<string>("");
   const [hoveredSignalId, setHoveredSignalId] = useState<string | null>(null);
   const [pinLabel, setPinLabel] = useState<PinLabelMode>("sequence");
@@ -310,6 +297,10 @@ export default function CoordinationPage() {
   const gtssData = useMemo(
     () => ({ signals, phases, approaches, basicTimings }),
     [signals, phases, approaches, basicTimings],
+  );
+  const splitGtss = useMemo(
+    () => ({ phases, approaches, basicTimings }),
+    [phases, approaches, basicTimings],
   );
 
   // Writing one offset is the only thing undo and redo need to be able to do.
@@ -348,11 +339,8 @@ export default function CoordinationPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [view, undoEdit, redoEdit]);
 
-  const signalIds = useMemo(() => new Set(signals.map((s) => s.signalId)), [signals]);
-  const issues = useMemo(
-    () => validateCoordination(coordination, signalIds),
-    [coordination, signalIds],
-  );
+  // Shown on the tabs and the validation button; the full list is in Data Management.
+  const issues = useCoordinationIssues();
   const { errors, warnings } = summarizeIssues(issues);
 
   const totalRows = COORDINATION_ENTITIES.reduce(
@@ -363,61 +351,49 @@ export default function CoordinationPage() {
   const activeCorridorId = corridorId || coordination.corridors[0]?.corridorId || "";
 
   // Splits are the one file dense enough to need narrowing: 100 rows across
-  // patterns and signals is unusable to scan, let alone edit.
-  const splitPatterns = Array.from(new Set(coordination.splits.map((r) => r.patternId))).sort();
-  const activeSplitPattern = splitPattern || splitPatterns[0] || "";
+  // patterns and signals is unusable to scan, let alone edit. Patterns come
+  // from Patterns.txt rather than from Splits.txt, so a pattern with no splits
+  // yet can have them built.
+  const splitPatterns = Array.from(
+    new Set([
+      ...coordination.patterns.filter((p) => !isFreePattern(p)).map((p) => p.patternId),
+      ...coordination.splits.map((r) => r.patternId),
+    ]),
+  ).sort();
+  const activeSplitPattern = splitPatterns.includes(splitPattern)
+    ? splitPattern
+    : (splitPatterns[0] ?? "");
   const splitSignals = Array.from(
     new Set(
       coordination.splits.filter((r) => r.patternId === activeSplitPattern).map((r) => r.signalId),
     ),
   ).sort();
-  // The same signals in corridor order, then any outside the corridor.
-  const splitSignalsInOrder = (() => {
+  // The pattern's signals: its corridor's in order, then any others it has rows for.
+  const splitSignalOptions = (() => {
     const corridorOfPattern =
       coordination.patterns.find((p) => p.patternId === activeSplitPattern)?.corridorId ?? null;
     const order = sortBySequence(
       coordination.corridorSignals.filter((cs) => cs.corridorId === corridorOfPattern),
     ).map((cs) => cs.signalId);
-    return [
-      ...order.filter((id) => splitSignals.includes(id)),
-      ...splitSignals.filter((id) => !order.includes(id)),
-    ];
+    const others = [
+      ...coordination.patternSignals
+        .filter((ps) => ps.patternId === activeSplitPattern)
+        .map((ps) => ps.signalId),
+      ...splitSignals,
+    ].filter((id) => !order.includes(id));
+    return Array.from(new Set([...order, ...others])).map((signalId) => ({
+      signalId,
+      hasSplits: splitSignals.includes(signalId),
+    }));
   })();
-  const activeSplitSignal = splitSignals.includes(splitSignal)
+  // The same signals in corridor order, then any outside the corridor.
+  const splitSignalsInOrder = splitSignalOptions.filter((o) => o.hasSplits).map((o) => o.signalId);
+  const activeSplitSignal = splitSignalOptions.some((o) => o.signalId === splitSignal)
     ? splitSignal
-    : (splitSignals[0] ?? "");
+    : (splitSignalsInOrder[0] ?? splitSignalOptions[0]?.signalId ?? "");
   const selectedSplits = coordination.splits.filter(
     (r) => r.patternId === activeSplitPattern && r.signalId === activeSplitSignal,
   );
-  // A signal can have several sequences (lead/lag variants of the same phases),
-  // and they order the phases differently. Use the one this pattern runs, as
-  // named in PatternSignals' notes; if the notes don't say, fall back to the
-  // first listed and say so rather than present a guess as fact.
-  const signalSequenceIds = Array.from(
-    new Set(
-      coordination.phaseSequence
-        .filter((r) => r.signalId === activeSplitSignal)
-        .map((r) => r.sequenceId),
-    ),
-  );
-  const namedSequence = sequenceForPattern(
-    coordination.patternSignals,
-    coordination.phaseSequence,
-    activeSplitPattern,
-    activeSplitSignal,
-  );
-  const chartSequence = namedSequence ?? signalSequenceIds[0] ?? null;
-  const selectedSignalSequence = coordination.phaseSequence.filter(
-    (r) => r.signalId === activeSplitSignal && r.sequenceId === chartSequence,
-  );
-  const sequenceCaption =
-    signalSequenceIds.length > 1 && chartSequence
-      ? namedSequence
-        ? `Phase order from ${chartSequence}, the sequence named in this pattern's notes.`
-        : `Phase order from ${chartSequence}, the first of ${signalSequenceIds.length} sequences listed. PatternSignals doesn't say which this pattern uses.`
-      : null;
-  const selectedCycle =
-    coordination.patterns.find((p) => p.patternId === activeSplitPattern)?.cycleLengthS ?? null;
 
   const corridorSignalIds = sortBySequence(
     coordination.corridorSignals.filter((cs) => cs.corridorId === activeCorridorId),
@@ -685,6 +661,21 @@ export default function CoordinationPage() {
         : (coordination[activeEntity.key] ?? [])
   ) as readonly object[];
 
+  // The active file as text: the whole of it, or just the rows the table shows
+  // where the page narrows it (Splits and PhaseSequence follow their diagrams).
+  const narrowed = tableRows.length !== (coordination[activeEntity.key] ?? []).length;
+  const fileText = {
+    id: activeEntity.key,
+    label: activeEntity.filename,
+    content:
+      showOnlyTableRows && narrowed
+        ? activeEntity.renderFrom(
+            { [activeEntity.key]: tableRows } as unknown as ParsedCoordination,
+            UNSCOPED,
+          )
+        : activeEntity.renderFrom(coordination, UNSCOPED),
+  };
+
   const corridorCard = (
     <CorridorOrderCard
       corridors={coordination.corridors}
@@ -718,20 +709,10 @@ export default function CoordinationPage() {
       onCreated={(id, notes) => {
         refreshCoordination();
         setCorridorId(id);
-        setView("overview");
+        setView("corridorSignals");
         setCorridorNotice({ tone: "info", lines: [`Created corridor ${id}.`, ...notes] });
       }}
     />
-  );
-
-  const rawFiles = useMemo(
-    () =>
-      COORDINATION_ENTITIES.map((e) => ({
-        id: e.key,
-        label: e.filename,
-        content: e.renderFrom(coordination, UNSCOPED),
-      })),
-    [coordination],
   );
 
   if (totalRows === 0) {
@@ -764,473 +745,503 @@ export default function CoordinationPage() {
   return (
     <div className="max-w-6xl space-y-3">
       {newCorridorDialog}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-grey-500">View</span>
-          <Select
-            value={view}
-            onValueChange={(v) => {
-              setView(v as View);
-              setNotice(null);
-            }}
-          >
-            <SelectTrigger className="h-8 w-64 text-xs" aria-label="Coordination file">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="overview" className="text-xs">
-                Overview &amp; validation
-              </SelectItem>
-              {COORDINATION_ENTITIES.map((e) => (
-                <SelectItem key={e.key} value={e.key} className="text-xs">
-                  {e.filename} ({coordination[e.key]?.length ?? 0})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {errors > 0 && (
-            <Badge variant="outline" className="border-red-300 text-xs text-red-700">
-              {errors} error{errors === 1 ? "" : "s"}
-            </Badge>
-          )}
-          {warnings > 0 && (
-            <Badge variant="outline" className="border-amber-300 text-xs text-amber-700">
-              {warnings} warning{warnings === 1 ? "" : "s"}
-            </Badge>
-          )}
-          <Button
-            variant="outline"
-            onClick={() => exportCoordinationAsZip()}
-            className="h-8 px-2 text-xs"
-          >
-            <Download className="mr-1 h-3 w-3" />
-            Export package
-          </Button>
-        </div>
-      </div>
-
-      {view === "overview" ? (
-        <div className="space-y-3">
-          {corridorCard}
-
-          <Card>
-            <CardHeader className="border-b border-grey-200 bg-grey-50 px-4 py-2">
-              <CardTitle className="text-base font-semibold text-grey-800">Validation</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4">
-              <IssueList issues={issues} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="border-b border-grey-200 bg-grey-50 px-4 py-2">
-              <CardTitle className="text-base font-semibold text-grey-800">
-                Coordination files
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-3">
-              <GTSSFileViewer files={rawFiles} />
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {view === "corridorSignals" && coordination.corridors.length > 0 && corridorCard}
-
-          {view === "phaseSequence" && coordination.phaseSequence.length > 0 && (
-            <PhaseSequenceCard
-              phaseSequence={coordination.phaseSequence}
-              patternSignals={coordination.patternSignals}
-              corridorSignalIds={corridorSignalIds}
-              signalId={activeSeqSignal}
-              onSignalChange={setSeqSignal}
-            />
-          )}
-
-          {view === "schedule" && coordination.schedule.length > 0 && (
-            <ScheduleCalendar
-              coordination={coordination}
-              corridorId={activeCorridorId}
-              onCorridorChange={setCorridorId}
-            />
-          )}
-
-          {view === "patternSignals" && tsPatterns.length > 0 && (
-            <Card>
-              <CardHeader className="border-b border-grey-200 bg-grey-50 px-4 py-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <CardTitle className="flex items-center gap-2 text-base font-semibold text-grey-800">
-                    <GitBranch className="h-4 w-4 text-primary-600" />
-                    Time&ndash;space
-                  </CardTitle>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <label className="flex items-center gap-1.5 text-xs text-grey-600">
-                      <Checkbox
-                        checked={showTrajectories}
-                        onCheckedChange={(c) => setShowTrajectories(c as boolean)}
-                        aria-label="Show vehicle trajectories"
+      <Tabs
+        value={view}
+        onValueChange={(v) => {
+          setView(v as View);
+          setNotice(null);
+          setShowOnlyTableRows(false);
+        }}
+        className="space-y-3"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {/* One tab per file; scrolls sideways rather than wrapping on a narrow screen. */}
+          <div className="min-w-0 flex-1 overflow-x-auto">
+            <TabsList
+              aria-label="Coordination files"
+              className="h-auto w-max justify-start gap-0.5"
+            >
+              {COORDINATION_ENTITIES.map((e) => {
+                const fileIssues = issues.filter((i) => i.scope === e.key);
+                const fileErrors = fileIssues.filter((i) => i.level === "error").length;
+                return (
+                  <TabsTrigger
+                    key={e.key}
+                    value={e.key}
+                    className="px-2.5 py-1 text-xs"
+                    title={
+                      fileIssues.length
+                        ? `${e.filename}: ${rowCount(coordination[e.key]?.length ?? 0)}, ${fileIssues.length} to check`
+                        : `${e.filename}: ${rowCount(coordination[e.key]?.length ?? 0)}`
+                    }
+                  >
+                    {e.filename}
+                    <span className="ml-1 font-normal text-grey-400">
+                      {coordination[e.key]?.length ?? 0}
+                    </span>
+                    {fileIssues.length > 0 && (
+                      <span
+                        className={`ml-1 h-1.5 w-1.5 rounded-full ${fileErrors > 0 ? "bg-red-500" : "bg-amber-500"}`}
+                        aria-label={`${fileIssues.length} to check`}
                       />
-                      Trajectories
-                    </label>
-                    <label className="flex items-center gap-1.5 text-xs text-grey-600">
-                      <Checkbox
-                        checked={showOpposite}
-                        disabled={!showTrajectories}
-                        onCheckedChange={(c) => setShowOpposite(c as boolean)}
-                        aria-label="Show opposite direction"
-                      />
-                      Opposite direction
-                    </label>
-                    <Select
-                      value={trajectoryMode}
-                      onValueChange={(v) => setTrajectoryMode(v as TrajectoryMode)}
-                      disabled={!showTrajectories}
-                    >
-                      <SelectTrigger className="h-7 w-36 text-xs" aria-label="Vehicle path style">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="stop-at-red" className="text-xs">
-                          Stop at red
-                        </SelectItem>
-                        <SelectItem value="green-wave" className="text-xs">
-                          Green wave only
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-grey-500">Offset ref.</span>
+                    )}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            {/* The full list lives in Data Management; this says whether to go and look. */}
+            <Button
+              variant="outline"
+              onClick={onOpenValidation}
+              disabled={!onOpenValidation}
+              title="See every problem validation finds, file by file, in Data Management"
+              className={`h-8 px-2 text-xs ${
+                errors > 0
+                  ? "border-red-300 text-red-700"
+                  : warnings > 0
+                    ? "border-amber-300 text-amber-700"
+                    : "text-green-700"
+              }`}
+            >
+              {errors + warnings === 0 ? (
+                <CheckCircle2 className="mr-1 h-3 w-3" />
+              ) : (
+                <AlertTriangle className="mr-1 h-3 w-3" />
+              )}
+              {errors + warnings === 0
+                ? "No problems"
+                : [
+                    errors ? `${errors} error${errors === 1 ? "" : "s"}` : "",
+                    warnings ? `${warnings} warning${warnings === 1 ? "" : "s"}` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
+            </Button>
+          </div>
+        </div>
+
+        <TabsContent value={view} className="mt-0">
+          <div className="space-y-3">
+            {/* Every corridor at once on corridors.txt; one corridor, in order, on corridorSignals.txt. */}
+            {view === "corridors" && coordination.corridors.length > 0 && (
+              <CorridorsOverviewMap
+                corridors={coordination.corridors}
+                corridorSignals={coordination.corridorSignals}
+                signals={signals}
+                onOpenCorridor={(id) => {
+                  setCorridorId(id);
+                  setView("corridorSignals");
+                }}
+                onNewCorridor={readOnly ? undefined : () => setNewCorridorOpen(true)}
+              />
+            )}
+            {view === "corridorSignals" && coordination.corridors.length > 0 && corridorCard}
+
+            {view === "phaseSequence" && coordination.phaseSequence.length > 0 && (
+              <PhaseSequenceCard
+                phaseSequence={coordination.phaseSequence}
+                patternSignals={coordination.patternSignals}
+                corridorSignalIds={corridorSignalIds}
+                signalId={activeSeqSignal}
+                onSignalChange={setSeqSignal}
+              />
+            )}
+
+            {view === "schedule" && coordination.schedule.length > 0 && (
+              <ScheduleCalendar
+                coordination={coordination}
+                corridorId={activeCorridorId}
+                onCorridorChange={setCorridorId}
+              />
+            )}
+
+            {view === "patternSignals" && tsPatterns.length > 0 && (
+              <Card>
+                <CardHeader className="border-b border-grey-200 bg-grey-50 px-4 py-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <CardTitle className="flex items-center gap-2 text-base font-semibold text-grey-800">
+                      <GitBranch className="h-4 w-4 text-primary-600" />
+                      Time&ndash;space
+                    </CardTitle>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label className="flex items-center gap-1.5 text-xs text-grey-600">
+                        <Checkbox
+                          checked={showTrajectories}
+                          onCheckedChange={(c) => setShowTrajectories(c as boolean)}
+                          aria-label="Show vehicle trajectories"
+                        />
+                        Trajectories
+                      </label>
+                      <label className="flex items-center gap-1.5 text-xs text-grey-600">
+                        <Checkbox
+                          checked={showOpposite}
+                          disabled={!showTrajectories}
+                          onCheckedChange={(c) => setShowOpposite(c as boolean)}
+                          aria-label="Show opposite direction"
+                        />
+                        Opposite direction
+                      </label>
                       <Select
-                        value={tsReference}
-                        onValueChange={(v) => changeReference(v as OffsetReference)}
-                        disabled={readOnly || !activeTsPattern}
+                        value={trajectoryMode}
+                        onValueChange={(v) => setTrajectoryMode(v as TrajectoryMode)}
+                        disabled={!showTrajectories}
                       >
-                        <SelectTrigger
-                          className="h-7 w-36 text-xs"
-                          aria-label="Offset reference"
-                          title={
-                            tsReferenceAssumed
-                              ? "The files don't say what offsets are measured to, so begin of green is assumed. Pick one to write it to the pattern."
-                              : "What each offset is measured to in the coordinated phase"
-                          }
-                        >
-                          <SelectValue placeholder="Mixed" />
+                        <SelectTrigger className="h-7 w-36 text-xs" aria-label="Vehicle path style">
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {OFFSET_REFERENCES.map((r) => (
-                            <SelectItem key={r.value} value={r.value} className="text-xs">
-                              {r.label}
-                              {tsReferenceAssumed && r.value === "BegGreen" ? " (assumed)" : ""}
+                          <SelectItem value="stop-at-red" className="text-xs">
+                            Stop at red
+                          </SelectItem>
+                          <SelectItem value="green-wave" className="text-xs">
+                            Green wave only
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-grey-500">Offset ref.</span>
+                        <Select
+                          value={tsReference}
+                          onValueChange={(v) => changeReference(v as OffsetReference)}
+                          disabled={readOnly || !activeTsPattern}
+                        >
+                          <SelectTrigger
+                            className="h-7 w-36 text-xs"
+                            aria-label="Offset reference"
+                            title={
+                              tsReferenceAssumed
+                                ? "The files don't say what offsets are measured to, so begin of green is assumed. Pick one to write it to the pattern."
+                                : "What each offset is measured to in the coordinated phase"
+                            }
+                          >
+                            <SelectValue placeholder="Mixed" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {OFFSET_REFERENCES.map((r) => (
+                              <SelectItem key={r.value} value={r.value} className="text-xs">
+                                {r.label}
+                                {tsReferenceAssumed && r.value === "BegGreen" ? " (assumed)" : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Select value={activeTsPattern} onValueChange={setTsPattern}>
+                        <SelectTrigger className="h-7 w-44 text-xs" aria-label="Time-space pattern">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {tsPatterns.map((id) => (
+                            <SelectItem key={id} value={id} className="text-xs">
+                              {id}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      {!readOnly && (
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            disabled={!offsetHistory.canUndo}
+                            onClick={undoOffset}
+                            aria-label="Undo offset change"
+                            title={
+                              offsetHistory.nextUndo
+                                ? `Undo: ${offsetHistory.nextUndo.signalId} offset back to ${showOffset(offsetHistory.nextUndo.from)} (Ctrl/\u2318+Z)`
+                                : "Nothing to undo"
+                            }
+                            className="h-7 px-2 text-xs"
+                          >
+                            <Undo2 className="mr-1 h-3 w-3" />
+                            Undo
+                          </Button>
+                          <Button
+                            variant="outline"
+                            disabled={!offsetHistory.canRedo}
+                            onClick={redoOffset}
+                            aria-label="Redo offset change"
+                            title={
+                              offsetHistory.nextRedo
+                                ? `Redo: ${offsetHistory.nextRedo.signalId} offset to ${showOffset(offsetHistory.nextRedo.to)} (Shift+Ctrl/\u2318+Z)`
+                                : "Nothing to redo"
+                            }
+                            className="h-7 px-2 text-xs"
+                          >
+                            <Redo2 className="mr-1 h-3 w-3" />
+                            Redo
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                    <Select value={activeTsPattern} onValueChange={setTsPattern}>
-                      <SelectTrigger className="h-7 w-44 text-xs" aria-label="Time-space pattern">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {tsPatterns.map((id) => (
-                          <SelectItem key={id} value={id} className="text-xs">
-                            {id}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {!readOnly && (
-                      <div className="flex items-center gap-1">
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <TimeSpaceDiagram
+                    stops={tsStops}
+                    cycleLengthS={tsPatternRow?.cycleLengthS ?? 0}
+                    showTrajectories={showTrajectories}
+                    showOpposite={showOpposite}
+                    trajectoryMode={trajectoryMode}
+                    defaultSpeedMps={defaultSpeedMps}
+                    isMetric={isMetric}
+                    directions={tsDirections}
+                    highlightedSignalId={hoveredSignalId}
+                    editable={!readOnly}
+                    onOffsetChange={(signalId, offsetS, options) =>
+                      commitOffset(activeTsPattern, signalId, offsetS, options.coalesce)
+                    }
+                  />
+
+                  {!readOnly &&
+                    referenceNotice &&
+                    referenceNotice.change.patternId === activeTsPattern && (
+                      <div
+                        role="status"
+                        className="flex flex-wrap items-center gap-2 border-t border-blue-200 bg-blue-50 px-3 py-1.5 text-xs text-blue-900"
+                      >
+                        <Info className="h-3.5 w-3.5 shrink-0" />
+                        <span className="min-w-0 flex-1">
+                          {referenceNotice.change.patternId} offsets are now measured to{" "}
+                          {referenceName(referenceNotice.change.reference)}.{" "}
+                          {referenceNotice.keptGreens
+                            ? "Each offset was changed so its green stays where it was."
+                            : "The numbers are unchanged, so any green whose reference moved has moved with it."}
+                        </span>
+                        {!referenceNotice.keptGreens && (
+                          <Button
+                            variant="outline"
+                            onClick={keepGreensInPlace}
+                            className="h-6 bg-white px-2 text-[11px]"
+                          >
+                            Keep greens in place
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
-                          disabled={!offsetHistory.canUndo}
-                          onClick={undoOffset}
-                          aria-label="Undo offset change"
-                          title={
-                            offsetHistory.nextUndo
-                              ? `Undo: ${offsetHistory.nextUndo.signalId} offset back to ${showOffset(offsetHistory.nextUndo.from)} (Ctrl/\u2318+Z)`
-                              : "Nothing to undo"
-                          }
-                          className="h-7 px-2 text-xs"
+                          onClick={undoReference}
+                          className="h-6 bg-white px-2 text-[11px]"
                         >
                           <Undo2 className="mr-1 h-3 w-3" />
                           Undo
                         </Button>
                         <Button
-                          variant="outline"
-                          disabled={!offsetHistory.canRedo}
-                          onClick={redoOffset}
-                          aria-label="Redo offset change"
-                          title={
-                            offsetHistory.nextRedo
-                              ? `Redo: ${offsetHistory.nextRedo.signalId} offset to ${showOffset(offsetHistory.nextRedo.to)} (Shift+Ctrl/\u2318+Z)`
-                              : "Nothing to redo"
-                          }
-                          className="h-7 px-2 text-xs"
+                          variant="ghost"
+                          onClick={() => setReferenceNotice(null)}
+                          aria-label="Dismiss"
+                          className="h-6 w-6 p-0"
                         >
-                          <Redo2 className="mr-1 h-3 w-3" />
-                          Redo
+                          &times;
                         </Button>
                       </div>
                     )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <TimeSpaceDiagram
-                  stops={tsStops}
-                  cycleLengthS={tsPatternRow?.cycleLengthS ?? 0}
-                  showTrajectories={showTrajectories}
-                  showOpposite={showOpposite}
-                  trajectoryMode={trajectoryMode}
-                  defaultSpeedMps={defaultSpeedMps}
-                  isMetric={isMetric}
-                  directions={tsDirections}
-                  highlightedSignalId={hoveredSignalId}
-                  editable={!readOnly}
-                  onOffsetChange={(signalId, offsetS, options) =>
-                    commitOffset(activeTsPattern, signalId, offsetS, options.coalesce)
-                  }
-                />
-
-                {!readOnly &&
-                  referenceNotice &&
-                  referenceNotice.change.patternId === activeTsPattern && (
+                  {!readOnly && (
                     <div
                       role="status"
-                      className="flex flex-wrap items-center gap-2 border-t border-blue-200 bg-blue-50 px-3 py-1.5 text-xs text-blue-900"
+                      className="flex items-center gap-2 border-t border-grey-200 bg-grey-50 px-3 py-1.5 text-xs text-grey-600"
                     >
-                      <Info className="h-3.5 w-3.5 shrink-0" />
                       <span className="min-w-0 flex-1">
-                        {referenceNotice.change.patternId} offsets are now measured to{" "}
-                        {referenceName(referenceNotice.change.reference)}.{" "}
-                        {referenceNotice.keptGreens
-                          ? "Each offset was changed so its green stays where it was."
-                          : "The numbers are unchanged, so any green whose reference moved has moved with it."}
+                        {offsetStatus ??
+                          "Drag a signal\u2019s green sideways to change its offset, or focus its row and use the arrow keys (Shift for 5 s)."}
                       </span>
-                      {!referenceNotice.keptGreens && (
+                      {offsetHistory.canUndo && (
                         <Button
                           variant="outline"
-                          onClick={keepGreensInPlace}
+                          onClick={undoOffset}
                           className="h-6 bg-white px-2 text-[11px]"
                         >
-                          Keep greens in place
+                          <Undo2 className="mr-1 h-3 w-3" />
+                          Undo
                         </Button>
                       )}
-                      <Button
-                        variant="outline"
-                        onClick={undoReference}
-                        className="h-6 bg-white px-2 text-[11px]"
-                      >
-                        <Undo2 className="mr-1 h-3 w-3" />
-                        Undo
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        onClick={() => setReferenceNotice(null)}
-                        aria-label="Dismiss"
-                        className="h-6 w-6 p-0"
-                      >
-                        &times;
-                      </Button>
                     </div>
                   )}
-                {!readOnly && (
-                  <div
-                    role="status"
-                    className="flex items-center gap-2 border-t border-grey-200 bg-grey-50 px-3 py-1.5 text-xs text-grey-600"
-                  >
-                    <span className="min-w-0 flex-1">
-                      {offsetStatus ??
-                        "Drag a signal\u2019s green sideways to change its offset, or focus its row and use the arrow keys (Shift for 5 s)."}
-                    </span>
-                    {offsetHistory.canUndo && (
-                      <Button
-                        variant="outline"
-                        onClick={undoOffset}
-                        className="h-6 bg-white px-2 text-[11px]"
-                      >
-                        <Undo2 className="mr-1 h-3 w-3" />
-                        Undo
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                  <ProgressionPanel
+                    coordination={coordination}
+                    patternId={activeTsPattern}
+                    corridorId={tsCorridorId}
+                    forwardDirection={tsForward}
+                    signals={signals}
+                    gtss={splitGtss}
+                    readOnly={readOnly}
+                    onChanged={refreshCoordination}
+                  />
+                </CardContent>
+              </Card>
+            )}
 
-          {view === "splits" && splitPatterns.length > 0 && (
-            <Card>
-              <CardHeader className="border-b border-grey-200 bg-grey-50 px-4 py-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <CardTitle className="text-base font-semibold text-grey-800">
-                    Ring &amp; barrier
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    <Select value={activeSplitPattern} onValueChange={setSplitPattern}>
-                      <SelectTrigger className="h-7 w-44 text-xs" aria-label="Pattern">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {splitPatterns.map((id) => (
-                          <SelectItem key={id} value={id} className="text-xs">
-                            {id}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={activeSplitSignal} onValueChange={setSplitSignal}>
-                      <SelectTrigger className="h-7 w-36 text-xs" aria-label="Signal">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {splitSignals.map((id) => (
-                          <SelectItem key={id} value={id} className="text-xs">
-                            {id}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <RingBarrierChart
-                  splits={selectedSplits}
-                  phaseSequence={selectedSignalSequence}
-                  cycleLengthS={selectedCycle}
-                  signalId={activeSplitSignal}
-                  patternId={activeSplitPattern}
-                />
-                {sequenceCaption && (
-                  <p className="px-3 pb-2 text-[11px] text-grey-500">{sequenceCaption}</p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {view === "splits" && activeSplitPattern && (
-            <CycleFitCard
-              key={activeSplitPattern}
-              coordination={coordination}
-              patternId={activeSplitPattern}
-              signalIds={splitSignalsInOrder}
-              readOnly={readOnly}
-              onChanged={refreshCoordination}
-            />
-          )}
-
-          <Card>
-            <CardHeader className="border-b border-grey-200 bg-grey-50 px-4 py-2">
-              <CardTitle className="text-base font-semibold text-grey-800">
-                {COORDINATION_ENTITIES.find((e) => e.key === view)?.filename} ({tableRows.length})
-              </CardTitle>
-            </CardHeader>
-            {notice && notice.view === view && (
-              <SignalNoticeBar
-                notice={notice}
-                remaining={
-                  notice.offer
-                    ? (coordination[notice.offer.file] as readonly { signalId: string }[]).filter(
-                        (r) => r.signalId === notice.offer?.from,
-                      ).length
-                    : 0
-                }
-                filename={activeEntity.filename}
-                onRestOfFile={changeRestOfFile}
-                onEverywhere={changeEverywhere}
-                onDismiss={() => setNotice(null)}
+            {view === "splits" && (
+              <SplitBuilderCard
+                coordination={coordination}
+                gtss={splitGtss}
+                patternId={activeSplitPattern}
+                patternOptions={splitPatterns}
+                onPatternChange={setSplitPattern}
+                signalId={activeSplitSignal}
+                signalOptions={splitSignalOptions}
+                onSignalChange={setSplitSignal}
+                readOnly={readOnly}
+                onChanged={refreshCoordination}
               />
             )}
-            <CardContent className="p-0">
-              <div className="max-h-[70vh] overflow-auto">
-                <Table>
-                  <TableHeader className="sticky top-0 bg-grey-50">
-                    <TableRow>
-                      {TABLE_COLUMNS[view].map((col) => (
-                        <TableHead key={col.key} className="h-8 px-2 text-xs font-medium">
-                          {col.label}
-                        </TableHead>
-                      ))}
-                      {!readOnly && <TableHead className="h-8 w-10 px-2" />}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {tableRows.map((row) => {
-                      const rowId = activeEntity.identityOf(row);
-                      return (
-                        <TableRow key={rowId} className="text-xs">
-                          {TABLE_COLUMNS[view].map((col) => (
-                            <TableCell key={col.key} className="px-2 py-1">
-                              <CoordinationCell
-                                value={readField(row, col.key)}
-                                locked={
-                                  activeEntity.keyFields.includes(col.key) &&
-                                  !isOperationColumn(view, col.key)
-                                }
-                                type={col.type ?? "text"}
-                                label={
-                                  !isOperationColumn(view, col.key)
-                                    ? col.label
-                                    : col.key === "sequence"
-                                      ? `${col.label} (position)`
-                                      : `${col.label} (this row)`
-                                }
-                                readOnly={readOnly}
-                                onCommit={(next) => {
-                                  if (isOperationColumn(view, col.key)) {
-                                    if (col.key === "sequence") {
-                                      // `view` narrowed this to corridorSignals.
-                                      moveStopTo(row as CorridorSignal, next);
-                                    } else {
-                                      changeRowSignal(row, next);
+
+            {view === "splits" && activeSplitPattern && (
+              <CycleFitCard
+                key={activeSplitPattern}
+                coordination={coordination}
+                patternId={activeSplitPattern}
+                signalIds={splitSignalsInOrder}
+                readOnly={readOnly}
+                onChanged={refreshCoordination}
+              />
+            )}
+
+            <Card>
+              <CardHeader className="border-b border-grey-200 bg-grey-50 px-4 py-2">
+                <CardTitle className="text-base font-semibold text-grey-800">
+                  {COORDINATION_ENTITIES.find((e) => e.key === view)?.filename} ({tableRows.length})
+                </CardTitle>
+              </CardHeader>
+              {notice && notice.view === view && (
+                <SignalNoticeBar
+                  notice={notice}
+                  remaining={
+                    notice.offer
+                      ? (coordination[notice.offer.file] as readonly { signalId: string }[]).filter(
+                          (r) => r.signalId === notice.offer?.from,
+                        ).length
+                      : 0
+                  }
+                  filename={activeEntity.filename}
+                  onRestOfFile={changeRestOfFile}
+                  onEverywhere={changeEverywhere}
+                  onDismiss={() => setNotice(null)}
+                />
+              )}
+              <CardContent className="p-0">
+                <div className="max-h-[70vh] overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-grey-50">
+                      <TableRow>
+                        {TABLE_COLUMNS[view].map((col) => (
+                          <TableHead key={col.key} className="h-8 px-2 text-xs font-medium">
+                            {col.label}
+                          </TableHead>
+                        ))}
+                        {!readOnly && <TableHead className="h-8 w-10 px-2" />}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {tableRows.map((row) => {
+                        const rowId = activeEntity.identityOf(row);
+                        return (
+                          <TableRow key={rowId} className="text-xs">
+                            {TABLE_COLUMNS[view].map((col) => (
+                              <TableCell key={col.key} className="px-2 py-1">
+                                <CoordinationCell
+                                  value={readField(row, col.key)}
+                                  locked={
+                                    activeEntity.keyFields.includes(col.key) &&
+                                    !isOperationColumn(view, col.key)
+                                  }
+                                  type={col.type ?? "text"}
+                                  label={
+                                    !isOperationColumn(view, col.key)
+                                      ? col.label
+                                      : col.key === "sequence"
+                                        ? `${col.label} (position)`
+                                        : `${col.label} (this row)`
+                                  }
+                                  readOnly={readOnly}
+                                  onCommit={(next) => {
+                                    if (isOperationColumn(view, col.key)) {
+                                      if (col.key === "sequence") {
+                                        // `view` narrowed this to corridorSignals.
+                                        moveStopTo(row as CorridorSignal, next);
+                                      } else {
+                                        changeRowSignal(row, next);
+                                      }
+                                      return;
                                     }
-                                    return;
-                                  }
-                                  if (view === "patternSignals" && col.key === "offsetS") {
-                                    // Through the same door as the diagram, so undo covers it.
-                                    const ps = row as PatternSignal;
-                                    commitOffset(
-                                      ps.patternId,
-                                      ps.signalId,
-                                      typeof next === "number" ? next : null,
-                                    );
-                                    return;
-                                  }
-                                  activeEntity.updateRow(rowId, { [col.key]: next });
-                                  refreshCoordination();
-                                }}
-                              />
-                            </TableCell>
-                          ))}
-                          {!readOnly && (
-                            <TableCell className="px-2 py-1">
-                              <Button
-                                variant="ghost"
-                                onClick={() => {
-                                  activeEntity.deleteRow(rowId);
-                                  refreshCoordination();
-                                }}
-                                aria-label={`Delete row ${rowId}`}
-                                className="h-6 w-6 p-0 text-red-600 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                                    if (view === "patternSignals" && col.key === "offsetS") {
+                                      // Through the same door as the diagram, so undo covers it.
+                                      const ps = row as PatternSignal;
+                                      commitOffset(
+                                        ps.patternId,
+                                        ps.signalId,
+                                        typeof next === "number" ? next : null,
+                                      );
+                                      return;
+                                    }
+                                    activeEntity.updateRow(rowId, { [col.key]: next });
+                                    refreshCoordination();
+                                  }}
+                                />
+                              </TableCell>
+                            ))}
+                            {!readOnly && (
+                              <TableCell className="px-2 py-1">
+                                <Button
+                                  variant="ghost"
+                                  onClick={() => {
+                                    activeEntity.deleteRow(rowId);
+                                    refreshCoordination();
+                                  }}
+                                  aria-label={`Delete row ${rowId}`}
+                                  className="h-6 w-6 p-0 text-red-600 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* The file itself, as it will be exported. */}
+            <Card>
+              <CardHeader className="border-b border-grey-200 bg-grey-50 px-4 py-2">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold text-grey-800">
+                  <FileText className="h-4 w-4 text-primary-600" />
+                  {activeEntity.filename}
+                  <span className="text-xs font-normal text-grey-500">as a text file</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-3">
+                <GTSSFileText
+                  file={fileText}
+                  heightClass="h-72"
+                  download
+                  caption={
+                    showOnlyTableRows && narrowed
+                      ? `The ${tableRows.length} rows in the table above, with the file's header.`
+                      : `The whole file: ${rowCount((coordination[activeEntity.key] ?? []).length)} and a header, as Export writes it.`
+                  }
+                  actions={
+                    narrowed ? (
+                      <label className="flex items-center gap-1.5 text-xs text-grey-600">
+                        <Checkbox
+                          checked={showOnlyTableRows}
+                          onCheckedChange={(c) => setShowOnlyTableRows(c === true)}
+                          aria-label="Only the rows in the table above"
+                        />
+                        Only the rows above
+                      </label>
+                    ) : null
+                  }
+                />
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

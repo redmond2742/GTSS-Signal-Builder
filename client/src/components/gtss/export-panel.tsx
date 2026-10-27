@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   COORDINATION_ENTITIES,
   evaluateGTSSCompleteness,
+  exportCoordinationAsZip,
   generateAgenciesCSV,
   generateApproachesCSV,
   generateBasicTimingsCSV,
@@ -551,18 +552,36 @@ export default function ExportPanel() {
                   </Label>
                 </div>
                 {coordinationEnabled && (
-                  <div className="flex items-center space-x-3">
-                    <Checkbox
-                      id="coordination"
-                      checked={includeFiles.coordination}
-                      onCheckedChange={(checked) =>
-                        setIncludeFiles((prev) => ({ ...prev, coordination: checked as boolean }))
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-3">
+                      <Checkbox
+                        id="coordination"
+                        checked={includeFiles.coordination}
+                        onCheckedChange={(checked) =>
+                          setIncludeFiles((prev) => ({ ...prev, coordination: checked as boolean }))
+                        }
+                      />
+                      <Label htmlFor="coordination" className="text-sm text-grey-700">
+                        Coordination files ({coordinationRowCount} records across{" "}
+                        {COORDINATION_ENTITIES.length} files)
+                      </Label>
+                    </div>
+                    {/* The coordination files by themselves, for tools that only take those.
+                        No agency chosen means all of them, as the Coordination page always did. */}
+                    <Button
+                      type="button"
+                      variant="link"
+                      onClick={() =>
+                        exportCoordinationAsZip(
+                          selectedAgencyIds.length > 0 ? selectedAgencyIds : null,
+                        )
                       }
-                    />
-                    <Label htmlFor="coordination" className="text-sm text-grey-700">
-                      Coordination files ({coordinationRowCount} records across{" "}
-                      {COORDINATION_ENTITIES.length} files)
-                    </Label>
+                      disabled={coordinationRowCount === 0}
+                      title="Download just the coordination files: for the agencies chosen below, or all of them if none are"
+                      className="h-auto justify-start p-0 pl-7 text-xs"
+                    >
+                      Or download them on their own (GTSS-Coordination zip)
+                    </Button>
                   </div>
                 )}
               </div>

@@ -75,7 +75,14 @@ export interface PhaseWindow {
 export function phaseWindow(
   input: OpposingInput,
   targetPhase: number,
-  options: { otherRing?: boolean } = {},
+  options: {
+    otherRing?: boolean;
+    /**
+     * Also place a phase in another barrier group, by walking the groups in
+     * running order: each lasts as long as its busiest ring.
+     */
+    acrossBarriers?: boolean;
+  } = {},
 ): PhaseWindow | null {
   const { patternId, signalId, coordinatedPhase, offsetS } = input;
   if (coordinatedPhase === null || targetPhase === coordinatedPhase) return null;
@@ -95,7 +102,7 @@ export function phaseWindow(
   if (!here || !there) return null;
   if (here.ring == null || here.position == null || here.barrierId == null) return null;
   if (there.ring == null || there.position == null || there.barrierId == null) return null;
-  if (here.barrierId !== there.barrierId) return null;
+  if (here.barrierId !== there.barrierId && !options.acrossBarriers) return null;
   if (options.otherRing && here.ring === there.ring) return null;
 
   const splitOf = (phase: number) =>
@@ -119,9 +126,39 @@ export function phaseWindow(
       )
       .reduce((sum, r) => sum + (splitOf(r.phaseId as number) ?? 0), 0);
 
+  // Where each barrier group starts within the cycle, from the first. Both rings
+  // cross a barrier together, so a group lasts as long as its busiest ring.
+  const groupStart = new Map<string, number>();
+  if (here.barrierId !== there.barrierId) {
+    const firstAt = new Map<string, number>();
+    for (const r of rows) {
+      if (r.barrierId == null || r.position == null) continue;
+      const at = firstAt.get(r.barrierId);
+      if (at === undefined || r.position < at) firstAt.set(r.barrierId, r.position);
+    }
+    const order = Array.from(firstAt.keys()).sort(
+      (a, b) => (firstAt.get(a) ?? 0) - (firstAt.get(b) ?? 0),
+    );
+    let at = 0;
+    for (const barrierId of order) {
+      groupStart.set(barrierId, at);
+      const rings = Array.from(new Set(rows.map((r) => r.ring)));
+      at += Math.max(
+        0,
+        ...rings.map((ring) =>
+          rows
+            .filter((r) => r.ring === ring && r.barrierId === barrierId && r.phaseId != null)
+            .reduce((sum, r) => sum + (splitOf(r.phaseId as number) ?? 0), 0),
+        ),
+      );
+    }
+  }
+  const startOf = (r: PhaseSequenceEntry) =>
+    (groupStart.get(r.barrierId as string) ?? 0) + before(r);
+
   return {
     phase: targetPhase,
-    offsetS: offsetS + before(there) - before(here),
+    offsetS: offsetS + startOf(there) - startOf(here),
     greenS: targetGreen,
   };
 }

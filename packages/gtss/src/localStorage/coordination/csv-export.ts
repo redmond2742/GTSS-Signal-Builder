@@ -91,12 +91,18 @@ export const generateScheduleCSV = (rows: readonly ScheduleEntry[]): string =>
     r.priority,
   ]);
 
-export const generatePhaseSequenceCSV = (rows: readonly PhaseSequenceEntry[]): string =>
-  generate(PHASE_SEQUENCE_COLUMNS, rows, (r) => [
+export const generatePhaseSequenceCSV = (rows: readonly PhaseSequenceEntry[]): string => {
+  // The progression column is GTSS Builder's own; leave it off when nothing uses
+  // it, so the file is exactly the six columns the converter writes.
+  const used = rows.some((r) => (r.progression ?? "").trim() !== "");
+  const columns = used ? PHASE_SEQUENCE_COLUMNS : PHASE_SEQUENCE_COLUMNS.slice(0, -1);
+  return generate(columns, rows, (r) => [
     r.signalId,
     r.sequenceId,
     r.ring,
     r.position,
     r.phaseId,
     r.barrierId,
+    ...(used ? [r.progression] : []),
   ]);
+};
