@@ -188,6 +188,7 @@ export const parsePhaseSequenceTXT = (content: string): PhaseSequenceEntry[] =>
         position: int(col("position")),
         phaseId: int(col("phase_id")),
         barrierId: text(col("barrier_id")),
+        progression: text(col("progression")),
       }
     );
   });

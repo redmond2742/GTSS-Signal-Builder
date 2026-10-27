@@ -19,7 +19,9 @@ import {
   opposingWindow,
   phaseWindow,
   progressionBand,
+  progressionPhases,
   resolveCorridorSpeeds,
+  reverseDirection,
   simplifyPolyline,
   simulateTrajectories,
   sortBySequence,
@@ -50,8 +52,17 @@ import {
   type PointerEvent,
 } from "react";
 
+/**
+ * A phase that also lets a direction's traffic through the signal, as marked in
+ * PhaseSequence.txt's progression column: a left turn the route takes, or any
+ * other phase (an overlap) the movement continues on.
+ */
+export type ProgressionWindow = PhaseWindow & { kind: "left turn" | "overlap" };
+
 /** What the return direction gets at a signal, beyond its green window. */
 export type OpposingStop = OpposingWindow & {
+  /** Other phases the return direction progresses on here. */
+  extraGreens: ProgressionWindow[];
   /** Speed arriving here from the signal after this one, m/s. */
   approachSpeedMps: number;
   speedSource: SpeedSource;
@@ -92,6 +103,8 @@ export interface TimeSpaceStop {
   speedSource: SpeedSource;
   /** The same direction's protected left turn, where it can be placed. */
   leftTurn: PhaseWindow | null;
+  /** Other phases this direction's traffic progresses on here. Vehicles and the band use them. */
+  extraGreens: ProgressionWindow[];
   /**
    * The green the opposite direction gets: its opposing through phase, worked out
    * from the ring-barrier structure where the data allows, else assumed equal to
@@ -222,7 +235,9 @@ export function buildStops(input: BuildStopsInput): TimeSpaceStop[] {
   let prev: Signal | null = null;
   const drafts: {
     base: Omit<TimeSpaceStop, "approachSpeedMps" | "speedSource" | "opposing">;
-    opposing: (OpposingWindow & { leftTurn: PhaseWindow | null }) | undefined;
+    opposing:
+      | (OpposingWindow & { leftTurn: PhaseWindow | null; extraGreens: ProgressionWindow[] })
+      | undefined;
     raw: { forward: number | null; opposite: number | null };
   }[] = [];
 
@@ -295,6 +310,26 @@ export function buildStops(input: BuildStopsInput): TimeSpaceStop[] {
 
     const streets = intersectionStreetNames(signal, gtss.approaches).join(" / ");
 
+    // Phases marked as carrying each direction through, besides its own green.
+    const kindOf = (phase: number): ProgressionWindow["kind"] =>
+      /left/i.test(
+        gtss.phases.find((p) => p.signalId === signalId && p.phase === phase)?.movementType ?? "",
+      )
+        ? "left turn"
+        : "overlap";
+    const progressionFor = (direction: string | null, own: number | null): ProgressionWindow[] =>
+      !timing
+        ? []
+        : progressionPhases(phaseSequence, signalId, direction)
+            .filter((phase) => phase !== own)
+            .flatMap((phase) => {
+              const w =
+                phase === coordinatedPhase
+                  ? { phase, offsetS, greenS }
+                  : phaseWindow(timing, phase, { acrossBarriers: true });
+              return w ? [{ ...w, kind: kindOf(phase) }] : [];
+            });
+
     drafts.push({
       base: {
         signalId,
@@ -311,8 +346,16 @@ export function buildStops(input: BuildStopsInput): TimeSpaceStop[] {
         // A blank coordinated phase is how the files say "this signal runs free".
         free: coordinatedPhase == null,
         leftTurn: leftWindow(coordinatedPhase),
+        extraGreens: progressionFor(cs.direction, coordinatedPhase),
       },
-      opposing: opposing && { ...opposing, leftTurn: leftWindow(backPhase) },
+      opposing: opposing && {
+        ...opposing,
+        leftTurn: leftWindow(backPhase),
+        extraGreens: progressionFor(
+          reverseDirection(cs.direction),
+          opposing.partnerPhase ?? backPhase,
+        ),
+      },
       raw: {
         forward: outPhase === null ? null : toMps(approachSpeedFor(signalId, outPhase, gtss)),
         opposite: backPhase === null ? null : toMps(approachSpeedFor(signalId, backPhase, gtss)),
@@ -494,16 +537,20 @@ export default function TimeSpaceDiagram({
             if (s.signalId !== drag.signalId) return s;
             const shift = drag.offsetS - s.offsetS;
             const moved = (w: PhaseWindow | null) => w && { ...w, offsetS: w.offsetS + shift };
+            const movedAll = (ws: ProgressionWindow[]) =>
+              ws.map((w) => ({ ...w, offsetS: w.offsetS + shift }));
             return {
               ...s,
               offsetS: drag.offsetS,
               leftTurn: moved(s.leftTurn),
+              extraGreens: movedAll(s.extraGreens),
               // Everything else at the signal keeps its place relative to the
               // coordinated green: the timing plan moves as one.
               opposing: s.opposing && {
                 ...s.opposing,
                 offsetS: s.opposing.offsetS + shift,
                 leftTurn: moved(s.opposing.leftTurn),
+                extraGreens: movedAll(s.opposing.extraGreens),
               },
             };
           })
@@ -918,6 +965,23 @@ export default function TimeSpaceDiagram({
                       strokeWidth={7}
                     />
                   ))}
+                  {/* Other phases this direction progresses on: dashed green. */}
+                  {stop.extraGreens.flatMap((w) =>
+                    spansOf(w.offsetS, w.greenS).map(([from, to], i) => (
+                      <line
+                        key={`pg-${w.phase}-${i}`}
+                        x1={xOf(from)}
+                        y1={y}
+                        x2={xOf(to)}
+                        y2={y}
+                        stroke="#15803d"
+                        strokeWidth={7}
+                        strokeDasharray="5 2"
+                      >
+                        <title>{`${stop.signalId}: traffic also goes through on φ${w.phase} (${w.kind}), ${w.greenS}s`}</title>
+                      </line>
+                    )),
+                  )}
                   {/* A tick where the offset is measured to: the start of green, or of yellow. */}
                   {Array.from({ length: cyclesShown + 1 }, (_, k) => {
                     const at = (((stored(stop) % cycle) + cycle) % cycle) + k * cycle;
@@ -996,6 +1060,22 @@ export default function TimeSpaceDiagram({
                           strokeDasharray={stop.opposing?.basis === "assumed" ? "2 2" : undefined}
                         />
                       ))}
+                      {stop.opposing.extraGreens.flatMap((w) =>
+                        spansOf(w.offsetS, w.greenS).map(([from, to], i) => (
+                          <line
+                            key={`opg-${w.phase}-${i}`}
+                            x1={xOf(from)}
+                            y1={y + 6.5}
+                            x2={xOf(to)}
+                            y2={y + 6.5}
+                            stroke="#15803d"
+                            strokeWidth={4}
+                            strokeDasharray="4 2"
+                          >
+                            <title>{`${stop.signalId}, returning traffic: also goes through on φ${w.phase} (${w.kind}), ${w.greenS}s`}</title>
+                          </line>
+                        )),
+                      )}
                       {stop.opposing.leftTurn &&
                         spansOf(stop.opposing.leftTurn.offsetS, stop.opposing.leftTurn.greenS).map(
                           ([from, to], i) => (
@@ -1153,6 +1233,14 @@ export default function TimeSpaceDiagram({
           <p>
             Hatched: each direction&rsquo;s protected left turn. Where it overlaps the green it runs
             alongside the through movement; over red, it runs while the through waits.
+          </p>
+        )}
+        {stops.some(
+          (s) => s.extraGreens.length > 0 || (s.opposing?.extraGreens.length ?? 0) > 0,
+        ) && (
+          <p>
+            Dashed green: a left turn or overlap marked below as carrying the corridor&rsquo;s
+            traffic through. Vehicles go through on it, and the bandwidth counts it.
           </p>
         )}
         <p>

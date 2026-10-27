@@ -1,5 +1,6 @@
 import {
   cumulativeTravel,
+  greenWindowsOf,
   orientStops,
   type TrajectoryDirection,
   type TrajectoryStop,
@@ -74,6 +75,18 @@ function arcsOf(start: number, length: number, cycle: number): Arc[] {
       ];
 }
 
+/** Arcs merged where they overlap or touch, in order. */
+function union(arcs: Arc[]): Arc[] {
+  const sorted = [...arcs].sort((x, y) => x[0] - y[0]);
+  const out: Arc[] = [];
+  for (const [s, e] of sorted) {
+    const last = out[out.length - 1];
+    if (last && s <= last[1]) last[1] = Math.max(last[1], e);
+    else out.push([s, e]);
+  }
+  return out;
+}
+
 function intersect(a: Arc[], b: Arc[]): Arc[] {
   const out: Arc[] = [];
   for (const [a0, a1] of a) {
@@ -119,9 +132,12 @@ export function progressionBand(
   let band: Arc[] = [[0, cycleS]];
   let constrained = false;
   range.forEach((stop, i) => {
-    if (stop.free || stop.greenS <= 0) return;
+    const windows = greenWindowsOf(stop);
+    if (stop.free || windows.length === 0) return;
     constrained = true;
-    band = intersect(band, arcsOf(stop.offsetS - travel[i], stop.greenS, cycleS));
+    // Traffic gets through in any of the stop's windows, so the band can too.
+    const open = union(windows.flatMap((w) => arcsOf(w.offsetS - travel[i], w.greenS, cycleS)));
+    band = intersect(band, open);
   });
   if (!constrained) return null;
 

@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, Download } from "lucide-react";
 
 export type GTSSFilePreview = {
   id: string;
@@ -16,24 +16,42 @@ interface GTSSFileViewerProps {
   emptyMessage?: string;
 }
 
-export default function GTSSFileViewer({ files, emptyMessage = "No GTSS output available." }: GTSSFileViewerProps) {
-  const { toast } = useToast();
-  const [copiedFileId, setCopiedFileId] = useState<string | null>(null);
-  const defaultTab = useMemo(() => files[0]?.id ?? "", [files]);
+interface GTSSFileTextProps {
+  file: GTSSFilePreview;
+  /** Line above the text. */
+  caption?: ReactNode;
+  /** Tailwind height class for the scrolling text area. */
+  heightClass?: string;
+  /** Offer the text as a file named after the label. */
+  download?: boolean;
+  /** Anything else to put beside the buttons, such as a filter. */
+  actions?: ReactNode;
+}
 
-  const handleCopy = async (file: GTSSFilePreview) => {
+/** One file's text, as it would be exported, with Copy (and optionally Download). */
+export function GTSSFileText({
+  file,
+  caption = "GTSS specification output",
+  heightClass = "h-48",
+  download = false,
+  actions,
+}: GTSSFileTextProps) {
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
     try {
       if (!navigator?.clipboard?.writeText) {
         throw new Error("Clipboard unavailable");
       }
       await navigator.clipboard.writeText(file.content);
-      setCopiedFileId(file.id);
+      setCopied(true);
       toast({
         title: "Copied",
         description: `${file.label} copied to clipboard`,
       });
-      setTimeout(() => setCopiedFileId(null), 1500);
-    } catch (error) {
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
       toast({
         title: "Copy failed",
         description: "Unable to copy to clipboard in this browser.",
@@ -41,6 +59,66 @@ export default function GTSSFileViewer({ files, emptyMessage = "No GTSS output a
       });
     }
   };
+
+  const handleDownload = () => {
+    const url = URL.createObjectURL(new Blob([file.content], { type: "text/plain" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = file.label;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-grey-500">{caption}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          {actions}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleCopy}
+            className="h-7 px-2 text-xs"
+          >
+            {copied ? (
+              <Check className="w-3 h-3 mr-1 text-success-600" />
+            ) : (
+              <Copy className="w-3 h-3 mr-1" />
+            )}
+            {copied ? "Copied" : "Copy"}
+          </Button>
+          {download && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleDownload}
+              className="h-7 px-2 text-xs"
+            >
+              <Download className="w-3 h-3 mr-1" />
+              Download
+            </Button>
+          )}
+        </div>
+      </div>
+      <div className="mt-2 rounded-md border border-grey-200 bg-grey-50">
+        <ScrollArea className={`${heightClass} w-full`}>
+          <pre className="text-xs text-grey-800 p-3 whitespace-pre-wrap font-mono">
+            {file.content}
+          </pre>
+        </ScrollArea>
+      </div>
+    </div>
+  );
+}
+
+export default function GTSSFileViewer({
+  files,
+  emptyMessage = "No GTSS output available.",
+}: GTSSFileViewerProps) {
+  const defaultTab = useMemo(() => files[0]?.id ?? "", [files]);
 
   if (files.length === 0) {
     return <p className="text-sm text-grey-500">{emptyMessage}</p>;
@@ -57,30 +135,7 @@ export default function GTSSFileViewer({ files, emptyMessage = "No GTSS output a
       </TabsList>
       {files.map((file) => (
         <TabsContent key={file.id} value={file.id}>
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-grey-500">GTSS specification output</p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => handleCopy(file)}
-              className="h-7 px-2 text-xs"
-            >
-              {copiedFileId === file.id ? (
-                <Check className="w-3 h-3 mr-1 text-success-600" />
-              ) : (
-                <Copy className="w-3 h-3 mr-1" />
-              )}
-              {copiedFileId === file.id ? "Copied" : "Copy"}
-            </Button>
-          </div>
-          <div className="mt-2 rounded-md border border-grey-200 bg-grey-50">
-            <ScrollArea className="h-48 w-full">
-              <pre className="text-xs text-grey-800 p-3 whitespace-pre-wrap font-mono">
-                {file.content}
-              </pre>
-            </ScrollArea>
-          </div>
+          <GTSSFileText file={file} />
         </TabsContent>
       ))}
     </Tabs>

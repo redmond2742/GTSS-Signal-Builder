@@ -76,6 +76,11 @@ export interface PhaseSequenceEntry {
   position: number | null;
   phaseId: number | null;
   barrierId: string | null;
+  /**
+   * Directions ("SB", or "SB;NB") whose traffic can progress through the signal
+   * while this phase is green. Blank for most phases. See progression.ts.
+   */
+  progression?: string | null;
 }
 
 /**
