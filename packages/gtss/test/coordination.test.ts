@@ -19,6 +19,8 @@ import {
   type ParsedCoordination,
 } from "../src/localStorage/coordination/rows";
 import { offsetReferenceFor } from "../src/localStorage/coordination/offsetReference";
+import { parsePatternSignalsTXT, parseSplitsTXT } from "../src/localStorage/coordination/parsers";
+import { coordinatedPhaseOf } from "../src/localStorage/coordination/splitCoordination";
 import { referenceSignalFor, scheduleCorridorId } from "../src/localStorage/coordination/schedule";
 import { resolveCoordinationScope, UNSCOPED } from "../src/localStorage/coordination/scope";
 import { validateCoordination } from "../src/localStorage/coordination/validate";
@@ -91,15 +93,24 @@ describe("coordination parsers", () => {
     expect(bag.phaseSequence).toHaveLength(104);
   });
 
-  it("keeps a blank coordinated_phase as null rather than 0", () => {
+  it("takes each signal's coordinated phase from Splits.txt alone", () => {
     const bag = parseSample();
-    // SIG-028 runs free in pattern 1: the converter leaves the column empty,
-    // which must not become phase 0.
+    const splits = bag.splits ?? [];
+    expect(coordinatedPhaseOf(splits, "CAL-SB-P01", "SIG-022")).toBe(4);
+    expect(coordinatedPhaseOf(splits, "CAL-SB-P01", "SIG-027")).toBe(8);
+    // SIG-028 runs free in pattern 1: no split row marks a phase.
+    expect(coordinatedPhaseOf(splits, "CAL-SB-P01", "SIG-028")).toBeNull();
     const free = bag.patternSignals?.find(
       (p) => p.patternId === "CAL-SB-P01" && p.signalId === "SIG-028",
     );
-    expect(free?.coordinatedPhase).toBeNull();
     expect(free?.offsetS).toBe(0);
+    expect(free).not.toHaveProperty("coordinatedPhase");
+  });
+
+  it("reads an older PatternSignals.txt, passing over its coordinated_phase", () => {
+    expect(parsePatternSignalsTXT(sample.legacyPatternSignalsTxt)).toEqual(
+      parsePatternSignalsTXT(sample.patternSignalsTxt),
+    );
   });
 
   it("reads the free pattern's cycle length as 0, not null", () => {
@@ -151,6 +162,47 @@ describe("coordination parsers", () => {
     expect(bag.schedule?.[1]).toMatchObject({ dayType: "WEEKDAY", patternId: "CAL-SB-P01" });
   });
 
+  it("reads Splits.txt from before coordinated_phase existed, and after", () => {
+    const old = parseSplitsTXT(sample.legacySplitsTxt);
+    expect(old[0]).toEqual({
+      patternId: "CAL-SB-P01",
+      signalId: "SIG-022",
+      phaseId: 2,
+      splitS: 49,
+      coordinatedPhase: null,
+    });
+    const now = parseSplitsTXT(
+      [
+        "pattern_id,signal_id,phase_id,split_s,coordinated_phase",
+        "P,S,4,35,1",
+        "P,S,8,50,0",
+        "P,S,3,30,",
+        "P,S,7,15,yes",
+      ].join("\n"),
+    );
+    expect(now.map((r) => r.coordinatedPhase)).toEqual([true, false, null, true]);
+  });
+
+  it("reads columns by their header, in any order", () => {
+    const shuffled = ["coordinated_phase,split_s,phase_id,signal_id,pattern_id", "1,35,4,S,P"].join(
+      "\n",
+    );
+    expect(parseSplitsTXT(shuffled)).toEqual([
+      { patternId: "P", signalId: "S", phaseId: 4, splitS: 35, coordinatedPhase: true },
+    ]);
+  });
+
+  it("falls back to the usual column order when the header names none of them", () => {
+    const unnamed = ["a,b,c,d,e", "P,S,4,35,1"].join("\n");
+    expect(parseSplitsTXT(unnamed)[0]).toEqual({
+      patternId: "P",
+      signalId: "S",
+      phaseId: 4,
+      splitS: 35,
+      coordinatedPhase: true,
+    });
+  });
+
   it("reports every bad row in one error rather than the first", () => {
     const bad = ["corridor_id,sequence,signal_id,direction", ",1,SIG-1,SB", "C-1,2,,SB"].join("\n");
     expect(() => entity("corridorSignals").parseInto(bad, {})).toThrow(
@@ -160,7 +212,7 @@ describe("coordination parsers", () => {
 });
 
 describe("coordination round-trip", () => {
-  it("regenerates byte-identical CSV for every file", () => {
+  it("regenerates every file byte for byte", () => {
     const bag = parseSample();
     const sources: Record<string, string> = {
       corridors: sample.corridorsTxt,
@@ -178,7 +230,7 @@ describe("coordination round-trip", () => {
 
   it("emits a header for an empty collection so the file is still valid", () => {
     expect(entity("splits").renderFrom({ splits: [] }, UNSCOPED)).toBe(
-      "pattern_id,signal_id,phase_id,split_s\n",
+      "pattern_id,signal_id,phase_id,split_s,coordinated_phase\n",
     );
   });
 });

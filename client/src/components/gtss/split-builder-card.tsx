@@ -14,6 +14,8 @@ import {
   balanceBarriers,
   buildUpToCycle,
   checkSplits,
+  coordinatedSplitPhases,
+  directionBearing,
   isFreePattern,
   savedSplitValues,
   scaleToCycle,
@@ -21,6 +23,7 @@ import {
   splitPlanFor,
   standardPhaseSequence,
   startingSplits,
+  throughPhaseFor,
   undoSplitsChange,
   writeSplits,
   type CoordinationRows,
@@ -31,6 +34,7 @@ import {
 } from "gtss";
 import type { Approach, BasicTiming, Phase } from "gtss/schema";
 import { phaseColors } from "gtss-diagram";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AlertTriangle, Calculator, CheckCircle2, Info, Minus, Plus, Undo2, X } from "lucide-react";
 import { useState } from "react";
 
@@ -135,15 +139,25 @@ export default function SplitBuilderCard({
       gtss,
       coordination.splits.filter((s) => s.signalId === id),
     );
-  const coordinatedOf = (id: string) =>
-    coordination.patternSignals.find((ps) => ps.patternId === patternId && ps.signalId === id)
-      ?.coordinatedPhase ?? null;
+  // For a signal with no splits yet, nothing says which phase is coordinated:
+  // start from the through phase heading the corridor's way, as the corridor
+  // builder picks it.
+  const suggestedOf = (id: string) => {
+    const corridorId = pattern?.corridorId;
+    const direction =
+      coordination.corridorSignals.find((c) => c.corridorId === corridorId && c.signalId === id)
+        ?.direction ??
+      coordination.corridors.find((c) => c.corridorId === corridorId)?.primaryDirection;
+    const bearing = directionBearing(direction);
+    return bearing === null ? null : throughPhaseFor(id, bearing, gtss);
+  };
 
   const seq = sequenceFor(signalId);
   const plan = planFor(signalId);
   const saved = savedSplitValues(coordination.splits, patternId, signalId);
   const hasSaved = Object.keys(saved).length > 0;
-  const coordinated = coordinatedOf(signalId);
+  // The phases the split table marks coordinated: none means the signal runs free.
+  const savedCoordinated = coordinatedSplitPhases(coordination.splits, patternId, signalId);
 
   const gtssVehiclePhases = gtss.phases
     .filter((p) => p.signalId === signalId && p.movementType !== "Pedestrian")
@@ -168,10 +182,17 @@ export default function SplitBuilderCard({
     for (const id of buildable) {
       const p = planFor(id);
       const start = startingSplits(p, "minimum", cycle).values;
-      bySignal.set(id, onlyPlanned(p, buildUpToCycle(p, start, cycle, coordinatedOf(id)).values));
+      bySignal.set(id, onlyPlanned(p, buildUpToCycle(p, start, cycle, suggestedOf(id)).values));
     }
     const skipped = unbuildable;
-    const change = writeSplits(patternId, bySignal);
+    // Each marks its through phase coordinated in the split table, none if it has none.
+    const flags = new Map(
+      Array.from(bySignal.keys()).map((id) => {
+        const phase = suggestedOf(id);
+        return [id, new Set(phase === null ? [] : [phase])];
+      }),
+    );
+    const change = writeSplits(patternId, bySignal, flags);
     onChanged();
     setNotice({
       text:
@@ -181,8 +202,12 @@ export default function SplitBuilderCard({
     });
   };
 
-  const save = (values: SplitValues) => {
-    const change = writeSplits(patternId, new Map([[signalId, onlyPlanned(plan, values)]]));
+  const save = (values: SplitValues, coordinated: ReadonlySet<number>) => {
+    const change = writeSplits(
+      patternId,
+      new Map([[signalId, onlyPlanned(plan, values)]]),
+      new Map([[signalId, coordinated]]),
+    );
     onChanged();
     setNotice({
       text: `${hasSaved ? "Saved" : "Created"} ${signalId}'s splits in ${patternId}.`,
@@ -307,12 +332,13 @@ export default function SplitBuilderCard({
         ) : (
           <SplitEditor
             // A new signal, pattern or saved state starts the draft afresh.
-            key={`${patternId}|${signalId}|${seq.sequenceId}|${JSON.stringify(saved)}`}
+            key={`${patternId}|${signalId}|${seq.sequenceId}|${JSON.stringify(saved)}|${JSON.stringify(savedCoordinated)}`}
             plan={plan}
             saved={saved}
             hasSaved={hasSaved}
+            savedCoordinated={savedCoordinated}
             cycle={cycle}
-            coordinatedPhase={coordinated}
+            suggestedPhase={suggestedOf(signalId)}
             labelOf={labelOf}
             caption={
               seq.count > 1
@@ -334,25 +360,45 @@ interface SplitEditorProps {
   plan: SplitPlan;
   saved: SplitValues;
   hasSaved: boolean;
+  /** Phases the split table marks coordinated; none means the signal runs free. */
+  savedCoordinated: number[];
   cycle: number;
-  coordinatedPhase: number | null;
+  /** The phase to tick for a signal with no splits yet. */
+  suggestedPhase: number | null;
   labelOf: (phaseId: number) => string | null;
   caption: string | null;
   readOnly: boolean;
-  onSave: (values: SplitValues) => void;
+  onSave: (values: SplitValues, coordinated: ReadonlySet<number>) => void;
 }
 
 function SplitEditor({
   plan,
   saved,
   hasSaved,
+  savedCoordinated,
   cycle,
-  coordinatedPhase,
+  suggestedPhase,
   labelOf,
   caption,
   readOnly,
   onSave,
 }: SplitEditorProps) {
+  // Which phases the split table marks coordinated: what it says, or for a
+  // signal with no splits yet, the suggested phase.
+  const initialFlags = () =>
+    new Set(hasSaved ? savedCoordinated : suggestedPhase != null ? [suggestedPhase] : []);
+  const [flags, setFlags] = useState<Set<number>>(initialFlags);
+  const toggleFlag = (phaseId: number, on: boolean) =>
+    setFlags((f) => {
+      const next = new Set(f);
+      if (on) next.add(phaseId);
+      else next.delete(phaseId);
+      return next;
+    });
+  // What building up gives the rest of the cycle to: the ticked phase, or the
+  // lowest where several are.
+  const coordinatedPhase = flags.size > 0 ? Math.min(...Array.from(flags)) : null;
+
   // With nothing saved, start from a finished build rather than an empty diagram.
   const initial = () => {
     if (hasSaved) return { values: onlyPlanned(plan, saved), message: null as string | null };
@@ -375,7 +421,9 @@ function SplitEditor({
 
   const check = checkSplits(plan, draft, cycle);
   const below = new Set(check.belowMinimum.map((b) => b.phaseId));
-  const dirty = !hasSaved || !sameValues(plan, draft, saved);
+  const sameFlags = (a: ReadonlySet<number>, b: readonly number[]) =>
+    a.size === b.length && b.every((p) => a.has(p));
+  const dirty = !hasSaved || !sameValues(plan, draft, saved) || !sameFlags(flags, savedCoordinated);
 
   const apply = (next: Record<number, number>, describe: (change: string) => string) => {
     const change = describeChange(plan, draft, next);
@@ -428,7 +476,7 @@ function SplitEditor({
         plan={plan}
         values={draft}
         cycleS={cycle}
-        coordinatedPhase={coordinatedPhase}
+        coordinatedPhases={flags}
         belowMinimum={below}
         onChange={readOnly ? undefined : setOne}
       />
@@ -507,6 +555,12 @@ function SplitEditor({
               <th className="px-2 py-1 text-right font-medium">Minimum</th>
               <th className="px-2 py-1 font-medium">Split (s)</th>
               <th className="px-2 py-1 text-right font-medium">Green</th>
+              <th
+                className="px-2 py-1 text-center font-medium"
+                title="coordinated_phase in Splits.txt: the phases this pattern coordinates here"
+              >
+                Coord.
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -528,7 +582,7 @@ function SplitEditor({
                         style={{ background: phaseColors[p.phaseId] ?? "#9ca3af" }}
                       />
                       <span className="font-medium">φ{p.phaseId}</span>
-                      {p.phaseId === coordinatedPhase && (
+                      {flags.has(p.phaseId) && (
                         <span className="rounded bg-grey-800 px-1 text-[10px] text-white">
                           coord
                         </span>
@@ -585,6 +639,14 @@ function SplitEditor({
                       ? `${Math.max(0, value - p.clearanceS)}s`
                       : ""}
                   </td>
+                  <td className="px-2 py-1 text-center">
+                    <Checkbox
+                      checked={flags.has(p.phaseId)}
+                      disabled={readOnly || !p.active}
+                      onCheckedChange={(c) => toggleFlag(p.phaseId, c === true)}
+                      aria-label={`φ${p.phaseId} is coordinated`}
+                    />
+                  </td>
                 </tr>
               );
             })}
@@ -626,6 +688,12 @@ function SplitEditor({
               {b.minimumS}s minimum.
             </li>
           ))}
+          {flags.size === 0 && (
+            <li className="flex items-center gap-1 text-amber-700">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              No phase is ticked under Coord., so this signal runs free in this pattern.
+            </li>
+          )}
           <li className="text-grey-500">
             0s means the phase doesn&rsquo;t run in this pattern; it gets no row in Splits.txt.
           </li>
@@ -638,6 +706,7 @@ function SplitEditor({
                 disabled={!dirty}
                 onClick={() => {
                   setDraft(onlyPlanned(plan, saved));
+                  setFlags(initialFlags());
                   setMessage(null);
                 }}
                 className="h-8 px-3 text-xs"
@@ -645,7 +714,11 @@ function SplitEditor({
                 Revert
               </Button>
             )}
-            <Button disabled={!dirty} onClick={() => onSave(draft)} className="h-8 px-3 text-xs">
+            <Button
+              disabled={!dirty}
+              onClick={() => onSave(draft, flags)}
+              className="h-8 px-3 text-xs"
+            >
               {hasSaved ? "Save splits" : "Create splits"}
             </Button>
           </div>

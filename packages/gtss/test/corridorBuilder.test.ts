@@ -26,7 +26,13 @@ import {
 } from "../src/localStorage/coordination/gtssLink";
 import { offsetReferenceFor } from "../src/localStorage/coordination/offsetReference";
 import { opposingWindow, phaseWindow } from "../src/localStorage/coordination/opposingPhase";
-import { emptyCoordinationRows, type CorridorSignal } from "../src/localStorage/coordination/rows";
+import {
+  emptyCoordinationRows,
+  type CorridorSignal,
+  type ParsedCoordination,
+  type PatternSignal,
+} from "../src/localStorage/coordination/rows";
+import { coordinatedPhaseOf } from "../src/localStorage/coordination/splitCoordination";
 import { validateCoordination } from "../src/localStorage/coordination/validate";
 import { setStorageReadOnly } from "../src/localStorage/write-guard";
 import {
@@ -37,6 +43,10 @@ import {
   signal,
   timing,
 } from "./fixtures/gtss-intersections";
+
+/** The phase a built signal's split table marks coordinated in its pattern. */
+const coordinatedIn = (rows: ParsedCoordination, ps: PatternSignal) =>
+  coordinatedPhaseOf(rows.splits ?? [], ps.patternId, ps.signalId);
 
 beforeEach(() => {
   const store = new Map<string, string>();
@@ -228,8 +238,12 @@ describe("planning a new corridor", () => {
   it("coordinates each signal on its southbound through phase, at offset 0", () => {
     const { rows } = plan();
     expect(
-      rows.patternSignals?.map((p) => `${p.signalId}:${p.coordinatedPhase}:${p.offsetS}`),
+      rows.patternSignals?.map((p) => `${p.signalId}:${coordinatedIn(rows, p)}:${p.offsetS}`),
     ).toEqual(["A:6:0", "B:6:0", "C:6:0"]);
+    // Marked in the split table, the one place the files keep it.
+    expect(rows.splits?.filter((s) => s.coordinatedPhase).map((s) => s.phaseId)).toEqual([6, 6, 6]);
+    expect(rows.splits?.filter((s) => !s.coordinatedPhase)).toHaveLength(21);
+    expect(rows.patternSignals?.[0]).not.toHaveProperty("coordinatedPhase");
     // And names the sequence it builds, so the diagrams know which one to read.
     expect(rows.patternSignals?.every((p) => p.notes?.includes("seq 1"))).toBe(true);
   });
@@ -274,9 +288,11 @@ describe("planning a new corridor", () => {
       noSouth,
       emptyCoordinationRows(),
     );
-    expect(
-      result.rows.patternSignals?.find((p) => p.signalId === "B")?.coordinatedPhase,
-    ).toBeNull();
+    expect(coordinatedPhaseOf(result.rows.splits ?? [], "X-P1", "B")).toBeNull();
+    // Every split row says so: 0, not blank.
+    const splitsB = result.rows.splits?.filter((s) => s.signalId === "B") ?? [];
+    expect(splitsB.length).toBeGreaterThan(0);
+    expect(splitsB.every((s) => s.coordinatedPhase === false)).toBe(true);
     expect(result.notes.some((n) => n.startsWith("B: no through phase"))).toBe(true);
   });
 
@@ -297,6 +313,27 @@ describe("planning a new corridor", () => {
     );
     expect(result.notes.some((n) => n.startsWith("C: no max green for phase 3"))).toBe(true);
     expect(result.rows.splits?.some((s) => s.phaseId === 3)).toBe(false);
+  });
+
+  it("says when the coordinated phase gets no split, as nothing else would mark it", () => {
+    const noMax = {
+      ...gtss,
+      basicTimings: gtss.basicTimings.filter((t) => !(t.signalId === "C" && t.phase === 6)),
+    };
+    const result = planCorridor(
+      {
+        corridorId: "X",
+        direction: "SB",
+        signalIds: ["C"],
+        pattern: { patternId: "X-P1", patternNumber: 1, cycleS: 100 },
+      },
+      noMax,
+      emptyCoordinationRows(),
+    );
+    expect(coordinatedPhaseOf(result.rows.splits ?? [], "X-P1", "C")).toBeNull();
+    expect(
+      result.notes.some((n) => n.startsWith("C: with no split for phase 6, nothing marks it")),
+    ).toBe(true);
   });
 
   it("can build just the corridor, with no pattern", () => {
@@ -381,7 +418,7 @@ describe("building a corridor by hand", () => {
       "B:SB",
       "C:EB",
     ]);
-    expect(rows.patternSignals?.map((p) => `${p.signalId}:${p.coordinatedPhase}`)).toEqual([
+    expect(rows.patternSignals?.map((p) => `${p.signalId}:${coordinatedIn(rows, p)}`)).toEqual([
       "A:6",
       "B:6",
       "C:4",
@@ -398,7 +435,7 @@ describe("building a corridor by hand", () => {
       gtss,
       emptyCoordinationRows(),
     );
-    expect(rows.patternSignals?.map((p) => `${p.signalId}:${p.coordinatedPhase}`)).toEqual([
+    expect(rows.patternSignals?.map((p) => `${p.signalId}:${coordinatedIn(rows, p)}`)).toEqual([
       "A:2",
       "B:null",
       "C:6",
@@ -611,7 +648,8 @@ describe("adding and removing corridor signals", () => {
     applyBuild(result.rows);
     expect(members()).toEqual(["1:A", "2:B", "3:C"]);
     const ps = readAllCoordination().patternSignals.find((p) => p.signalId === "C");
-    expect(ps).toMatchObject({ patternId: "P1", coordinatedPhase: 6, offsetS: 0 });
+    expect(ps).toMatchObject({ patternId: "P1", offsetS: 0 });
+    expect(coordinatedPhaseOf(readAllCoordination().splits, "P1", "C")).toBe(6);
     expect(readAllCoordination().splits.some((s) => s.signalId === "C")).toBe(true);
   });
 
@@ -636,7 +674,6 @@ describe("adding and removing corridor signals", () => {
           patternId: "CAL-P1",
           signalId: "A",
           offsetS: 0,
-          coordinatedPhase: 6,
           referencePoint: "A",
           notes: "Reference intersection; seq 1; offset ref BegYellow",
         },

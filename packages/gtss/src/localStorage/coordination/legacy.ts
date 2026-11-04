@@ -1,8 +1,16 @@
 import { getFromStorage, removeFromStorage, saveToStorage } from "../storage-utils";
 import { parseCSVLine } from "../csv-utils";
-import { fieldReader, text } from "./columns";
+import { fieldReader, headerPositions, int, text } from "./columns";
 import { COORDINATION_STORAGE_KEYS, LEGACY_COORDINATION_STORAGE_KEY } from "./entities";
-import type { Corridor, ParsedCoordination, Pattern, ScheduleEntry } from "./rows";
+import type {
+  Corridor,
+  ParsedCoordination,
+  Pattern,
+  PatternSignal,
+  ScheduleEntry,
+  Split,
+} from "./rows";
+import { carryCoordinatedPhases, type GivenCoordinatedPhase } from "./splitCoordination";
 
 /**
  * Data from before Coordination.txt was folded into corridors.txt.
@@ -11,6 +19,9 @@ import type { Corridor, ParsedCoordination, Pattern, ScheduleEntry } from "./row
  * pointed at the plan rather than at a corridor. Both now live on the corridor.
  * Older exports can still be imported, and data saved in the browser before the
  * change is upgraded once, so neither loses its timezone or its schedule.
+ *
+ * Likewise PatternSignals.txt's coordinated_phase, which now lives only in
+ * Splits.txt: an older file's is carried into the split tables.
  */
 
 /** One row of the old Coordination.txt. */
@@ -132,5 +143,99 @@ export function upgradeStoredCoordination(): boolean {
     }),
   );
   removeFromStorage(LEGACY_COORDINATION_STORAGE_KEY);
+  return true;
+}
+
+// --- PatternSignals.txt's coordinated_phase ---------------------------------
+
+const LEGACY_PATTERN_SIGNAL_COLUMNS = ["pattern_id", "signal_id", "coordinated_phase"] as const;
+
+/**
+ * The coordinated phase an older PatternSignals.txt gives each signal, or null
+ * if the file has no coordinated_phase column (a current one).
+ */
+export function parseLegacyCoordinatedPhases(content: string): GivenCoordinatedPhase[] | null {
+  const lines = content
+    .trim()
+    .split("\n")
+    .filter((l) => l.trim());
+  if (lines.length === 0) return null;
+  const positions = headerPositions(LEGACY_PATTERN_SIGNAL_COLUMNS, parseCSVLine(lines[0]));
+  if (!positions?.has("coordinated_phase")) return null;
+  return lines
+    .slice(1)
+    .map((line) => fieldReader(LEGACY_PATTERN_SIGNAL_COLUMNS, parseCSVLine(line), positions))
+    .map((col) => ({
+      patternId: col("pattern_id"),
+      signalId: col("signal_id"),
+      phase: int(col("coordinated_phase")),
+    }))
+    .filter((g) => g.patternId !== "" && g.signalId !== "");
+}
+
+const tables = (n: number) => `${n} split table${n === 1 ? "" : "s"}`;
+
+/**
+ * Carry an older PatternSignals.txt's coordinated phases into the Splits.txt
+ * imported with it. Returns what it did, in words, for the import screen.
+ */
+export function foldLegacyCoordinatedPhases(
+  parsed: ParsedCoordination,
+  given: readonly GivenCoordinatedPhase[],
+): string {
+  if (!parsed.splits || parsed.splits.length === 0) {
+    return "PatternSignals.txt has a coordinated_phase column, which now goes in Splits.txt. No splits came with it, so it was skipped: mark each signal's coordinated phase on the Splits page.";
+  }
+  const carried = carryCoordinatedPhases(parsed.splits, given);
+  parsed.splits = carried.splits;
+  const parts = [
+    carried.marked > 0
+      ? `PatternSignals.txt's coordinated_phase now goes in Splits.txt, so it was copied there for ${tables(carried.marked)}.`
+      : "PatternSignals.txt's coordinated_phase now goes in Splits.txt, and there was nothing to copy.",
+  ];
+  if (carried.kept > 0) {
+    parts.push(`${tables(carried.kept)} already marked one in Splits.txt and kept it.`);
+  }
+  if (carried.unplaced.length > 0) {
+    const list = carried.unplaced
+      .map((g) => `${g.signalId} (phase ${g.phase} in ${g.patternId})`)
+      .join(", ");
+    parts.push(
+      `No split row to mark for ${list}, so ${carried.unplaced.length === 1 ? "it runs" : "they run"} free until one is ticked on the Splits page.`,
+    );
+  }
+  return parts.join(" ");
+}
+
+type StoredPatternSignal = PatternSignal & { coordinatedPhase?: number | null };
+
+/**
+ * Upgrade PatternSignals saved with a coordinated phase: carry it into the
+ * split tables and drop it from the rows. A no-op once done, and while storage
+ * is read-only (the writes are refused, so it tries again next time).
+ */
+export function upgradeStoredCoordinatedPhases(): boolean {
+  const keys = COORDINATION_STORAGE_KEYS;
+  const stored = getFromStorage<StoredPatternSignal[]>(keys.patternSignals, []);
+  const given = stored
+    .filter((ps) => "coordinatedPhase" in ps)
+    .map((ps) => ({
+      patternId: ps.patternId,
+      signalId: ps.signalId,
+      phase: ps.coordinatedPhase ?? null,
+    }));
+  if (given.length === 0) return false;
+
+  // Splits first: should the second write fail, the first is harmless to repeat.
+  const splits = getFromStorage<Split[]>(keys.splits, []);
+  saveToStorage(keys.splits, carryCoordinatedPhases(splits, given).splits);
+  saveToStorage(
+    keys.patternSignals,
+    stored.map((ps) => {
+      const { coordinatedPhase: _phase, ...row } = ps;
+      void _phase;
+      return row;
+    }),
+  );
   return true;
 }

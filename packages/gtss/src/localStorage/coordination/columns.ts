@@ -41,12 +41,20 @@ export const PATTERN_SIGNAL_COLUMNS = [
   "pattern_id",
   "signal_id",
   "offset_s",
-  "coordinated_phase",
+  // The converter also wrote coordinated_phase here. It now goes in Splits.txt,
+  // and an older file's is carried there when imported.
   "reference_point",
   "notes",
 ] as const;
 
-export const SPLIT_COLUMNS = ["pattern_id", "signal_id", "phase_id", "split_s"] as const;
+export const SPLIT_COLUMNS = [
+  "pattern_id",
+  "signal_id",
+  "phase_id",
+  "split_s",
+  // 1 if the signal is coordinated on this phase in the pattern; 0 or blank if not.
+  "coordinated_phase",
+] as const;
 
 export const SCHEDULE_COLUMNS = [
   "schedule_id",
@@ -78,15 +86,47 @@ export const PHASE_SEQUENCE_COLUMNS = [
  * Returns "" for a missing column so a short row degrades to empty fields
  * instead of `undefined` leaking into the row object.
  */
-export function fieldReader<C extends readonly string[]>(columns: C, values: string[]) {
+export function fieldReader<C extends readonly string[]>(
+  columns: C,
+  values: string[],
+  /** Where each column is in this file, from its header. Defaults to the order in `columns`. */
+  positions?: ReadonlyMap<string, number>,
+) {
   return (name: C[number]): string => {
-    const index = columns.indexOf(name);
+    const index = positions ? (positions.get(name) ?? -1) : columns.indexOf(name);
     return index === -1 ? "" : (values[index] ?? "").trim();
   };
 }
 
+/**
+ * Where each known column sits in a file, read from its header row, so files
+ * whose columns are in another order, or that predate a column, still parse.
+ * Null when the header names none of the known columns (a headerless file, or
+ * one with names we don't know), in which case columns are read by position.
+ */
+export function headerPositions(
+  columns: readonly string[],
+  header: readonly string[],
+): Map<string, number> | null {
+  const names = header.map((h) => h.trim().toLowerCase());
+  const positions = new Map<string, number>();
+  for (const column of columns) {
+    const at = names.indexOf(column);
+    if (at !== -1) positions.set(column, at);
+  }
+  return positions.size === 0 ? null : positions;
+}
+
 /** `""` and `undefined` both mean "absent" for an optional text column. */
 export const text = (value: string): string | null => (value === "" ? null : value);
+
+/** Optional yes/no column: 1, true, yes, y or x; 0, false, no or n. Anything else is null. */
+export const flag = (value: string): boolean | null => {
+  const v = value.trim().toLowerCase();
+  if (["1", "true", "yes", "y", "x"].includes(v)) return true;
+  if (["0", "false", "no", "n"].includes(v)) return false;
+  return null;
+};
 
 /** Optional integer column. Non-numeric text becomes null rather than NaN. */
 export const int = (value: string): number | null => {

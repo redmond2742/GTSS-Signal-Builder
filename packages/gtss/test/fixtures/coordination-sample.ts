@@ -1,8 +1,11 @@
-// Verbatim contents of a real converter export (GTSS-Coordination.zip for the
-// California Blvd southbound corridor). Used as the parser fixture because it is
-// the only coordination data that exists — there is no published spec — and
-// because its known quirks (signals running cycles that differ from their
-// pattern's reference) are exactly what the validator has to catch.
+// The contents of a real converter export (GTSS-Coordination.zip for the
+// California Blvd southbound corridor), verbatim but for one move: each signal's
+// coordinated_phase is in Splits.txt rather than PatternSignals.txt, where the
+// files now carry it. The converter's own two files are at the end. Used as the
+// parser fixture because it is the only coordination data that exists — there
+// is no published spec — and because its known quirks (signals running cycles
+// that differ from their pattern's reference) are exactly what the validator
+// has to catch.
 
 export const corridorsTxt = `corridor_id,name,description,primary_direction,reference_clock,timezone
 CAL-SB,California Blvd Southbound,California Blvd coordinated arterial (verify order/direction),SB,LOCAL,America/Los_Angeles`;
@@ -23,133 +26,133 @@ CAL-SB-P03,3,CAL-SB,110,BegGreen,Pattern 3 - WEEKDAY 16:00-18:30
 CAL-SB-P05,5,CAL-SB,80,BegGreen,Pattern 5 - SATURDAY 12:00-15:30
 CAL-SB-FREE,254,CAL-SB,0,,Free operation - SUNDAY 00:00-24:00; WEEKDAY 09:00-11:30; WEEKDAY 18:30-07:15; SATURDAY 15:30-12:00; SPECIAL_MONDAY_MAY_D25-31 00:00-24:00; SPECIAL_MONDAY_SEP_D01-07 00:00-24:00; SPECIAL_THURSDAY_NOV_D22-28 00:00-24:00`;
 
-export const patternSignalsTxt = `pattern_id,signal_id,offset_s,coordinated_phase,reference_point,notes
-CAL-SB-P01,SIG-022,76,4,SIG-022,Reference intersection; split table 1; seq 1; offset ref BegGreen
-CAL-SB-P01,SIG-023,54,4,SIG-022,split table 1; seq 1; offset ref BegGreen
-CAL-SB-P01,SIG-024,72,4,SIG-022,split table 1; seq 4; offset ref BegGreen
-CAL-SB-P01,SIG-025,21,4,SIG-022,split table 1; seq 1; offset ref BegGreen
-CAL-SB-P01,SIG-026,0,4,SIG-022,split table 1; seq 5; offset ref BegGreen
-CAL-SB-P01,SIG-027,110,8,SIG-022,split table 1; seq 10; offset ref BegGreen
-CAL-SB-P01,SIG-028,0,,SIG-022,Free at this signal (pattern 1 cycle 0)
-CAL-SB-P01,SIG-059,115,4,SIG-022,split table 1; seq 1; offset ref BegGreen
-CAL-SB-P03,SIG-022,45,4,SIG-022,Reference intersection; split table 3; seq 1; offset ref BegGreen
-CAL-SB-P03,SIG-023,14,8,SIG-022,split table 3; seq 3; offset ref BegGreen
-CAL-SB-P03,SIG-024,28,8,SIG-022,split table 3; seq 7; offset ref BegGreen
-CAL-SB-P03,SIG-025,3,4,SIG-022,split table 3; seq 1; offset ref BegGreen
-CAL-SB-P03,SIG-026,0,8,SIG-022,split table 3; seq 13; offset ref BegGreen
-CAL-SB-P03,SIG-027,8,8,SIG-022,split table 3; seq 10; offset ref BegGreen
-CAL-SB-P03,SIG-028,0,,SIG-022,Free at this signal (pattern 3 cycle 0)
-CAL-SB-P03,SIG-059,8,8,SIG-022,split table 3; seq 1; offset ref BegGreen
-CAL-SB-P05,SIG-022,47,4,SIG-022,Reference intersection; split table 5; seq 11; offset ref BegGreen
-CAL-SB-P05,SIG-023,0,,SIG-022,Free at this signal (pattern 5 cycle 0)
-CAL-SB-P05,SIG-024,0,,SIG-022,Free at this signal (pattern 5 cycle 0)
-CAL-SB-P05,SIG-025,0,,SIG-022,Free at this signal (pattern 5 cycle 0)
-CAL-SB-P05,SIG-026,0,,SIG-022,Free at this signal (pattern 5 cycle 0)
-CAL-SB-P05,SIG-027,0,,SIG-022,Free at this signal (pattern 5 cycle 0)
-CAL-SB-P05,SIG-028,0,,SIG-022,Free at this signal (pattern 5 cycle 0)
-CAL-SB-P05,SIG-059,0,,SIG-022,Free at this signal (pattern 5 cycle 0)`;
+export const patternSignalsTxt = `pattern_id,signal_id,offset_s,reference_point,notes
+CAL-SB-P01,SIG-022,76,SIG-022,Reference intersection; split table 1; seq 1; offset ref BegGreen
+CAL-SB-P01,SIG-023,54,SIG-022,split table 1; seq 1; offset ref BegGreen
+CAL-SB-P01,SIG-024,72,SIG-022,split table 1; seq 4; offset ref BegGreen
+CAL-SB-P01,SIG-025,21,SIG-022,split table 1; seq 1; offset ref BegGreen
+CAL-SB-P01,SIG-026,0,SIG-022,split table 1; seq 5; offset ref BegGreen
+CAL-SB-P01,SIG-027,110,SIG-022,split table 1; seq 10; offset ref BegGreen
+CAL-SB-P01,SIG-028,0,SIG-022,Free at this signal (pattern 1 cycle 0)
+CAL-SB-P01,SIG-059,115,SIG-022,split table 1; seq 1; offset ref BegGreen
+CAL-SB-P03,SIG-022,45,SIG-022,Reference intersection; split table 3; seq 1; offset ref BegGreen
+CAL-SB-P03,SIG-023,14,SIG-022,split table 3; seq 3; offset ref BegGreen
+CAL-SB-P03,SIG-024,28,SIG-022,split table 3; seq 7; offset ref BegGreen
+CAL-SB-P03,SIG-025,3,SIG-022,split table 3; seq 1; offset ref BegGreen
+CAL-SB-P03,SIG-026,0,SIG-022,split table 3; seq 13; offset ref BegGreen
+CAL-SB-P03,SIG-027,8,SIG-022,split table 3; seq 10; offset ref BegGreen
+CAL-SB-P03,SIG-028,0,SIG-022,Free at this signal (pattern 3 cycle 0)
+CAL-SB-P03,SIG-059,8,SIG-022,split table 3; seq 1; offset ref BegGreen
+CAL-SB-P05,SIG-022,47,SIG-022,Reference intersection; split table 5; seq 11; offset ref BegGreen
+CAL-SB-P05,SIG-023,0,SIG-022,Free at this signal (pattern 5 cycle 0)
+CAL-SB-P05,SIG-024,0,SIG-022,Free at this signal (pattern 5 cycle 0)
+CAL-SB-P05,SIG-025,0,SIG-022,Free at this signal (pattern 5 cycle 0)
+CAL-SB-P05,SIG-026,0,SIG-022,Free at this signal (pattern 5 cycle 0)
+CAL-SB-P05,SIG-027,0,SIG-022,Free at this signal (pattern 5 cycle 0)
+CAL-SB-P05,SIG-028,0,SIG-022,Free at this signal (pattern 5 cycle 0)
+CAL-SB-P05,SIG-059,0,SIG-022,Free at this signal (pattern 5 cycle 0)`;
 
-export const splitsTxt = `pattern_id,signal_id,phase_id,split_s
-CAL-SB-P01,SIG-022,2,49
-CAL-SB-P01,SIG-022,3,30
-CAL-SB-P01,SIG-022,4,35
-CAL-SB-P01,SIG-022,6,49
-CAL-SB-P01,SIG-022,7,15
-CAL-SB-P01,SIG-022,8,50
-CAL-SB-P01,SIG-023,2,41
-CAL-SB-P01,SIG-023,4,79
-CAL-SB-P01,SIG-023,6,41
-CAL-SB-P01,SIG-023,8,79
-CAL-SB-P01,SIG-024,1,37
-CAL-SB-P01,SIG-024,2,38
-CAL-SB-P01,SIG-024,3,14
-CAL-SB-P01,SIG-024,4,31
-CAL-SB-P01,SIG-024,5,37
-CAL-SB-P01,SIG-024,6,38
-CAL-SB-P01,SIG-024,7,14
-CAL-SB-P01,SIG-024,8,31
-CAL-SB-P01,SIG-025,2,46
-CAL-SB-P01,SIG-025,3,16
-CAL-SB-P01,SIG-025,4,58
-CAL-SB-P01,SIG-025,6,46
-CAL-SB-P01,SIG-025,7,16
-CAL-SB-P01,SIG-025,8,58
-CAL-SB-P01,SIG-026,1,17
-CAL-SB-P01,SIG-026,2,45
-CAL-SB-P01,SIG-026,3,17
-CAL-SB-P01,SIG-026,4,41
-CAL-SB-P01,SIG-026,5,16
-CAL-SB-P01,SIG-026,6,46
-CAL-SB-P01,SIG-026,7,14
-CAL-SB-P01,SIG-026,8,44
-CAL-SB-P01,SIG-027,1,22
-CAL-SB-P01,SIG-027,2,40
-CAL-SB-P01,SIG-027,3,22
-CAL-SB-P01,SIG-027,4,36
-CAL-SB-P01,SIG-027,5,16
-CAL-SB-P01,SIG-027,6,46
-CAL-SB-P01,SIG-027,7,16
-CAL-SB-P01,SIG-027,8,42
-CAL-SB-P01,SIG-059,2,39
-CAL-SB-P01,SIG-059,3,15
-CAL-SB-P01,SIG-059,4,66
-CAL-SB-P01,SIG-059,6,39
-CAL-SB-P01,SIG-059,7,15
-CAL-SB-P01,SIG-059,8,66
-CAL-SB-P03,SIG-022,2,49
-CAL-SB-P03,SIG-022,3,24
-CAL-SB-P03,SIG-022,4,37
-CAL-SB-P03,SIG-022,6,49
-CAL-SB-P03,SIG-022,7,18
-CAL-SB-P03,SIG-022,8,43
-CAL-SB-P03,SIG-023,2,45
-CAL-SB-P03,SIG-023,3,16
-CAL-SB-P03,SIG-023,4,69
-CAL-SB-P03,SIG-023,6,45
-CAL-SB-P03,SIG-023,7,17
-CAL-SB-P03,SIG-023,8,68
-CAL-SB-P03,SIG-024,1,38
-CAL-SB-P03,SIG-024,2,45
-CAL-SB-P03,SIG-024,3,14
-CAL-SB-P03,SIG-024,4,33
-CAL-SB-P03,SIG-024,5,38
-CAL-SB-P03,SIG-024,6,45
-CAL-SB-P03,SIG-024,7,14
-CAL-SB-P03,SIG-024,8,33
-CAL-SB-P03,SIG-025,2,50
-CAL-SB-P03,SIG-025,3,18
-CAL-SB-P03,SIG-025,4,62
-CAL-SB-P03,SIG-025,6,50
-CAL-SB-P03,SIG-025,7,18
-CAL-SB-P03,SIG-025,8,62
-CAL-SB-P03,SIG-026,1,23
-CAL-SB-P03,SIG-026,2,45
-CAL-SB-P03,SIG-026,3,19
-CAL-SB-P03,SIG-026,4,43
-CAL-SB-P03,SIG-026,5,21
-CAL-SB-P03,SIG-026,6,47
-CAL-SB-P03,SIG-026,7,15
-CAL-SB-P03,SIG-026,8,47
-CAL-SB-P03,SIG-027,1,31
-CAL-SB-P03,SIG-027,2,37
-CAL-SB-P03,SIG-027,3,26
-CAL-SB-P03,SIG-027,4,36
-CAL-SB-P03,SIG-027,5,15
-CAL-SB-P03,SIG-027,6,53
-CAL-SB-P03,SIG-027,7,16
-CAL-SB-P03,SIG-027,8,46
-CAL-SB-P03,SIG-059,2,40
-CAL-SB-P03,SIG-059,3,18
-CAL-SB-P03,SIG-059,4,72
-CAL-SB-P03,SIG-059,6,40
-CAL-SB-P03,SIG-059,7,20
-CAL-SB-P03,SIG-059,8,70
-CAL-SB-P05,SIG-022,2,25
-CAL-SB-P05,SIG-022,3,15
-CAL-SB-P05,SIG-022,4,40
-CAL-SB-P05,SIG-022,6,25
-CAL-SB-P05,SIG-022,7,15
-CAL-SB-P05,SIG-022,8,40`;
+export const splitsTxt = `pattern_id,signal_id,phase_id,split_s,coordinated_phase
+CAL-SB-P01,SIG-022,2,49,0
+CAL-SB-P01,SIG-022,3,30,0
+CAL-SB-P01,SIG-022,4,35,1
+CAL-SB-P01,SIG-022,6,49,0
+CAL-SB-P01,SIG-022,7,15,0
+CAL-SB-P01,SIG-022,8,50,0
+CAL-SB-P01,SIG-023,2,41,0
+CAL-SB-P01,SIG-023,4,79,1
+CAL-SB-P01,SIG-023,6,41,0
+CAL-SB-P01,SIG-023,8,79,0
+CAL-SB-P01,SIG-024,1,37,0
+CAL-SB-P01,SIG-024,2,38,0
+CAL-SB-P01,SIG-024,3,14,0
+CAL-SB-P01,SIG-024,4,31,1
+CAL-SB-P01,SIG-024,5,37,0
+CAL-SB-P01,SIG-024,6,38,0
+CAL-SB-P01,SIG-024,7,14,0
+CAL-SB-P01,SIG-024,8,31,0
+CAL-SB-P01,SIG-025,2,46,0
+CAL-SB-P01,SIG-025,3,16,0
+CAL-SB-P01,SIG-025,4,58,1
+CAL-SB-P01,SIG-025,6,46,0
+CAL-SB-P01,SIG-025,7,16,0
+CAL-SB-P01,SIG-025,8,58,0
+CAL-SB-P01,SIG-026,1,17,0
+CAL-SB-P01,SIG-026,2,45,0
+CAL-SB-P01,SIG-026,3,17,0
+CAL-SB-P01,SIG-026,4,41,1
+CAL-SB-P01,SIG-026,5,16,0
+CAL-SB-P01,SIG-026,6,46,0
+CAL-SB-P01,SIG-026,7,14,0
+CAL-SB-P01,SIG-026,8,44,0
+CAL-SB-P01,SIG-027,1,22,0
+CAL-SB-P01,SIG-027,2,40,0
+CAL-SB-P01,SIG-027,3,22,0
+CAL-SB-P01,SIG-027,4,36,0
+CAL-SB-P01,SIG-027,5,16,0
+CAL-SB-P01,SIG-027,6,46,0
+CAL-SB-P01,SIG-027,7,16,0
+CAL-SB-P01,SIG-027,8,42,1
+CAL-SB-P01,SIG-059,2,39,0
+CAL-SB-P01,SIG-059,3,15,0
+CAL-SB-P01,SIG-059,4,66,1
+CAL-SB-P01,SIG-059,6,39,0
+CAL-SB-P01,SIG-059,7,15,0
+CAL-SB-P01,SIG-059,8,66,0
+CAL-SB-P03,SIG-022,2,49,0
+CAL-SB-P03,SIG-022,3,24,0
+CAL-SB-P03,SIG-022,4,37,1
+CAL-SB-P03,SIG-022,6,49,0
+CAL-SB-P03,SIG-022,7,18,0
+CAL-SB-P03,SIG-022,8,43,0
+CAL-SB-P03,SIG-023,2,45,0
+CAL-SB-P03,SIG-023,3,16,0
+CAL-SB-P03,SIG-023,4,69,0
+CAL-SB-P03,SIG-023,6,45,0
+CAL-SB-P03,SIG-023,7,17,0
+CAL-SB-P03,SIG-023,8,68,1
+CAL-SB-P03,SIG-024,1,38,0
+CAL-SB-P03,SIG-024,2,45,0
+CAL-SB-P03,SIG-024,3,14,0
+CAL-SB-P03,SIG-024,4,33,0
+CAL-SB-P03,SIG-024,5,38,0
+CAL-SB-P03,SIG-024,6,45,0
+CAL-SB-P03,SIG-024,7,14,0
+CAL-SB-P03,SIG-024,8,33,1
+CAL-SB-P03,SIG-025,2,50,0
+CAL-SB-P03,SIG-025,3,18,0
+CAL-SB-P03,SIG-025,4,62,1
+CAL-SB-P03,SIG-025,6,50,0
+CAL-SB-P03,SIG-025,7,18,0
+CAL-SB-P03,SIG-025,8,62,0
+CAL-SB-P03,SIG-026,1,23,0
+CAL-SB-P03,SIG-026,2,45,0
+CAL-SB-P03,SIG-026,3,19,0
+CAL-SB-P03,SIG-026,4,43,0
+CAL-SB-P03,SIG-026,5,21,0
+CAL-SB-P03,SIG-026,6,47,0
+CAL-SB-P03,SIG-026,7,15,0
+CAL-SB-P03,SIG-026,8,47,1
+CAL-SB-P03,SIG-027,1,31,0
+CAL-SB-P03,SIG-027,2,37,0
+CAL-SB-P03,SIG-027,3,26,0
+CAL-SB-P03,SIG-027,4,36,0
+CAL-SB-P03,SIG-027,5,15,0
+CAL-SB-P03,SIG-027,6,53,0
+CAL-SB-P03,SIG-027,7,16,0
+CAL-SB-P03,SIG-027,8,46,1
+CAL-SB-P03,SIG-059,2,40,0
+CAL-SB-P03,SIG-059,3,18,0
+CAL-SB-P03,SIG-059,4,72,0
+CAL-SB-P03,SIG-059,6,40,0
+CAL-SB-P03,SIG-059,7,20,0
+CAL-SB-P03,SIG-059,8,70,1
+CAL-SB-P05,SIG-022,2,25,0
+CAL-SB-P05,SIG-022,3,15,0
+CAL-SB-P05,SIG-022,4,40,1
+CAL-SB-P05,SIG-022,6,25,0
+CAL-SB-P05,SIG-022,7,15,0
+CAL-SB-P05,SIG-022,8,40,0`;
 
 export const scheduleTxt = `schedule_id,corridor_id,day_type,start_time,end_time,pattern_id,priority
 SCH-001,CAL-SB,SUNDAY,00:00:00,24:00:00,CAL-SB-FREE,10
@@ -288,3 +291,135 @@ SCH-008,COORD-CAL,SATURDAY,15:30:00,12:00:00,CAL-SB-FREE,10
 SCH-009,COORD-CAL,SPECIAL_MONDAY_MAY_D25-31,00:00:00,24:00:00,CAL-SB-FREE,20
 SCH-010,COORD-CAL,SPECIAL_MONDAY_SEP_D01-07,00:00:00,24:00:00,CAL-SB-FREE,20
 SCH-011,COORD-CAL,SPECIAL_THURSDAY_NOV_D22-28,00:00:00,24:00:00,CAL-SB-FREE,20`;
+
+// --- The layout before coordinated_phase moved to Splits.txt ----------------
+// PatternSignals.txt and Splits.txt as the converter wrote them. Kept to test
+// that older exports still import.
+
+export const legacyPatternSignalsTxt = `pattern_id,signal_id,offset_s,coordinated_phase,reference_point,notes
+CAL-SB-P01,SIG-022,76,4,SIG-022,Reference intersection; split table 1; seq 1; offset ref BegGreen
+CAL-SB-P01,SIG-023,54,4,SIG-022,split table 1; seq 1; offset ref BegGreen
+CAL-SB-P01,SIG-024,72,4,SIG-022,split table 1; seq 4; offset ref BegGreen
+CAL-SB-P01,SIG-025,21,4,SIG-022,split table 1; seq 1; offset ref BegGreen
+CAL-SB-P01,SIG-026,0,4,SIG-022,split table 1; seq 5; offset ref BegGreen
+CAL-SB-P01,SIG-027,110,8,SIG-022,split table 1; seq 10; offset ref BegGreen
+CAL-SB-P01,SIG-028,0,,SIG-022,Free at this signal (pattern 1 cycle 0)
+CAL-SB-P01,SIG-059,115,4,SIG-022,split table 1; seq 1; offset ref BegGreen
+CAL-SB-P03,SIG-022,45,4,SIG-022,Reference intersection; split table 3; seq 1; offset ref BegGreen
+CAL-SB-P03,SIG-023,14,8,SIG-022,split table 3; seq 3; offset ref BegGreen
+CAL-SB-P03,SIG-024,28,8,SIG-022,split table 3; seq 7; offset ref BegGreen
+CAL-SB-P03,SIG-025,3,4,SIG-022,split table 3; seq 1; offset ref BegGreen
+CAL-SB-P03,SIG-026,0,8,SIG-022,split table 3; seq 13; offset ref BegGreen
+CAL-SB-P03,SIG-027,8,8,SIG-022,split table 3; seq 10; offset ref BegGreen
+CAL-SB-P03,SIG-028,0,,SIG-022,Free at this signal (pattern 3 cycle 0)
+CAL-SB-P03,SIG-059,8,8,SIG-022,split table 3; seq 1; offset ref BegGreen
+CAL-SB-P05,SIG-022,47,4,SIG-022,Reference intersection; split table 5; seq 11; offset ref BegGreen
+CAL-SB-P05,SIG-023,0,,SIG-022,Free at this signal (pattern 5 cycle 0)
+CAL-SB-P05,SIG-024,0,,SIG-022,Free at this signal (pattern 5 cycle 0)
+CAL-SB-P05,SIG-025,0,,SIG-022,Free at this signal (pattern 5 cycle 0)
+CAL-SB-P05,SIG-026,0,,SIG-022,Free at this signal (pattern 5 cycle 0)
+CAL-SB-P05,SIG-027,0,,SIG-022,Free at this signal (pattern 5 cycle 0)
+CAL-SB-P05,SIG-028,0,,SIG-022,Free at this signal (pattern 5 cycle 0)
+CAL-SB-P05,SIG-059,0,,SIG-022,Free at this signal (pattern 5 cycle 0)`;
+
+export const legacySplitsTxt = `pattern_id,signal_id,phase_id,split_s
+CAL-SB-P01,SIG-022,2,49
+CAL-SB-P01,SIG-022,3,30
+CAL-SB-P01,SIG-022,4,35
+CAL-SB-P01,SIG-022,6,49
+CAL-SB-P01,SIG-022,7,15
+CAL-SB-P01,SIG-022,8,50
+CAL-SB-P01,SIG-023,2,41
+CAL-SB-P01,SIG-023,4,79
+CAL-SB-P01,SIG-023,6,41
+CAL-SB-P01,SIG-023,8,79
+CAL-SB-P01,SIG-024,1,37
+CAL-SB-P01,SIG-024,2,38
+CAL-SB-P01,SIG-024,3,14
+CAL-SB-P01,SIG-024,4,31
+CAL-SB-P01,SIG-024,5,37
+CAL-SB-P01,SIG-024,6,38
+CAL-SB-P01,SIG-024,7,14
+CAL-SB-P01,SIG-024,8,31
+CAL-SB-P01,SIG-025,2,46
+CAL-SB-P01,SIG-025,3,16
+CAL-SB-P01,SIG-025,4,58
+CAL-SB-P01,SIG-025,6,46
+CAL-SB-P01,SIG-025,7,16
+CAL-SB-P01,SIG-025,8,58
+CAL-SB-P01,SIG-026,1,17
+CAL-SB-P01,SIG-026,2,45
+CAL-SB-P01,SIG-026,3,17
+CAL-SB-P01,SIG-026,4,41
+CAL-SB-P01,SIG-026,5,16
+CAL-SB-P01,SIG-026,6,46
+CAL-SB-P01,SIG-026,7,14
+CAL-SB-P01,SIG-026,8,44
+CAL-SB-P01,SIG-027,1,22
+CAL-SB-P01,SIG-027,2,40
+CAL-SB-P01,SIG-027,3,22
+CAL-SB-P01,SIG-027,4,36
+CAL-SB-P01,SIG-027,5,16
+CAL-SB-P01,SIG-027,6,46
+CAL-SB-P01,SIG-027,7,16
+CAL-SB-P01,SIG-027,8,42
+CAL-SB-P01,SIG-059,2,39
+CAL-SB-P01,SIG-059,3,15
+CAL-SB-P01,SIG-059,4,66
+CAL-SB-P01,SIG-059,6,39
+CAL-SB-P01,SIG-059,7,15
+CAL-SB-P01,SIG-059,8,66
+CAL-SB-P03,SIG-022,2,49
+CAL-SB-P03,SIG-022,3,24
+CAL-SB-P03,SIG-022,4,37
+CAL-SB-P03,SIG-022,6,49
+CAL-SB-P03,SIG-022,7,18
+CAL-SB-P03,SIG-022,8,43
+CAL-SB-P03,SIG-023,2,45
+CAL-SB-P03,SIG-023,3,16
+CAL-SB-P03,SIG-023,4,69
+CAL-SB-P03,SIG-023,6,45
+CAL-SB-P03,SIG-023,7,17
+CAL-SB-P03,SIG-023,8,68
+CAL-SB-P03,SIG-024,1,38
+CAL-SB-P03,SIG-024,2,45
+CAL-SB-P03,SIG-024,3,14
+CAL-SB-P03,SIG-024,4,33
+CAL-SB-P03,SIG-024,5,38
+CAL-SB-P03,SIG-024,6,45
+CAL-SB-P03,SIG-024,7,14
+CAL-SB-P03,SIG-024,8,33
+CAL-SB-P03,SIG-025,2,50
+CAL-SB-P03,SIG-025,3,18
+CAL-SB-P03,SIG-025,4,62
+CAL-SB-P03,SIG-025,6,50
+CAL-SB-P03,SIG-025,7,18
+CAL-SB-P03,SIG-025,8,62
+CAL-SB-P03,SIG-026,1,23
+CAL-SB-P03,SIG-026,2,45
+CAL-SB-P03,SIG-026,3,19
+CAL-SB-P03,SIG-026,4,43
+CAL-SB-P03,SIG-026,5,21
+CAL-SB-P03,SIG-026,6,47
+CAL-SB-P03,SIG-026,7,15
+CAL-SB-P03,SIG-026,8,47
+CAL-SB-P03,SIG-027,1,31
+CAL-SB-P03,SIG-027,2,37
+CAL-SB-P03,SIG-027,3,26
+CAL-SB-P03,SIG-027,4,36
+CAL-SB-P03,SIG-027,5,15
+CAL-SB-P03,SIG-027,6,53
+CAL-SB-P03,SIG-027,7,16
+CAL-SB-P03,SIG-027,8,46
+CAL-SB-P03,SIG-059,2,40
+CAL-SB-P03,SIG-059,3,18
+CAL-SB-P03,SIG-059,4,72
+CAL-SB-P03,SIG-059,6,40
+CAL-SB-P03,SIG-059,7,20
+CAL-SB-P03,SIG-059,8,70
+CAL-SB-P05,SIG-022,2,25
+CAL-SB-P05,SIG-022,3,15
+CAL-SB-P05,SIG-022,4,40
+CAL-SB-P05,SIG-022,6,25
+CAL-SB-P05,SIG-022,7,15
+CAL-SB-P05,SIG-022,8,40`;

@@ -157,7 +157,6 @@ describe("changing a pattern's offset reference", () => {
           patternId,
           signalId,
           offsetS: 10 + i,
-          coordinatedPhase: 2,
           referencePoint: "SIG-1",
           // As converted files write them.
           notes: `split table 1; seq 1; offset ref BegGreen`,

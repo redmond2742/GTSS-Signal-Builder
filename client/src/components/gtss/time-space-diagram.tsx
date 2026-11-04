@@ -8,6 +8,7 @@ import {
 import {
   approachMetres,
   approachSpeedFor,
+  coordinatedPhaseOf,
   cumulativeTravel,
   directionBearing,
   intersectionStreetNames,
@@ -256,7 +257,17 @@ export function buildStops(input: BuildStopsInput): TimeSpaceStop[] {
 
     const signalId = cs.signalId;
     const ps = input.patternSignals.find((p) => p.signalId === signalId);
-    const coordinatedPhase = ps?.coordinatedPhase ?? null;
+    const bearing = directionBearing(cs.direction);
+    // Splits.txt marks the coordinated phase. Where it marks more than one, the
+    // band follows the through phase heading this corridor's way.
+    const coordinatedPhase = ps
+      ? coordinatedPhaseOf(
+          input.splits,
+          ps.patternId,
+          signalId,
+          bearing === null ? null : throughPhaseFor(signalId, bearing, gtss),
+        )
+      : null;
     const greenS =
       coordinatedPhase == null
         ? 0
@@ -290,7 +301,6 @@ export function buildStops(input: BuildStopsInput): TimeSpaceStop[] {
     // The phase each direction's traffic runs on here: the coordinated phase and
     // its opposite, or for a signal running free, the through phase on the
     // approach heading each way.
-    const bearing = directionBearing(cs.direction);
     const outPhase =
       coordinatedPhase ?? (bearing === null ? null : throughPhaseFor(signalId, bearing, gtss));
     const backPhase =
@@ -343,7 +353,7 @@ export function buildStops(input: BuildStopsInput): TimeSpaceStop[] {
         clearanceS,
         greenS,
         coordinatedPhase,
-        // A blank coordinated phase is how the files say "this signal runs free".
+        // No phase marked coordinated in Splits.txt is how the files say "runs free".
         free: coordinatedPhase == null,
         leftTurn: leftWindow(coordinatedPhase),
         extraGreens: progressionFor(cs.direction, coordinatedPhase),

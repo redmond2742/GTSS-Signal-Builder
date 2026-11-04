@@ -1,9 +1,11 @@
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Lock } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-export type CellType = "text" | "number";
+/** "flag" is a 1/0 column: ticked is 1; 0 and blank are both unticked. */
+export type CellType = "text" | "number" | "flag";
 
 interface CoordinationCellProps {
   value: unknown;
@@ -12,7 +14,7 @@ interface CoordinationCellProps {
   type: CellType;
   label: string;
   readOnly: boolean;
-  onCommit: (next: string | number | null) => void;
+  onCommit: (next: string | number | boolean | null) => void;
 }
 
 /**
@@ -58,6 +60,17 @@ export default function CoordinationCell({
           the row somewhere else.
         </TooltipContent>
       </Tooltip>
+    );
+  }
+
+  if (type === "flag") {
+    return (
+      <Checkbox
+        checked={value === true}
+        disabled={readOnly}
+        onCheckedChange={(c) => onCommit(c === true)}
+        aria-label={label}
+      />
     );
   }
 

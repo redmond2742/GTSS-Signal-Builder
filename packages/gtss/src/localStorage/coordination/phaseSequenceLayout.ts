@@ -170,14 +170,19 @@ export function sequenceFromNotes(
   notes: string | null | undefined,
   sequenceIds: readonly string[],
 ): string | null {
-  const match = /\bseq(?:uence)?\s*#?\s*(\d+)\b/i.exec(notes ?? "");
-  if (!match) return null;
-  const wanted = Number(match[1]);
+  const wanted = sequenceNumberInNotes(notes);
+  if (wanted === null) return null;
   const hits = sequenceIds.filter((id) => {
     const digits = /(\d+)$/.exec(id);
     return digits !== null && Number(digits[1]) === wanted;
   });
   return hits.length === 1 ? hits[0] : null;
+}
+
+/** The sequence number a PatternSignals note names ("seq 4" → 4), or null. */
+export function sequenceNumberInNotes(notes: string | null | undefined): number | null {
+  const match = /\bseq(?:uence)?\s*#?\s*(\d+)\b/i.exec(notes ?? "");
+  return match ? Number(match[1]) : null;
 }
 
 /** For one signal: sequence id → the patterns whose notes name it. */

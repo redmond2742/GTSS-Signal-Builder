@@ -5,6 +5,7 @@ import {
   opposingWindow,
 } from "../src/localStorage/coordination/opposingPhase";
 import { sequenceForPattern } from "../src/localStorage/coordination/phaseSequenceLayout";
+import { coordinatedPhaseOf } from "../src/localStorage/coordination/splitCoordination";
 import type {
   ParsedCoordination,
   PatternSignal,
@@ -48,7 +49,6 @@ const ps = (notes: string | null = null): PatternSignal => ({
   patternId: "P",
   signalId: "S",
   offsetS: 100,
-  coordinatedPhase: 4,
   referencePoint: null,
   notes,
 });
@@ -249,19 +249,17 @@ describe("opposing window falls back to the coordinated window", () => {
 
 describe("opposing window, on the real sample", () => {
   const { patternSignals, phaseSequence, splits } = sampleBag();
+  const phaseOf = (row: PatternSignal) => coordinatedPhaseOf(splits, row.patternId, row.signalId);
   const windowFor = (patternId: string, signalId: string) => {
     const row = patternSignals.find((p) => p.patternId === patternId && p.signalId === signalId)!;
     return opposingWindow({
       patternId,
       signalId,
-      coordinatedPhase: row.coordinatedPhase,
+      coordinatedPhase: phaseOf(row),
       offsetS: row.offsetS ?? 0,
       greenS:
         splits.find(
-          (s) =>
-            s.patternId === patternId &&
-            s.signalId === signalId &&
-            s.phaseId === row.coordinatedPhase,
+          (s) => s.patternId === patternId && s.signalId === signalId && s.phaseId === phaseOf(row),
         )?.splitS ?? 0,
       patternSignals,
       phaseSequence,
@@ -286,7 +284,7 @@ describe("opposing window, on the real sample", () => {
   it("ends the opposing green with the coordinated one wherever the structure requires it", () => {
     let checked = 0;
     for (const row of patternSignals) {
-      if (row.coordinatedPhase === null) continue;
+      if (phaseOf(row) === null) continue;
       const w = windowFor(row.patternId, row.signalId);
       if (w.basis !== "ring-barrier") continue;
 
@@ -296,7 +294,7 @@ describe("opposing window, on the real sample", () => {
       const rows = phaseSequence.filter(
         (r) => r.signalId === row.signalId && r.sequenceId === seqId,
       );
-      const mine = rows.find((r) => r.phaseId === row.coordinatedPhase)!;
+      const mine = rows.find((r) => r.phaseId === phaseOf(row))!;
       const theirs = rows.find((r) => r.phaseId === w.partnerPhase)!;
       const splitOf = (phase: number | null) =>
         splits.find(
@@ -318,7 +316,7 @@ describe("opposing window, on the real sample", () => {
         theirGroup[theirGroup.length - 1]?.phaseId === theirs.phaseId;
       if (!bothLast || total(mineGroup) !== total(theirGroup)) continue;
 
-      const coordinatedEnd = (row.offsetS ?? 0) + splitOf(row.coordinatedPhase);
+      const coordinatedEnd = (row.offsetS ?? 0) + splitOf(phaseOf(row));
       expect(w.offsetS + w.greenS, `${row.patternId} ${row.signalId}`).toBe(coordinatedEnd);
       checked++;
     }
@@ -327,7 +325,7 @@ describe("opposing window, on the real sample", () => {
   });
 
   it("uses a real opposing phase for every coordinated signal in the sample", () => {
-    for (const row of patternSignals.filter((p) => p.coordinatedPhase !== null)) {
+    for (const row of patternSignals.filter((p) => phaseOf(p) !== null)) {
       const w = windowFor(row.patternId, row.signalId);
       expect(w.basis, `${row.patternId} ${row.signalId}`).toBe("ring-barrier");
     }

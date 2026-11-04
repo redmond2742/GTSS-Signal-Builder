@@ -105,7 +105,6 @@ const TABLE_COLUMNS: Record<CoordinationKey, readonly Column[]> = {
     { key: "patternId", label: "Pattern" },
     { key: "signalId", label: "Signal" },
     { type: "number", key: "offsetS", label: "Offset (s)" },
-    { type: "number", key: "coordinatedPhase", label: "Coord. phase" },
     { key: "notes", label: "Notes" },
   ],
   splits: [
@@ -113,6 +112,7 @@ const TABLE_COLUMNS: Record<CoordinationKey, readonly Column[]> = {
     { key: "signalId", label: "Signal" },
     { type: "number", key: "phaseId", label: "Phase" },
     { type: "number", key: "splitS", label: "Split (s)" },
+    { type: "flag", key: "coordinatedPhase", label: "Coord." },
   ],
   schedule: [
     { key: "scheduleId", label: "Schedule" },
@@ -398,6 +398,17 @@ export default function CoordinationPage({
   const corridorSignalIds = sortBySequence(
     coordination.corridorSignals.filter((cs) => cs.corridorId === activeCorridorId),
   ).map((cs) => cs.signalId);
+  // Every corridor's signals, the selected corridor's first: any can be given a sequence.
+  const sequenceSignalIds = Array.from(
+    new Set([
+      ...corridorSignalIds,
+      ...coordination.corridors.flatMap((c) =>
+        sortBySequence(
+          coordination.corridorSignals.filter((cs) => cs.corridorId === c.corridorId),
+        ).map((cs) => cs.signalId),
+      ),
+    ]),
+  );
 
   // --- time-space -------------------------------------------------------
   const tsPatterns = Array.from(
@@ -567,9 +578,11 @@ export default function CoordinationPage({
 
   // A selection that no longer matches any row (the signal was renamed) means
   // "all", for the table as well as for the dropdown that set it.
-  const activeSeqSignal = coordination.phaseSequence.some((r) => r.signalId === seqSignal)
-    ? seqSignal
-    : "";
+  const activeSeqSignal =
+    coordination.phaseSequence.some((r) => r.signalId === seqSignal) ||
+    sequenceSignalIds.includes(seqSignal)
+      ? seqSignal
+      : "";
 
   // Keep the diagram selections on a signal when it is renamed.
   const followSignal = (from: string, to: string) => {
@@ -840,15 +853,19 @@ export default function CoordinationPage({
             )}
             {view === "corridorSignals" && coordination.corridors.length > 0 && corridorCard}
 
-            {view === "phaseSequence" && coordination.phaseSequence.length > 0 && (
-              <PhaseSequenceCard
-                phaseSequence={coordination.phaseSequence}
-                patternSignals={coordination.patternSignals}
-                corridorSignalIds={corridorSignalIds}
-                signalId={activeSeqSignal}
-                onSignalChange={setSeqSignal}
-              />
-            )}
+            {view === "phaseSequence" &&
+              (coordination.phaseSequence.length > 0 || sequenceSignalIds.length > 0) && (
+                <PhaseSequenceCard
+                  phaseSequence={coordination.phaseSequence}
+                  patternSignals={coordination.patternSignals}
+                  corridorSignalIds={sequenceSignalIds}
+                  signalId={activeSeqSignal}
+                  onSignalChange={setSeqSignal}
+                  phases={phases}
+                  readOnly={readOnly}
+                  onChanged={refreshCoordination}
+                />
+              )}
 
             {view === "schedule" && coordination.schedule.length > 0 && (
               <ScheduleCalendar
@@ -1157,6 +1174,8 @@ export default function CoordinationPage({
                                   readOnly={readOnly}
                                   onCommit={(next) => {
                                     if (isOperationColumn(view, col.key)) {
+                                      // Sequence and signal id are never yes/no.
+                                      if (typeof next === "boolean") return;
                                       if (col.key === "sequence") {
                                         // `view` narrowed this to corridorSignals.
                                         moveStopTo(row as CorridorSignal, next);

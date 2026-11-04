@@ -36,10 +36,12 @@ import type { CoordinationKey, LibraryEntry, ParsedCoordination } from "gtss";
 import {
   COORDINATION_ENTITIES,
   detectCoordinationFile,
+  foldLegacyCoordinatedPhases,
   foldLegacyCoordination,
   isCoordinationEnabled,
   isLegacyCoordinationFile,
   isLegacyScheduleHeader,
+  parseLegacyCoordinatedPhases,
   parseLegacyCoordination,
   flattenLibraryEntries,
   getLibrarySourceUrls,
@@ -299,6 +301,7 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
     const errors: ValidationError[] = [];
     const notes: string[] = [];
     let legacyPlans: ReturnType<typeof parseLegacyCoordination> | null = null;
+    let legacyPhases: NonNullable<ReturnType<typeof parseLegacyCoordinatedPhases>> | null = null;
 
     files.forEach((file) => {
       try {
@@ -351,6 +354,10 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
             const entity = COORDINATION_ENTITIES.find((e) => e.key === file.type);
             if (entity) {
               entity.parseInto(file.content, parsed);
+              if (entity.key === "patternSignals") {
+                const phases = parseLegacyCoordinatedPhases(file.content);
+                if (phases) legacyPhases = [...(legacyPhases ?? []), ...phases];
+              }
               if (entity.key === "schedule" && isLegacyScheduleHeader(file.content)) {
                 notes.push(
                   `${file.name} is in the older layout (coordination_id, not corridor_id), so each row takes its pattern's corridor.`,
@@ -376,6 +383,8 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
 
     // After every file, so the corridors are there to take the old plan's clock.
     if (legacyPlans) notes.push(foldLegacyCoordination(parsed, legacyPlans));
+    // Likewise, so the splits are there to take the old coordinated phases.
+    if (legacyPhases) notes.push(foldLegacyCoordinatedPhases(parsed, legacyPhases));
     setImportNotes(notes);
 
     setParsedData(parsed);

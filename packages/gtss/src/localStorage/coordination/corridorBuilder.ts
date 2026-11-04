@@ -129,7 +129,10 @@ const vehiclePhasesOf = (signalId: string, gtss: GtssBuildData) =>
 export interface SignalPlan {
   /** The way traffic travels through this signal, where the road bends. Defaults to the corridor's. */
   direction?: string | null;
-  /** The phase to coordinate. Left out, it is found from the direction; null leaves it blank (free). */
+  /**
+   * The phase to coordinate, marked in the split table. Left out, it is found
+   * from the direction; null marks none, so the signal runs free.
+   */
   coordinatedPhase?: number | null;
   /** The cycle to fit this signal's splits to, if it isn't the pattern's. */
   cycleS?: number | null;
@@ -193,7 +196,7 @@ function rowsForSignal(
       : throughPhaseFor(signalId, bearing, gtss);
   if (coordinated === null && !chosen) {
     notes.push(
-      `${signalId}: no through phase on an approach heading ${direction}, so its coordinated phase is blank and it runs free until you set one.`,
+      `${signalId}: no through phase on an approach heading ${direction}, so no phase is marked coordinated in its splits and it runs free until you tick one on the Splits page.`,
     );
   }
 
@@ -228,7 +231,6 @@ function rowsForSignal(
         patternId: pattern.patternId,
         signalId,
         offsetS: 0,
-        coordinatedPhase: coordinated,
         referencePoint: referenceSignal,
         notes: noteParts.join("; "),
       };
@@ -249,11 +251,24 @@ function rowsForSignal(
         missing.push(phaseId);
         continue;
       }
-      built.push({ patternId: pattern.patternId, signalId, phaseId, splitS });
+      // The split table marks the coordinated phase, as a controller's does.
+      built.push({
+        patternId: pattern.patternId,
+        signalId,
+        phaseId,
+        splitS,
+        coordinatedPhase: phaseId === coordinated,
+      });
     }
     if (missing.length > 0) {
       notes.push(
         `${signalId}: no max green for phase ${missing.join(", ")} in Basic Timings, so ${missing.length === 1 ? "that split was" : "those splits were"} left out of ${pattern.patternId}.`,
+      );
+    }
+    // The split table is the only place the coordinated phase is kept.
+    if (coordinated !== null && missing.includes(coordinated)) {
+      notes.push(
+        `${signalId}: with no split for phase ${coordinated}, nothing marks it coordinated in ${pattern.patternId}, so it runs free until you add one on the Splits page.`,
       );
     }
 

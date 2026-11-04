@@ -1,4 +1,6 @@
 import {
+  coordinatedPhaseOf,
+  directionBearing,
   intersectionStreetNames,
   opposingPhaseNumber,
   progressionPhases,
@@ -6,6 +8,7 @@ import {
   sequenceForPattern,
   setProgression,
   sortBySequence,
+  throughPhaseFor,
   type CoordinationRows,
 } from "gtss";
 import type { Approach, Phase, Signal } from "gtss/schema";
@@ -59,7 +62,17 @@ export default function ProgressionPanel({
     const ps = coordination.patternSignals.find(
       (r) => r.patternId === patternId && r.signalId === signalId,
     );
-    const coordinated = ps?.coordinatedPhase ?? null;
+    // As the time-space diagram reads it: what Splits.txt marks, preferring the
+    // through phase heading the corridor's way where it marks more than one.
+    const bearing = directionBearing(cs.direction);
+    const coordinated = ps
+      ? coordinatedPhaseOf(
+          coordination.splits,
+          patternId,
+          signalId,
+          bearing === null ? null : throughPhaseFor(signalId, bearing, gtss),
+        )
+      : null;
     // The phases this pattern runs here: those in its sequence with a split.
     const ids = Array.from(
       new Set(
