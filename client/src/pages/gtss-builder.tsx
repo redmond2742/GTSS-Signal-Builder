@@ -3,6 +3,7 @@ import AgencyForm from "@/components/gtss/agency-form";
 import ApproachesTable from "@/components/gtss/approaches-table";
 import BasicTimingsTable from "@/components/gtss/basic-timings-table";
 import CoordinationPage from "@/components/gtss/coordination-page";
+import PreemptionPage from "@/components/gtss/preemption-page";
 import CoordinationValidation from "@/components/gtss/coordination-validation";
 import DemoPage from "@/components/gtss/demo-page";
 import DetectorsTable from "@/components/gtss/detectors-table";
@@ -41,6 +42,7 @@ import SignalDetails from "@/pages/signal-details";
 import {
   clearAllData,
   isCoordinationEnabled,
+  isPreemptionEnabled,
   isDemoEnabled,
   useGTSSStore,
   useLoadFromStorage,
@@ -63,6 +65,7 @@ import {
   Plus,
   ShieldCheck,
   SlidersHorizontal,
+  Siren,
   Sparkles,
   Waypoints,
   Target,
@@ -79,6 +82,7 @@ type TabType =
   | "detectors"
   | "basic-timings"
   | "coordination"
+  | "preemption"
   | "demo";
 
 const baseTabs = [
@@ -96,6 +100,10 @@ const tabTitles: Record<TabType, { title: string; desc: string }> = {
   coordination: {
     title: "Coordination",
     desc: "Corridors, timing patterns, offsets, splits and time-of-day schedules",
+  },
+  preemption: {
+    title: "Preemption",
+    desc: "Preempt channels, and the directions each one brings up",
   },
   approaches: {
     title: "Approaches",
@@ -148,17 +156,21 @@ export default function GTSSBuilder() {
 
   const showDemo = isDemoEnabled(agencyDefaults);
   const showCoordination = isCoordinationEnabled(agencyDefaults);
+  const showPreemption = isPreemptionEnabled(agencyDefaults);
 
   const navTabs = useMemo(() => {
     const tabs: { id: TabType; label: string; icon: typeof MapPin }[] = [...baseTabs];
     if (showCoordination) {
       tabs.push({ id: "coordination", label: "Coordination", icon: Waypoints });
     }
+    if (showPreemption) {
+      tabs.push({ id: "preemption", label: "Preemption", icon: Siren });
+    }
     if (showDemo) {
       tabs.push({ id: "demo", label: "Demo Gallery", icon: Sparkles });
     }
     return tabs;
-  }, [showDemo, showCoordination]);
+  }, [showDemo, showCoordination, showPreemption]);
 
   // Creating a signal is a modal over the list now, so a signal-details view
   // with no ID is an orphan route (a stale bookmark, or the old "New Signal"
@@ -179,6 +191,12 @@ export default function GTSSBuilder() {
       setDataManagementTab("export");
     }
   }, [activeTab, showCoordination, dataManagementTab]);
+
+  useEffect(() => {
+    if (activeTab === "preemption" && !showPreemption) {
+      setActiveTab("signals");
+    }
+  }, [activeTab, showPreemption]);
 
   useEffect(() => {
     if (activeTab === "demo" && !showDemo) {
@@ -249,6 +267,8 @@ export default function GTSSBuilder() {
             }}
           />
         );
+      case "preemption":
+        return <PreemptionPage />;
       case "demo":
         return <DemoPage />;
       case "signals":

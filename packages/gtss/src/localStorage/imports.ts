@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import type { Agency, Approach, BasicTiming, Detector, Phase, Signal } from "../../schema/public";
 import { COORDINATION_ENTITIES } from "./coordination/entities";
 import type { ParsedCoordination } from "./coordination/rows";
+import { preemptStorage, type PreemptRow } from "./preemption";
 import { STORAGE_KEYS } from "./keys";
 import {
   displayDistanceToStored,
@@ -21,6 +22,7 @@ export function importData(
     phases?: Phase[];
     detectors?: Detector[];
     basicTimings?: BasicTiming[];
+    preempts?: PreemptRow[];
   } & ParsedCoordination,
   mode: "replace" | "merge" = "replace",
 ): void {
@@ -102,6 +104,7 @@ export function importData(
       saveToStorage(STORAGE_KEYS.BASIC_TIMINGS, parsedData.basicTimings);
 
     COORDINATION_ENTITIES.forEach((entity) => entity.replaceFrom(parsedData));
+    if (parsedData.preempts !== undefined) preemptStorage.replace(parsedData.preempts);
     return;
   }
 
@@ -196,4 +199,5 @@ export function importData(
   }
 
   COORDINATION_ENTITIES.forEach((entity) => entity.mergeFrom(parsedData));
+  if (parsedData.preempts) preemptStorage.merge(parsedData.preempts);
 }

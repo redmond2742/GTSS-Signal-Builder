@@ -9,6 +9,12 @@ import {
 } from "./csv-export";
 import { COORDINATION_ENTITIES, readAllCoordination } from "./coordination/entities";
 import { resolveCoordinationScope } from "./coordination/scope";
+import {
+  generatePreemptCSV,
+  PREEMPT_FILENAME,
+  preemptRowsForExport,
+  preemptStorage,
+} from "./preemption";
 import { agencyListStorage, agencyStorage } from "./storage/agencies";
 import { approachStorage } from "./storage/approaches";
 import { basicTimingStorage } from "./storage/basicTimings";
@@ -47,6 +53,8 @@ type ExportOptions = {
   /** Opt-in: fold the 7 coordination files into the main export. Optional so
    *  existing six-key callers keep compiling. */
   coordination?: boolean;
+  /** Opt-in: include preempt.txt. Optional, like coordination. */
+  preempts?: boolean;
 };
 
 const defaultExportOptions: ExportOptions = {
@@ -73,6 +81,7 @@ const getFilteredExportData = (agencyIds: string[] | null) => {
   return {
     agencies: filteredAgencies,
     signals: filteredSignals,
+    allSignalIds: data.signals.map((signal) => signal.signalId),
     filteredSignalIds,
     approaches: data.approaches.filter((approach) => filteredSignalIds.includes(approach.signalId)),
     phases: data.phases.filter((phase) => filteredSignalIds.includes(phase.signalId)),
@@ -80,6 +89,12 @@ const getFilteredExportData = (agencyIds: string[] | null) => {
     basicTimings: data.basicTimings.filter((timing) => filteredSignalIds.includes(timing.signalId)),
   };
 };
+
+/** preempt.txt for the agencies chosen. */
+const preemptCSVFor = (allSignalIds: string[], filteredSignalIds: string[]) =>
+  generatePreemptCSV(
+    preemptRowsForExport(preemptStorage.getAll(), allSignalIds, filteredSignalIds),
+  );
 
 /** Coordination rows that survive the current agency filter. */
 const coordinationScopeFor = (agencyIds: string[] | null, filteredSignalIds: string[]) =>
@@ -108,6 +123,9 @@ export const exportAsIndividualFiles = async (
         downloadFile(entity.render(scope), entity.filename),
       );
     }
+    if (includeFiles.preempts) {
+      downloadFile(preemptCSVFor(data.allSignalIds, data.filteredSignalIds), PREEMPT_FILENAME);
+    }
   } catch (error) {
     console.error("Export failed:", error);
     throw error;
@@ -134,6 +152,9 @@ export const exportAsZip = async (
     if (includeFiles.coordination) {
       const scope = coordinationScopeFor(agencyIds, data.filteredSignalIds);
       COORDINATION_ENTITIES.forEach((entity) => zip.file(entity.filename, entity.render(scope)));
+    }
+    if (includeFiles.preempts) {
+      zip.file(PREEMPT_FILENAME, preemptCSVFor(data.allSignalIds, data.filteredSignalIds));
     }
 
     const zipBlob = await zip.generateAsync({ type: "blob" });

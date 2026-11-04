@@ -7,6 +7,7 @@ import {
   upgradeStoredCoordination,
 } from "../src/localStorage/coordination/legacy";
 import type { CoordinationRows } from "../src/localStorage/coordination/rows";
+import { preemptStorage, type PreemptRow } from "../src/localStorage/preemption";
 import {
   agencyDefaultsStorage,
   agencyListStorage,
@@ -38,6 +39,10 @@ interface GTSSStore {
   /** Re-read every coordination collection from storage. Called after an
    *  edit; cheaper and less disruptive than a full loadFromStorage(). */
   refreshCoordination: () => void;
+  /** preempt.txt's rows. */
+  preempts: PreemptRow[];
+  /** Re-read them from storage, after an edit. */
+  refreshPreempts: () => void;
 
   // Navigation state (for single-page app without URL routing)
   currentView: "main" | "signal-details";
@@ -116,6 +121,8 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
   basicTimings: basicTimingStorage.getAll(),
   coordination: loadCoordination(),
   refreshCoordination: () => set({ coordination: readAllCoordination() }),
+  preempts: preemptStorage.getAll(),
+  refreshPreempts: () => set({ preempts: preemptStorage.getAll() }),
 
   // Initial navigation state
   currentView: "main",
@@ -237,5 +244,6 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
       detectors: detectorStorage.getAll(),
       basicTimings: basicTimingStorage.getAll(),
       coordination: loadCoordination(),
+      preempts: preemptStorage.getAll(),
     }),
 }));

@@ -9,6 +9,7 @@ export {
   isCoordinationEnabled,
   isDemoEnabled,
   isMapScrollZoomEnabled,
+  isPreemptionEnabled,
   isTypicallyThroughPhase,
   MAX_PHASE_NUMBER,
   MIN_PHASE_NUMBER,
@@ -46,6 +47,29 @@ export {
 export type { LibraryBounds, LibraryEntry, LibrarySource } from "./src/library";
 export { isLhtForSignalId, isMetricForSignalId } from "./src/localStorage/agency-units";
 export { clearAllData } from "./src/localStorage/clearAll";
+// --- Preemption (beta) ---------------------------------------------------
+export {
+  deletePreemptChannel,
+  generatePreemptCSV,
+  isPreemptFile,
+  movementsOfPhase,
+  parsePreemptTXT,
+  PREEMPT_FILENAME,
+  preemptChannelsFor,
+  preemptRowsFor,
+  preemptRowsForExport,
+  preemptStorage,
+  undoPreemptChange,
+  writePreemptChannel,
+} from "./src/localStorage/preemption";
+export type {
+  PreemptChange,
+  PreemptChannel,
+  PreemptGtssData,
+  PreemptMovement,
+  PreemptRow,
+} from "./src/localStorage/preemption";
+
 // --- Coordination (experimental) -----------------------------------------
 export {
   COORDINATION_ENTITIES,

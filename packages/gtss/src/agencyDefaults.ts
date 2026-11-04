@@ -37,6 +37,9 @@ export type AgencyDefaults = {
   /** Experimental: show the Coordination section (corridors, patterns, splits,
    *  schedule). Optional, so existing stored defaults need no migration. */
   showCoordination?: boolean;
+  /** Beta: show the Preemption section (preempt channels and their directions).
+   *  Optional, so existing stored defaults need no migration. */
+  showPreemption?: boolean;
   updatedAt: string;
 };
 
@@ -68,6 +71,7 @@ export const DEFAULT_AGENCY_DEFAULTS: AgencyDefaults = {
   mapScrollWheel: "page",
   showDemo: false,
   showCoordination: false,
+  showPreemption: false,
   updatedAt: new Date().toISOString(),
 };
 
@@ -92,6 +96,13 @@ export function isDemoEnabled(defaults: AgencyDefaults | null | undefined): bool
  */
 export function isCoordinationEnabled(defaults: AgencyDefaults | null | undefined): boolean {
   return defaults?.showCoordination === true;
+}
+
+/**
+ * Whether the beta Preemption section should be shown.
+ */
+export function isPreemptionEnabled(defaults: AgencyDefaults | null | undefined): boolean {
+  return defaults?.showPreemption === true;
 }
 
 /**

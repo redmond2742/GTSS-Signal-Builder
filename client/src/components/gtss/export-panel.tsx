@@ -18,6 +18,7 @@ import {
   COORDINATION_ENTITIES,
   evaluateGTSSCompleteness,
   exportCoordinationAsZip,
+  generatePreemptCSV,
   generateAgenciesCSV,
   generateApproachesCSV,
   generateBasicTimingsCSV,
@@ -25,6 +26,9 @@ import {
   generatePhasesCSV,
   generateSignalsCSV,
   isCoordinationEnabled,
+  isPreemptionEnabled,
+  PREEMPT_FILENAME,
+  preemptRowsForExport,
   UNSCOPED,
   useAgencies,
   useExport,
@@ -51,10 +55,12 @@ export default function ExportPanel() {
     detectors,
     basicTimings,
     coordination,
+    preempts,
     agencyDefaults,
     navigateToSignalDetails,
   } = useGTSSStore();
   const coordinationEnabled = isCoordinationEnabled(agencyDefaults);
+  const preemptionEnabled = isPreemptionEnabled(agencyDefaults);
   const coordinationRowCount = COORDINATION_ENTITIES.reduce(
     (sum, entity) => sum + (coordination[entity.key]?.length ?? 0),
     0,
@@ -80,6 +86,8 @@ export default function ExportPanel() {
     // Opt-in: off by default so the main export keeps its existing shape while
     // coordination is experimental.
     coordination: false,
+    // Likewise while preemption is in beta.
+    preempts: false,
   });
   const [selectedAgencyIds, setSelectedAgencyIds] = useState<string[]>([]);
   const { toast } = useToast();
@@ -241,6 +249,21 @@ export default function ExportPanel() {
           label: entity.filename,
           content: entity.renderFrom(coordination, UNSCOPED),
         }))
+      : []),
+    ...(preemptionEnabled && includeFiles.preempts
+      ? [
+          {
+            id: "preempts",
+            label: PREEMPT_FILENAME,
+            content: generatePreemptCSV(
+              preemptRowsForExport(
+                preempts,
+                signals.map((s) => s.signalId),
+                filteredSignalIds,
+              ),
+            ),
+          },
+        ]
       : []),
     // Single combined agency.txt matching download behavior
     ...(includeFiles.agency
@@ -582,6 +605,20 @@ export default function ExportPanel() {
                     >
                       Or download them on their own (GTSS-Coordination zip)
                     </Button>
+                  </div>
+                )}
+                {preemptionEnabled && (
+                  <div className="flex items-center space-x-3">
+                    <Checkbox
+                      id="preempts"
+                      checked={includeFiles.preempts}
+                      onCheckedChange={(checked) =>
+                        setIncludeFiles((prev) => ({ ...prev, preempts: checked as boolean }))
+                      }
+                    />
+                    <Label htmlFor="preempts" className="text-sm text-grey-700">
+                      {PREEMPT_FILENAME} ({preempts.length} records)
+                    </Label>
                   </div>
                 )}
               </div>

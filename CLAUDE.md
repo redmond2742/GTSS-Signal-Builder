@@ -38,6 +38,8 @@ The app has a **dual storage architecture**:
   - `schema/schema.ts` - Drizzle ORM schemas defining data types (Agency, Signal, Phase, Detector)
 - `packages/gtss-diagram/` - Standalone SVG phase-diagram renderer, publishable on its own
   - `src/phase-diagram.tsx` - The one and only phase diagram; every call site in the app uses it
+  - `src/preempt-diagram.tsx` - Small per-channel chart for the Preemption beta; shares the phase
+    diagram's colors and `movementShape`
   - `src/free-right-markings.tsx` - Slip-lane / crosswalk markings shared with the detector diagram
   - Depends on React alone. It takes plain data plus a required `isLht` prop rather than reading
     agency settings, which is what keeps it independent of the app. Vite and `tsconfig.json`
