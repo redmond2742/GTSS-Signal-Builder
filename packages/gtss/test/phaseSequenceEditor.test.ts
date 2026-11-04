@@ -15,15 +15,20 @@ import {
   deletePhaseSequence,
   layoutFromRows,
   movePhase,
+  patternSequences,
   placedPhases,
   removeBarrierGroup,
   removePhase,
   removeRing,
   rowsFromLayout,
   sameLayout,
+  sequenceNumberFor,
+  setPatternSequences,
   standardLayout,
   suggestSequenceId,
+  undoPatternSequenceChange,
   undoSequenceChange,
+  withSequenceInNotes,
   writePhaseSequence,
   type SequenceLayout,
 } from "../src/localStorage/coordination/phaseSequenceEditor";
@@ -257,5 +262,90 @@ describe("saving a sequence", () => {
       setStorageReadOnly(false);
     }
     expect(JSON.stringify(stored())).toBe(before);
+  });
+});
+
+describe("which patterns run which sequence", () => {
+  const patternSignals = parsePatternSignalsTXT(sample.patternSignalsTxt);
+  const seedPatterns = () =>
+    COORDINATION_ENTITIES.find((e) => e.key === "patternSignals")!.replaceFrom({ patternSignals });
+  const storedPatterns = () => readAllCoordination().patternSignals;
+  const notesOf = (patternId: string, signalId: string) =>
+    storedPatterns().find((p) => p.patternId === patternId && p.signalId === signalId)?.notes;
+
+  it("reads each pattern's from its notes, else the signal's first", () => {
+    expect(patternSequences(patternSignals, sampleRows, "SIG-022")).toEqual([
+      { patternId: "CAL-SB-P01", sequenceId: "SEQ-01", named: true },
+      { patternId: "CAL-SB-P03", sequenceId: "SEQ-01", named: true },
+      { patternId: "CAL-SB-P05", sequenceId: "SEQ-11", named: true },
+    ]);
+    // SIG-028's notes name none; give it a sequence and every pattern runs it by default.
+    const withOne = [...sampleRows, ...rowsFromLayout("SIG-028", "SEQ-01", standardLayout([]))];
+    expect(patternSequences(patternSignals, withOne, "SIG-028").map((p) => p.named)).toEqual([
+      false,
+      false,
+      false,
+    ]);
+    expect(patternSequences(patternSignals, sampleRows, "SIG-028")[0].sequenceId).toBeNull();
+  });
+
+  it("names a sequence by the number its id ends in, only if no other there shares it", () => {
+    expect(sequenceNumberFor("SEQ-11", ["SEQ-01", "SEQ-11"])).toBe(11);
+    expect(sequenceNumberFor("LEADLAG", ["SEQ-01", "LEADLAG"])).toBeNull();
+    expect(sequenceNumberFor("SEQ-1", ["SEQ-1", "ALT-01"])).toBeNull();
+  });
+
+  it("changes a note's seq number and leaves the rest, or adds one", () => {
+    expect(withSequenceInNotes("split table 3; seq 1; offset ref BegGreen", 11)).toBe(
+      "split table 3; seq 11; offset ref BegGreen",
+    );
+    expect(withSequenceInNotes("Sequence #2 here", 5)).toBe("Sequence #5 here");
+    expect(withSequenceInNotes("Free at this signal (pattern 1 cycle 0)", 1)).toBe(
+      "Free at this signal (pattern 1 cycle 0); seq 1",
+    );
+    expect(withSequenceInNotes(null, 3)).toBe("seq 3");
+  });
+
+  it("points a pattern at a sequence through its notes, and undoes exactly", () => {
+    seedPatterns();
+    const before = JSON.stringify(storedPatterns());
+    const change = setPatternSequences(
+      "SIG-022",
+      new Map([
+        ["CAL-SB-P03", "SEQ-11"],
+        // Already runs it: nothing to write.
+        ["CAL-SB-P05", "SEQ-11"],
+      ]),
+      ["SEQ-01", "SEQ-11"],
+    );
+    expect(notesOf("CAL-SB-P03", "SIG-022")).toBe(
+      "Reference intersection; split table 3; seq 11; offset ref BegGreen",
+    );
+    expect(change.previous.map((p) => p.patternId)).toEqual(["CAL-SB-P03"]);
+    // Other signals in the same pattern are left alone.
+    expect(notesOf("CAL-SB-P03", "SIG-023")).toBe(
+      patternSignals.find((p) => p.patternId === "CAL-SB-P03" && p.signalId === "SIG-023")?.notes,
+    );
+    expect(
+      patternSequences(storedPatterns(), sampleRows, "SIG-022").find(
+        (p) => p.patternId === "CAL-SB-P03",
+      ),
+    ).toEqual({ patternId: "CAL-SB-P03", sequenceId: "SEQ-11", named: true });
+    undoPatternSequenceChange(change);
+    expect(JSON.stringify(storedPatterns())).toBe(before);
+  });
+
+  it("skips a sequence it can't name, and is blocked while read-only", () => {
+    seedPatterns();
+    const before = JSON.stringify(storedPatterns());
+    setPatternSequences("SIG-022", new Map([["CAL-SB-P01", "LEADLAG"]]), ["SEQ-01", "LEADLAG"]);
+    expect(JSON.stringify(storedPatterns())).toBe(before);
+    setStorageReadOnly(true);
+    try {
+      setPatternSequences("SIG-022", new Map([["CAL-SB-P01", "SEQ-11"]]), ["SEQ-01", "SEQ-11"]);
+    } finally {
+      setStorageReadOnly(false);
+    }
+    expect(JSON.stringify(storedPatterns())).toBe(before);
   });
 });

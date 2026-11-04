@@ -1,5 +1,6 @@
 import PhaseSequenceDiagram from "@/components/gtss/phase-sequence-diagram";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -22,12 +23,16 @@ import {
   removeRing,
   rowsFromLayout,
   sameLayout,
+  sequenceFromNotes,
+  sequenceNumberFor,
+  setPatternSequences,
   standardLayout,
   suggestSequenceId,
+  undoPatternSequenceChange,
+  undoSequenceChange,
   writePhaseSequence,
   type PatternSignal,
   type PhaseSequenceEntry,
-  type SequenceChange,
   type SequenceLayout,
 } from "gtss";
 import type { Phase } from "gtss/schema";
@@ -43,8 +48,11 @@ interface PhaseSequenceEditorProps {
   patternSignals: readonly PatternSignal[];
   /** This signal's GTSS phases, for labels and the standard layout. */
   gtssPhases: readonly Phase[];
+  /** A pattern id as the page shows it ("P01" for "CAL-SB-P01"). */
+  patternLabel: (patternId: string) => string;
   onCancel: () => void;
-  onSaved: (text: string, change: SequenceChange) => void;
+  /** After a save, with what it did in words and how to undo it. */
+  onSaved: (text: string, undo: () => void) => void;
 }
 
 const STANDARD = "standard";
@@ -61,6 +69,7 @@ export default function PhaseSequenceEditor({
   phaseSequence,
   patternSignals,
   gtssPhases,
+  patternLabel,
   onCancel,
   onSaved,
 }: PhaseSequenceEditorProps) {
@@ -111,7 +120,34 @@ export default function PhaseSequenceEditor({
     ...(diagram?.problems ?? []),
   ];
   const unplaced = vehiclePhases.filter((p) => !placed.includes(p));
-  const changed = isNew || (saved !== null && !sameLayout(layout, saved));
+  const layoutChanged = isNew || (saved !== null && !sameLayout(layout, saved));
+
+  // --- Which patterns run it ---------------------------------------------
+  // A pattern runs the sequence its notes name ("seq 4"), else the signal's
+  // first. These are the signal's sequences once this one is saved: a new one
+  // goes after the others.
+  const idsAfter = isNew ? [...existingIds, targetId] : existingIds;
+  const myPatterns = patternSignals.filter((ps) => ps.signalId === signalId);
+  const namedIn = (ps: PatternSignal) => sequenceFromNotes(ps.notes, idsAfter);
+  const runsNow = (ps: PatternSignal) => namedIn(ps) ?? idsAfter[0] ?? null;
+  const runsThis = (ps: PatternSignal) => targetId !== "" && runsNow(ps) === targetId;
+  // Ticks the user changed, by pattern id; the rest show what runs now.
+  const [picked, setPicked] = useState<ReadonlyMap<string, boolean>>(new Map());
+  const isPicked = (ps: PatternSignal) => picked.get(ps.patternId) ?? runsThis(ps);
+  const toggle = (ps: PatternSignal, on: boolean) =>
+    setPicked((m) => {
+      const next = new Map(m);
+      if (on === runsThis(ps)) next.delete(ps.patternId);
+      else next.set(ps.patternId, on);
+      return next;
+    });
+  // Notes name a sequence by the number its id ends in.
+  const nameable = targetId !== "" && sequenceNumberFor(targetId, idsAfter) !== null;
+  // Where a pattern goes when it stops running this one: the first other that can be named.
+  const elsewhere =
+    idsAfter.find((s) => s !== targetId && sequenceNumberFor(s, idsAfter) !== null) ?? null;
+  const switching = myPatterns.filter((ps) => isPicked(ps) !== runsThis(ps));
+  const changed = layoutChanged || switching.length > 0;
 
   const labelOf = (phase: number) => {
     const p = gtssPhases.find((x) => x.phase === phase);
@@ -132,12 +168,33 @@ export default function PhaseSequenceEditor({
   };
 
   const save = () => {
-    const change = writePhaseSequence(signalId, targetId, rows);
-    const rings = layout.rings.filter((r) => r.groups.some((g) => g.length > 0)).length;
-    onSaved(
-      `${isNew ? "Added" : "Saved"} ${signalId}'s ${targetId}: ${placed.length} phase${placed.length === 1 ? "" : "s"} in ${rings} ring${rings === 1 ? "" : "s"}.`,
-      change,
-    );
+    const parts: string[] = [];
+    const sequenceChange = layoutChanged ? writePhaseSequence(signalId, targetId, rows) : null;
+    if (sequenceChange) {
+      const rings = layout.rings.filter((r) => r.groups.some((g) => g.length > 0)).length;
+      parts.push(
+        `${isNew ? "Added" : "Saved"} ${signalId}'s ${targetId}: ${placed.length} phase${placed.length === 1 ? "" : "s"} in ${rings} ring${rings === 1 ? "" : "s"}.`,
+      );
+    }
+    const joining = switching.filter(isPicked);
+    const leaving = switching.filter((ps) => !isPicked(ps));
+    const assignments = new Map<string, string>([
+      ...joining.map((ps): [string, string] => [ps.patternId, targetId]),
+      ...(elsewhere ? leaving.map((ps): [string, string] => [ps.patternId, elsewhere]) : []),
+    ]);
+    const patternChange =
+      assignments.size > 0 ? setPatternSequences(signalId, assignments, idsAfter) : null;
+    const listOf = (list: PatternSignal[]) =>
+      list.map((ps) => patternLabel(ps.patternId)).join(", ");
+    const run = (list: PatternSignal[]) => (list.length === 1 ? "runs" : "run");
+    if (joining.length > 0)
+      parts.push(`${listOf(joining)} now ${run(joining)} ${targetId} at ${signalId}.`);
+    if (leaving.length > 0 && elsewhere)
+      parts.push(`${listOf(leaving)} now ${run(leaving)} ${elsewhere}.`);
+    onSaved(parts.join(" "), () => {
+      if (patternChange) undoPatternSequenceChange(patternChange);
+      if (sequenceChange) undoSequenceChange(sequenceChange);
+    });
   };
 
   return (
@@ -350,6 +407,66 @@ export default function PhaseSequenceEditor({
           <PhaseSequenceDiagram diagram={diagram} />
         </div>
       ) : null}
+
+      {myPatterns.length > 0 && (
+        <div className="space-y-1 rounded border border-grey-200 bg-white p-2">
+          <div className="text-[11px] font-semibold text-grey-700">
+            Patterns that run {targetId || "this sequence"} at {signalId}
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            {myPatterns.map((ps) => {
+              const on = isPicked(ps);
+              const was = runsThis(ps);
+              const status =
+                on && !was
+                  ? `from ${runsNow(ps) ?? "none"}`
+                  : !on && was
+                    ? `to ${elsewhere}`
+                    : !on
+                      ? `runs ${runsNow(ps) ?? "none"}`
+                      : namedIn(ps) === null
+                        ? "first sequence, by default"
+                        : null;
+              // Ticking needs a number to name this one by; unticking needs another to go to.
+              const blocked = on === was && (on ? elsewhere === null : !nameable);
+              return (
+                <label
+                  key={ps.patternId}
+                  className={`flex items-center gap-1.5 text-xs ${blocked ? "text-grey-400" : "text-grey-700"}`}
+                  title={
+                    blocked
+                      ? on
+                        ? `It is ${signalId}'s only sequence, so every pattern runs it.`
+                        : "Patterns name a sequence by the number its ID ends in: give this one a number no other sequence here uses."
+                      : undefined
+                  }
+                >
+                  <Checkbox
+                    checked={on}
+                    disabled={blocked}
+                    onCheckedChange={(c) => toggle(ps, c === true)}
+                    aria-label={`${ps.patternId} runs this sequence`}
+                  />
+                  <span className="font-mono">{patternLabel(ps.patternId)}</span>
+                  {status && (
+                    <span
+                      className={`text-[11px] ${on !== was ? "font-medium text-primary-700" : "text-grey-500"}`}
+                    >
+                      {status}
+                    </span>
+                  )}
+                </label>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-grey-500">
+            A pattern names the sequence it runs with &ldquo;seq N&rdquo; in its PatternSignals
+            notes, which ticking writes; with none named it runs the signal&rsquo;s first. Its
+            splits are laid out on the sequence it runs. Unticking moves a pattern to{" "}
+            {elsewhere ?? "another sequence, once there is one"}.
+          </p>
+        </div>
+      )}
 
       <ul className="space-y-0.5 text-[11px]">
         {problems.map((p) => (

@@ -12,11 +12,11 @@ import {
 import {
   buildSequenceDiagrams,
   deletePhaseSequence,
-  patternsUsingSequences,
+  patternSequences,
   undoSequenceChange,
+  type PatternSequence,
   type PatternSignal,
   type PhaseSequenceEntry,
-  type SequenceChange,
 } from "gtss";
 import type { Phase } from "gtss/schema";
 import { AlertTriangle, Columns3, Info, Pencil, Plus, Trash2, Undo2, X } from "lucide-react";
@@ -85,29 +85,40 @@ export default function PhaseSequenceCard({
   const [editing, setEditing] = useState<{ signalId: string; sequenceId: string | null } | null>(
     null,
   );
-  const [notice, setNotice] = useState<{ text: string; change: SequenceChange } | null>(null);
+  const [notice, setNotice] = useState<{ text: string; undo: () => void } | null>(null);
 
-  const saved = (text: string, change: SequenceChange) => {
+  const saved = (text: string, undo: () => void) => {
     setEditing(null);
-    setNotice({ text, change });
+    setNotice({ text, undo });
     onChanged();
   };
-  const remove = (id: string, sequenceId: string, usedBy: readonly string[]) => {
+  const remove = (id: string, sequenceId: string, usedBy: readonly PatternSequence[]) => {
     const change = deletePhaseSequence(id, sequenceId);
+    // Its patterns fall back to the signal's first sequence, once this one is gone.
+    const left = Array.from(
+      new Set(
+        phaseSequence
+          .filter((r) => r.signalId === id && r.sequenceId !== sequenceId)
+          .map((r) => r.sequenceId),
+      ),
+    );
+    const names = usedBy.map((u) => patternLabels.get(u.patternId) ?? u.patternId).join(", ");
     setEditing(null);
     setNotice({
       text:
         `Deleted ${id}'s ${sequenceId}.` +
         (usedBy.length > 0
-          ? ` ${usedBy.join(", ")} named it in PatternSignals' notes, so ${usedBy.length === 1 ? "it now falls" : "they now fall"} back to the signal's first sequence.`
+          ? left.length > 0
+            ? ` ${names} ran it, and now ${usedBy.length === 1 ? "runs" : "run"} ${left[0]}, the signal's first sequence.`
+            : ` ${names} ran it; ${id} has no sequence now.`
           : ""),
-      change,
+      undo: () => undoSequenceChange(change),
     });
     onChanged();
   };
   const undo = () => {
     if (!notice) return;
-    undoSequenceChange(notice.change);
+    notice.undo();
     setNotice(null);
     onChanged();
   };
@@ -119,6 +130,7 @@ export default function PhaseSequenceCard({
       phaseSequence={phaseSequence}
       patternSignals={patternSignals}
       gtssPhases={phases.filter((p) => p.signalId === id)}
+      patternLabel={(p) => patternLabels.get(p) ?? p}
       onCancel={() => setEditing(null)}
       onSaved={saved}
     />
@@ -193,11 +205,7 @@ export default function PhaseSequenceCard({
 
         {shown.map((id) => {
           const diagrams = buildSequenceDiagrams(phaseSequence, id);
-          const used = patternsUsingSequences(
-            patternSignals,
-            id,
-            diagrams.map((d) => d.sequenceId),
-          );
+          const runs = patternSequences(patternSignals, phaseSequence, id);
           const adding = editing?.signalId === id && editing.sequenceId === null;
           return (
             <section key={id} aria-label={`Signal ${id}`}>
@@ -228,7 +236,7 @@ export default function PhaseSequenceCard({
               )}
               <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
                 {diagrams.map((d) => {
-                  const patterns = used.get(d.sequenceId) ?? [];
+                  const users = runs.filter((r) => r.sequenceId === d.sequenceId);
                   if (editing?.signalId === id && editing.sequenceId === d.sequenceId) {
                     return (
                       <div key={d.sequenceId} className="xl:col-span-2">
@@ -242,12 +250,19 @@ export default function PhaseSequenceCard({
                         <span className="font-mono font-semibold text-grey-800">
                           {d.sequenceId}
                         </span>
-                        {patterns.length > 0 && (
+                        {users.length > 0 && (
                           <span
                             className="text-grey-500"
-                            title="Read from the 'seq N' in each PatternSignals row's notes"
+                            title="Read from the 'seq N' in each PatternSignals row's notes. A pattern whose notes name none runs the signal's first sequence, by default."
                           >
-                            used in {patterns.map((p) => patternLabels.get(p) ?? p).join(", ")}
+                            used in{" "}
+                            {users
+                              .map(
+                                (u) =>
+                                  (patternLabels.get(u.patternId) ?? u.patternId) +
+                                  (u.named ? "" : " (default)"),
+                              )
+                              .join(", ")}
                           </span>
                         )}
                         {!readOnly && (
@@ -263,7 +278,7 @@ export default function PhaseSequenceCard({
                             </Button>
                             <Button
                               variant="ghost"
-                              onClick={() => remove(id, d.sequenceId, patterns)}
+                              onClick={() => remove(id, d.sequenceId, users)}
                               aria-label={`Delete ${id} ${d.sequenceId}`}
                               title="Delete this sequence (you can undo it)"
                               className="h-6 w-6 p-0 text-grey-500 hover:text-red-600"

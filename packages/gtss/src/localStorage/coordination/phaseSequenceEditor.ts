@@ -1,6 +1,10 @@
 import { getFromStorage, saveToStorage } from "../storage-utils";
 import { COORDINATION_STORAGE_KEYS } from "./entities";
-import { buildSequenceDiagrams, sequenceNumberInNotes } from "./phaseSequenceLayout";
+import {
+  buildSequenceDiagrams,
+  sequenceFromNotes,
+  sequenceNumberInNotes,
+} from "./phaseSequenceLayout";
 import type { PatternSignal, PhaseSequenceEntry } from "./rows";
 
 /**
@@ -304,4 +308,118 @@ export function undoSequenceChange(change: SequenceChange): void {
   );
   rest.splice(Math.min(change.index, rest.length), 0, ...change.previous);
   saveToStorage(key, rest);
+}
+
+// --- Which patterns run which sequence ------------------------------------
+//
+// PatternSignals has no sequence column. A pattern names the sequence it runs
+// at a signal in its notes ("split table 1; seq 4; offset ref BegGreen"), by
+// the number the sequence id ends in; with none named it runs the signal's
+// first sequence. Choosing a pattern's sequence means rewriting that "seq N".
+
+/** The sequence one of a signal's patterns runs. */
+export interface PatternSequence {
+  patternId: string;
+  /** Null when the signal has no sequence at all. */
+  sequenceId: string | null;
+  /** True when the notes name it; false when it is the signal's first, by default. */
+  named: boolean;
+}
+
+/** A signal's sequence ids, in file order: the first is the one patterns fall back to. */
+export const signalSequenceIds = (
+  rows: readonly PhaseSequenceEntry[],
+  signalId: string,
+): string[] =>
+  Array.from(new Set(rows.filter((r) => r.signalId === signalId).map((r) => r.sequenceId)));
+
+/** The sequence each of a signal's patterns runs, in PatternSignals order. */
+export function patternSequences(
+  patternSignals: readonly PatternSignal[],
+  rows: readonly PhaseSequenceEntry[],
+  signalId: string,
+): PatternSequence[] {
+  const ids = signalSequenceIds(rows, signalId);
+  return patternSignals
+    .filter((ps) => ps.signalId === signalId)
+    .map((ps) => {
+      const named = sequenceFromNotes(ps.notes, ids);
+      return {
+        patternId: ps.patternId,
+        sequenceId: named ?? ids[0] ?? null,
+        named: named !== null,
+      };
+    });
+}
+
+/**
+ * The number a note would name a sequence by, or null if it can't name it
+ * alone: its id doesn't end in a number, or another of the signal's does too.
+ */
+export function sequenceNumberFor(
+  sequenceId: string,
+  sequenceIds: readonly string[],
+): number | null {
+  const digits = /(\d+)$/.exec(sequenceId);
+  if (!digits) return null;
+  const n = Number(digits[1]);
+  return sequenceFromNotes(`seq ${n}`, sequenceIds) === sequenceId ? n : null;
+}
+
+/** A note naming sequence `n`: its "seq N" changed, or one added after what is there. */
+export function withSequenceInNotes(notes: string | null | undefined, n: number): string {
+  const text = (notes ?? "").trim();
+  const re = /\bseq(?:uence)?\s*#?\s*(\d+)\b/i;
+  if (re.test(text)) {
+    return text.replace(re, (match, digits: string) => match.slice(0, -digits.length) + n);
+  }
+  return text === "" ? `seq ${n}` : `${text}; seq ${n}`;
+}
+
+/** What `setPatternSequences` changed, to undo it. */
+export interface PatternSequenceChange {
+  signalId: string;
+  previous: { patternId: string; notes: string | null }[];
+}
+
+/**
+ * Point patterns at sequences at one signal (pattern id → sequence id) by
+ * writing the "seq N" in their PatternSignals notes. `sequenceIds` are the
+ * signal's sequences once any being saved alongside are in; a sequence that
+ * can't be named alone is skipped. Returns what to undo.
+ */
+export function setPatternSequences(
+  signalId: string,
+  assignments: ReadonlyMap<string, string>,
+  sequenceIds: readonly string[],
+): PatternSequenceChange {
+  const key = COORDINATION_STORAGE_KEYS.patternSignals;
+  const change: PatternSequenceChange = { signalId, previous: [] };
+  const rows = getFromStorage<PatternSignal[]>(key, []).map((ps) => {
+    const sequenceId = ps.signalId === signalId ? assignments.get(ps.patternId) : undefined;
+    if (sequenceId === undefined) return ps;
+    const n = sequenceNumberFor(sequenceId, sequenceIds);
+    if (n === null) return ps;
+    const notes = withSequenceInNotes(ps.notes, n);
+    if (notes === ps.notes) return ps;
+    change.previous.push({ patternId: ps.patternId, notes: ps.notes });
+    return { ...ps, notes };
+  });
+  if (change.previous.length > 0) saveToStorage(key, rows);
+  return change;
+}
+
+/** Put patterns' notes back as they were before `setPatternSequences`. */
+export function undoPatternSequenceChange(change: PatternSequenceChange): void {
+  if (change.previous.length === 0) return;
+  const key = COORDINATION_STORAGE_KEYS.patternSignals;
+  const before = new Map(change.previous.map((p) => [p.patternId, p.notes]));
+  saveToStorage(
+    key,
+    getFromStorage<PatternSignal[]>(key, []).map((ps) =>
+      ps.signalId === change.signalId && before.has(ps.patternId)
+        ? { ...ps, notes: before.get(ps.patternId) ?? null }
+        : ps,
+    ),
+  );
 }
