@@ -72,13 +72,18 @@ export const generatePatternSignalsCSV = (rows: readonly PatternSignal[]): strin
     r.patternId,
     r.signalId,
     r.offsetS,
-    r.coordinatedPhase,
     r.referencePoint,
     r.notes,
   ]);
 
 export const generateSplitsCSV = (rows: readonly Split[]): string =>
-  generate(SPLIT_COLUMNS, rows, (r) => [r.patternId, r.signalId, r.phaseId, r.splitS]);
+  generate(SPLIT_COLUMNS, rows, (r) => [
+    r.patternId,
+    r.signalId,
+    r.phaseId,
+    r.splitS,
+    r.coordinatedPhase == null ? null : r.coordinatedPhase ? 1 : 0,
+  ]);
 
 export const generateScheduleCSV = (rows: readonly ScheduleEntry[]): string =>
   generate(SCHEDULE_COLUMNS, rows, (r) => [

@@ -411,18 +411,28 @@ export interface SplitsChange {
   signalIds: string[];
   /** Rows added (by phase), changed (with the old value) and removed (with where they were). */
   created: { signalId: string; phaseId: number }[];
-  updated: { signalId: string; phaseId: number; previousS: number | null }[];
+  updated: {
+    signalId: string;
+    phaseId: number;
+    previousS: number | null;
+    /** The row's coordinated flag before, absent if the row never had one. */
+    previousCoordinated: boolean | null | undefined;
+  }[];
   removed: { index: number; row: Split }[];
 }
 
 /**
  * Write signals' splits for one pattern. A phase with seconds gets a row, made
  * or updated in place; a phase set to 0 loses its row, which is how the files
- * say "not used". Phases not mentioned are left alone. Returns what to undo.
+ * say "not used". Phases not mentioned keep their seconds. With `coordinated`,
+ * every one of a signal's rows in the pattern, written or not, is marked
+ * coordinated or not by whether its phase is in the signal's set: the split
+ * table is the one place that says. Returns what to undo.
  */
 export function writeSplits(
   patternId: string,
   bySignal: ReadonlyMap<string, SplitValues>,
+  coordinated?: ReadonlyMap<string, ReadonlySet<number>>,
 ): SplitsChange {
   const key = COORDINATION_STORAGE_KEYS.splits;
   const before = getFromStorage<Split[]>(key, []);
@@ -439,20 +449,30 @@ export function writeSplits(
   const id = (signalId: string, phaseId: number | null) => `${signalId}\u001f${phaseId}`;
   before.forEach((row, index) => {
     const values = row.patternId === patternId ? bySignal.get(row.signalId) : undefined;
-    if (!values || row.phaseId == null || !(row.phaseId in values)) {
+    const flags = values ? coordinated?.get(row.signalId) : undefined;
+    const written = values !== undefined && row.phaseId != null && row.phaseId in values;
+    if (row.phaseId == null || (!written && !flags)) {
       rows.push(row);
       return;
     }
-    seen.add(id(row.signalId, row.phaseId));
-    const next = Math.max(0, Math.round(values[row.phaseId]));
-    if (next === 0) {
+    if (written) seen.add(id(row.signalId, row.phaseId));
+    const next = written ? Math.max(0, Math.round(values[row.phaseId])) : row.splitS;
+    if (written && next === 0) {
       change.removed.push({ index, row });
       return;
     }
-    if (next !== row.splitS) {
-      change.updated.push({ signalId: row.signalId, phaseId: row.phaseId, previousS: row.splitS });
+    const nextFlag = flags ? flags.has(row.phaseId) : row.coordinatedPhase;
+    if (next !== row.splitS || nextFlag !== row.coordinatedPhase) {
+      change.updated.push({
+        signalId: row.signalId,
+        phaseId: row.phaseId,
+        previousS: row.splitS,
+        previousCoordinated: row.coordinatedPhase,
+      });
+      rows.push({ ...row, splitS: next, ...(flags ? { coordinatedPhase: nextFlag } : {}) });
+    } else {
+      rows.push(row);
     }
-    rows.push(next === row.splitS ? row : { ...row, splitS: next });
   });
 
   // New rows go after the signal's others in the pattern, else after the
@@ -469,11 +489,13 @@ export function writeSplits(
     };
     let at = lastOf((r) => r.patternId === patternId && r.signalId === signalId);
     if (at === -1) at = lastOf((r) => r.patternId === patternId);
+    const flags = coordinated?.get(signalId);
     const insert = fresh.map((phaseId) => ({
       patternId,
       signalId,
       phaseId,
       splitS: Math.round(values[phaseId]),
+      coordinatedPhase: flags ? flags.has(phaseId) : null,
     }));
     rows.splice(at === -1 ? rows.length : at + 1, 0, ...insert);
     change.created.push(...fresh.map((phaseId) => ({ signalId, phaseId })));
@@ -487,15 +509,20 @@ export function writeSplits(
 export function undoSplitsChange(change: SplitsChange): void {
   const key = COORDINATION_STORAGE_KEYS.splits;
   const created = new Set(change.created.map((c) => `${c.signalId}\u001f${c.phaseId}`));
-  const updated = new Map(
-    change.updated.map((u) => [`${u.signalId}\u001f${u.phaseId}`, u.previousS]),
-  );
+  const updated = new Map(change.updated.map((u) => [`${u.signalId}\u001f${u.phaseId}`, u]));
   const mine = (r: Split) => r.patternId === change.patternId;
   const rows = getFromStorage<Split[]>(key, [])
     .filter((r) => !(mine(r) && created.has(`${r.signalId}\u001f${r.phaseId}`)))
     .map((r) => {
       const k = `${r.signalId}\u001f${r.phaseId}`;
-      return mine(r) && updated.has(k) ? { ...r, splitS: updated.get(k) ?? null } : r;
+      const was = mine(r) ? updated.get(k) : undefined;
+      if (!was) return r;
+      // A row that never had a flag goes back to not having one.
+      const { coordinatedPhase: _flag, ...rest } = r;
+      void _flag;
+      return was.previousCoordinated === undefined
+        ? { ...rest, splitS: was.previousS }
+        : { ...rest, splitS: was.previousS, coordinatedPhase: was.previousCoordinated };
     });
   for (const { index, row } of [...change.removed].sort((a, b) => a.index - b.index)) {
     rows.splice(Math.min(index, rows.length), 0, row);

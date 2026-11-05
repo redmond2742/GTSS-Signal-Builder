@@ -2,8 +2,12 @@ import { create } from "zustand";
 import type { Agency, Approach, BasicTiming, Detector, Phase, Signal } from "../schema/public";
 import { AgencyDefaults } from "../src/agencyDefaults";
 import { readAllCoordination } from "../src/localStorage/coordination/entities";
-import { upgradeStoredCoordination } from "../src/localStorage/coordination/legacy";
+import {
+  upgradeStoredCoordinatedPhases,
+  upgradeStoredCoordination,
+} from "../src/localStorage/coordination/legacy";
 import type { CoordinationRows } from "../src/localStorage/coordination/rows";
+import { preemptStorage, type PreemptRow } from "../src/localStorage/preemption";
 import {
   agencyDefaultsStorage,
   agencyListStorage,
@@ -35,6 +39,10 @@ interface GTSSStore {
   /** Re-read every coordination collection from storage. Called after an
    *  edit; cheaper and less disruptive than a full loadFromStorage(). */
   refreshCoordination: () => void;
+  /** preempt.txt's rows. */
+  preempts: PreemptRow[];
+  /** Re-read them from storage, after an edit. */
+  refreshPreempts: () => void;
 
   // Navigation state (for single-page app without URL routing)
   currentView: "main" | "signal-details";
@@ -91,9 +99,13 @@ interface GTSSStore {
   loadFromStorage: () => void;
 }
 
-/** Coordination rows, after upgrading any saved before Coordination.txt was folded into corridors. */
+/**
+ * Coordination rows, after upgrading any saved before Coordination.txt was
+ * folded into corridors, or before coordinated phases moved to the split tables.
+ */
 const loadCoordination = () => {
   upgradeStoredCoordination();
+  upgradeStoredCoordinatedPhases();
   return readAllCoordination();
 };
 
@@ -109,6 +121,8 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
   basicTimings: basicTimingStorage.getAll(),
   coordination: loadCoordination(),
   refreshCoordination: () => set({ coordination: readAllCoordination() }),
+  preempts: preemptStorage.getAll(),
+  refreshPreempts: () => set({ preempts: preemptStorage.getAll() }),
 
   // Initial navigation state
   currentView: "main",
@@ -230,5 +244,6 @@ export const useGTSSStore = create<GTSSStore>((set) => ({
       detectors: detectorStorage.getAll(),
       basicTimings: basicTimingStorage.getAll(),
       coordination: loadCoordination(),
+      preempts: preemptStorage.getAll(),
     }),
 }));

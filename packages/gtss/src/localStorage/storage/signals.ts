@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import type { InsertSignal, Signal } from "../../../schema/public";
 import { deleteCoordinationBySignal, updateCoordinationSignalId } from "../coordination/entities";
+import { preemptStorage } from "../preemption";
 import { STORAGE_KEYS } from "../keys";
 import {
   getFromStorage,
@@ -60,6 +61,7 @@ export const signalStorage = {
       approachStorage.updateSignalId(signalId, updates.signalId);
       basicTimingStorage.updateSignalId(signalId, updates.signalId);
       updateCoordinationSignalId(signalId, updates.signalId);
+      preemptStorage.updateSignalId(signalId, updates.signalId);
     }
     return updatedSignal;
   },
@@ -76,6 +78,7 @@ export const signalStorage = {
     approachStorage.deleteBySignal(signalId);
     basicTimingStorage.deleteBySignal(signalId);
     deleteCoordinationBySignal(signalId);
+    preemptStorage.deleteBySignal(signalId);
   },
 
   clear: (): void => {

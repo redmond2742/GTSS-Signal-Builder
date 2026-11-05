@@ -4,8 +4,8 @@ import type { PatternSignal, PhaseSequenceEntry, Split } from "./rows";
 /**
  * The green the opposite direction gets at a signal.
  *
- * PatternSignals records ONE coordinated phase and ONE offset per signal: the
- * through movement of the direction being coordinated. Traffic the other way
+ * A signal is coordinated on one phase, with one offset: the through movement
+ * of the direction being coordinated. Traffic the other way
  * runs on the opposing through phase, which has its own split and, depending on
  * the sequence, its own start. Drawing the opposite direction with the
  * coordinated phase's window would be wrong wherever those differ — and in real

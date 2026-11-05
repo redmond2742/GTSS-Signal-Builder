@@ -40,8 +40,6 @@ export interface PatternSignal {
   patternId: string;
   signalId: string;
   offsetS: number | null;
-  /** Blank means this signal runs free in this pattern. */
-  coordinatedPhase: number | null;
   referencePoint: string | null;
   notes: string | null;
 }
@@ -51,6 +49,14 @@ export interface Split {
   signalId: string;
   phaseId: number | null;
   splitS: number | null;
+  /**
+   * Whether the signal is coordinated on this phase in this pattern, as a
+   * controller's split table marks it. This is the only place the files say it:
+   * a signal whose split rows mark none runs free in the pattern. A signal can
+   * have more than one (both mainline throughs). Null is a blank in the file, or
+   * a file from before the column, and counts as not coordinated.
+   */
+  coordinatedPhase?: boolean | null;
 }
 
 export interface ScheduleEntry {

@@ -25,6 +25,7 @@ import {
   Save,
   Search,
   Settings,
+  Siren,
   Sparkles,
   Waypoints,
   X,
@@ -115,6 +116,7 @@ export default function AgencyDefaultsSettings() {
   const [showCoordination, setShowCoordination] = useState<boolean>(
     current.showCoordination ?? false,
   );
+  const [showPreemption, setShowPreemption] = useState<boolean>(current.showPreemption ?? false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isDirty, setIsDirty] = useState(false);
 
@@ -126,6 +128,7 @@ export default function AgencyDefaultsSettings() {
     setMapScrollWheel(src.mapScrollWheel);
     setShowDemo(src.showDemo ?? false);
     setShowCoordination(src.showCoordination ?? false);
+    setShowPreemption(src.showPreemption ?? false);
     setIsDirty(false);
     setValidationErrors([]);
   }, [agencyDefaults]);
@@ -153,6 +156,11 @@ export default function AgencyDefaultsSettings() {
 
   const handleShowCoordinationChange = (next: boolean) => {
     setShowCoordination(next);
+    setIsDirty(true);
+  };
+
+  const handleShowPreemptionChange = (next: boolean) => {
+    setShowPreemption(next);
     setIsDirty(true);
   };
 
@@ -190,6 +198,7 @@ export default function AgencyDefaultsSettings() {
       mapScrollWheel,
       showDemo,
       showCoordination,
+      showPreemption,
       updatedAt: new Date().toISOString(),
     };
 
@@ -210,6 +219,7 @@ export default function AgencyDefaultsSettings() {
     setMapScrollWheel(src.mapScrollWheel);
     setShowDemo(src.showDemo ?? false);
     setShowCoordination(src.showCoordination ?? false);
+    setShowPreemption(src.showPreemption ?? false);
     setIsDirty(false);
     setValidationErrors([]);
   };
@@ -528,6 +538,71 @@ export default function AgencyDefaultsSettings() {
                   key={String(enabled)}
                   type="button"
                   onClick={() => handleShowCoordinationChange(enabled)}
+                  aria-pressed={selected}
+                  className={`text-left rounded-md border p-3 transition-colors ${
+                    selected
+                      ? "border-primary-600 bg-primary-50"
+                      : "border-grey-200 hover:bg-grey-50"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Icon
+                      className={`w-4 h-4 ${selected ? "text-primary-600" : "text-grey-400"}`}
+                    />
+                    <span
+                      className={`text-sm font-medium ${selected ? "text-primary-700" : "text-grey-700"}`}
+                    >
+                      {title}
+                    </span>
+                  </span>
+                  <span className="block text-xs text-grey-500 mt-1">{blurb}</span>
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Beta: Preemption */}
+      <Card>
+        <CardHeader className="bg-grey-50 border-b border-grey-200 p-3">
+          <div className="flex items-center gap-2">
+            <Siren className="w-4 h-4 text-amber-600" />
+            <CardTitle className="text-sm font-semibold text-grey-800">
+              Preemption
+              <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700">
+                Beta
+              </span>
+            </CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4">
+          <p className="text-xs text-grey-500 mb-3">
+            Adds a <strong>Preemption</strong> section for preempt channels: a small chart of each
+            channel showing the directions it brings up, from its phases and their approaches. Add
+            channels there, or import a preempt file.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {[
+              {
+                enabled: false,
+                icon: Eye,
+                title: "Hidden (Default)",
+                blurb: "Preempt files are skipped on import and the section stays hidden.",
+              },
+              {
+                enabled: true,
+                icon: Siren,
+                title: "Show Preemption",
+                blurb: "Adds the Preemption section, and preempt.txt to import and export.",
+              },
+            ].map(({ enabled, icon: Icon, title, blurb }) => {
+              const selected = showPreemption === enabled;
+              return (
+                <button
+                  key={String(enabled)}
+                  type="button"
+                  onClick={() => handleShowPreemptionChange(enabled)}
                   aria-pressed={selected}
                   className={`text-left rounded-md border p-3 transition-colors ${
                     selected

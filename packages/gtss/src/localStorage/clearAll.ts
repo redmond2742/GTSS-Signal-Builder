@@ -1,4 +1,5 @@
 import { clearAllCoordination } from "./coordination/entities";
+import { preemptStorage } from "./preemption";
 import { agencyListStorage, agencyStorage } from "./storage/agencies";
 import { approachStorage } from "./storage/approaches";
 import { basicTimingStorage } from "./storage/basicTimings";
@@ -15,4 +16,5 @@ export const clearAllData = (): void => {
   detectorStorage.clear();
   basicTimingStorage.clear();
   clearAllCoordination();
+  preemptStorage.clear();
 };

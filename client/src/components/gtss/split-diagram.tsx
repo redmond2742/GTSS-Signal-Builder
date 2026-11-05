@@ -6,7 +6,8 @@ interface SplitDiagramProps {
   plan: SplitPlan;
   values: SplitValues;
   cycleS: number;
-  coordinatedPhase: number | null;
+  /** Phases marked coordinated, underlined. */
+  coordinatedPhases: ReadonlySet<number>;
   /** Phases below their minimum, drawn with a warning outline. */
   belowMinimum?: ReadonlySet<number>;
   /** Drag a phase's right edge, or use the arrow keys on it, to change its split. */
@@ -41,7 +42,7 @@ export default function SplitDiagram({
   plan,
   values,
   cycleS,
-  coordinatedPhase,
+  coordinatedPhases,
   belowMinimum,
   onChange,
 }: SplitDiagramProps) {
@@ -197,10 +198,10 @@ export default function SplitDiagram({
                           strokeWidth={belowMinimum?.has(p.phaseId) ? 2 : 1}
                         >
                           <title>
-                            {`φ${p.phaseId}: ${v(p.phaseId)}s${p.phaseId === coordinatedPhase ? " (coordinated)" : ""}${p.minimumS != null ? `, minimum ${p.minimumS}s` : ""}`}
+                            {`φ${p.phaseId}: ${v(p.phaseId)}s${coordinatedPhases.has(p.phaseId) ? " (coordinated)" : ""}${p.minimumS != null ? `, minimum ${p.minimumS}s` : ""}`}
                           </title>
                         </rect>
-                        {p.phaseId === coordinatedPhase && (
+                        {coordinatedPhases.has(p.phaseId) && (
                           <rect
                             x={at + 1}
                             y={y + BAR_H - 4}

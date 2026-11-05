@@ -9,6 +9,7 @@ export {
   isCoordinationEnabled,
   isDemoEnabled,
   isMapScrollZoomEnabled,
+  isPreemptionEnabled,
   isTypicallyThroughPhase,
   MAX_PHASE_NUMBER,
   MIN_PHASE_NUMBER,
@@ -46,6 +47,29 @@ export {
 export type { LibraryBounds, LibraryEntry, LibrarySource } from "./src/library";
 export { isLhtForSignalId, isMetricForSignalId } from "./src/localStorage/agency-units";
 export { clearAllData } from "./src/localStorage/clearAll";
+// --- Preemption (beta) ---------------------------------------------------
+export {
+  deletePreemptChannel,
+  generatePreemptCSV,
+  isPreemptFile,
+  movementsOfPhase,
+  parsePreemptTXT,
+  PREEMPT_FILENAME,
+  preemptChannelsFor,
+  preemptRowsFor,
+  preemptRowsForExport,
+  preemptStorage,
+  undoPreemptChange,
+  writePreemptChannel,
+} from "./src/localStorage/preemption";
+export type {
+  PreemptChange,
+  PreemptChannel,
+  PreemptGtssData,
+  PreemptMovement,
+  PreemptRow,
+} from "./src/localStorage/preemption";
+
 // --- Coordination (experimental) -----------------------------------------
 export {
   COORDINATION_ENTITIES,
@@ -96,12 +120,44 @@ export {
   patternsUsingSequences,
   sequenceForPattern,
   sequenceFromNotes,
+  sequenceNumberInNotes,
 } from "./src/localStorage/coordination/phaseSequenceLayout";
 export type {
   BarrierColumn,
   DiagramCell,
   SequenceDiagram,
 } from "./src/localStorage/coordination/phaseSequenceLayout";
+export {
+  addBarrierGroup,
+  addPhase,
+  addRing,
+  deletePhaseSequence,
+  layoutFromRows,
+  MAX_PHASE,
+  movePhase,
+  patternSequences,
+  placedPhases,
+  removeBarrierGroup,
+  removePhase,
+  removeRing,
+  rowsFromLayout,
+  sameLayout,
+  sequenceNumberFor,
+  setPatternSequences,
+  signalSequenceIds,
+  standardLayout,
+  suggestSequenceId,
+  undoPatternSequenceChange,
+  undoSequenceChange,
+  withSequenceInNotes,
+  writePhaseSequence,
+} from "./src/localStorage/coordination/phaseSequenceEditor";
+export type {
+  PatternSequence,
+  PatternSequenceChange,
+  SequenceChange,
+  SequenceLayout,
+} from "./src/localStorage/coordination/phaseSequenceEditor";
 export {
   approachMetres,
   cumulativeTravel,
@@ -189,9 +245,12 @@ export {
 } from "./src/localStorage/coordination/offsetReference";
 export { isLegacyScheduleHeader } from "./src/localStorage/coordination/parsers";
 export {
+  foldLegacyCoordinatedPhases,
   foldLegacyCoordination,
   isLegacyCoordinationFile,
+  parseLegacyCoordinatedPhases,
   parseLegacyCoordination,
+  upgradeStoredCoordinatedPhases,
   upgradeStoredCoordination,
 } from "./src/localStorage/coordination/legacy";
 export type { LegacyCoordinationPlan } from "./src/localStorage/coordination/legacy";
@@ -208,6 +267,15 @@ export {
 } from "./src/localStorage/coordination/fitSplits";
 export type { CycleChange, FitResult } from "./src/localStorage/coordination/fitSplits";
 export { ringSplitTotals } from "./src/localStorage/coordination/splitTotals";
+export {
+  carryCoordinatedPhases,
+  coordinatedPhaseOf,
+  coordinatedSplitPhases,
+} from "./src/localStorage/coordination/splitCoordination";
+export type {
+  CarriedCoordinatedPhases,
+  GivenCoordinatedPhase,
+} from "./src/localStorage/coordination/splitCoordination";
 export {
   parseProgression,
   progressionPhases,

@@ -343,11 +343,11 @@ describe("signal alignment, hand-built cases", () => {
         patternId: "P1",
         signalId: "A",
         offsetS: 0,
-        coordinatedPhase: 2,
         referencePoint: "A",
         notes: null,
       },
     ],
+    splits: [{ patternId: "P1", signalId: "A", phaseId: 2, splitS: 100, coordinatedPhase: true }],
     schedule: [entry("S1", "WEEKDAY", "00:00", "24:00", "P1")],
   });
 

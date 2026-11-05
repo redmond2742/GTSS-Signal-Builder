@@ -3,6 +3,8 @@ import {
   CORRIDOR_COLUMNS,
   CORRIDOR_SIGNAL_COLUMNS,
   fieldReader,
+  flag,
+  headerPositions,
   int,
   PATTERN_COLUMNS,
   PATTERN_SIGNAL_COLUMNS,
@@ -24,8 +26,10 @@ import type {
 /**
  * Shared skeleton for all 7 parsers.
  *
- * Fields are read by NAME against the column array rather than by positional
- * index, so generator and parser cannot drift. Rows that are missing a required
+ * Fields are read by NAME: the header says where each known column is, so a
+ * file whose columns are reordered, or that predates a column added since,
+ * still reads correctly. A header naming none of them falls back to the column
+ * array's order. Rows that are missing a required
  * key are collected as errors and reported together, matching the existing
  * parsers' behaviour of throwing one message listing every bad row.
  */
@@ -44,11 +48,11 @@ function parseRows<C extends readonly string[], T>(
   const rows: T[] = [];
   const errors: string[] = [];
 
-  // Line 0 is the header. It is not used for mapping — the column array is the
-  // contract — but it is skipped so a headerless file fails loudly rather than
-  // silently losing its first row.
+  // Line 0 is the header: it says where each column is. A file without one still
+  // skips its first line, so it fails loudly rather than losing a row quietly.
+  const positions = headerPositions(columns, parseCSVLine(lines[0])) ?? undefined;
   for (let i = 1; i < lines.length; i++) {
-    const col = fieldReader(columns, parseCSVLine(lines[i]));
+    const col = fieldReader(columns, parseCSVLine(lines[i]), positions);
     const built = build(col, i + 1);
     if (typeof built === "string") errors.push(built);
     else rows.push(built);
@@ -121,8 +125,6 @@ export const parsePatternSignalsTXT = (content: string): PatternSignal[] =>
         patternId,
         signalId,
         offsetS: int(col("offset_s")),
-        // Blank is meaningful: this signal runs free in this pattern.
-        coordinatedPhase: int(col("coordinated_phase")),
         referencePoint: text(col("reference_point")),
         notes: text(col("notes")),
       }
@@ -140,6 +142,7 @@ export const parseSplitsTXT = (content: string): Split[] =>
         signalId,
         phaseId: int(col("phase_id")),
         splitS: int(col("split_s")),
+        coordinatedPhase: flag(col("coordinated_phase")),
       }
     );
   });

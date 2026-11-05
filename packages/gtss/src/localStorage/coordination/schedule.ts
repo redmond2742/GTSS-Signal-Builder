@@ -1,5 +1,6 @@
 import { sortBySequence } from "./corridor-order";
 import type { CoordinationRows, Pattern, ScheduleEntry } from "./rows";
+import { coordinatedPhaseOf } from "./splitCoordination";
 import { ringSplitTotals } from "./splitTotals";
 
 /**
@@ -212,7 +213,7 @@ export type SignalPatternState =
     }
   /** The whole pattern is free (cycle 0 / pattern 254): nobody is coordinated. */
   | { kind: "free-pattern" }
-  /** The pattern is coordinated but this signal's coordinated phase is blank. */
+  /** The pattern is coordinated but this signal's split rows mark no coordinated phase. */
   | { kind: "free-signal" }
   /** The pattern is coordinated and has no PatternSignals row for this signal. */
   | { kind: "missing" }
@@ -392,10 +393,11 @@ export function alignDaySchedule(
         state = { kind: "free-pattern" };
       } else {
         const ps = psByKey.get(`${pattern.patternId}|${signalId}`);
+        const phase = coordinatedPhaseOf(rows.splits, pattern.patternId, signalId);
         if (!ps) {
           state = { kind: "missing" };
           missing.push(signalId);
-        } else if (ps.coordinatedPhase == null) {
+        } else if (phase === null) {
           state = { kind: "free-signal" };
           free.push(signalId);
         } else {
@@ -403,7 +405,7 @@ export function alignDaySchedule(
           if (cycleMismatch) offCycle.push(signalId);
           state = {
             kind: "coordinated",
-            phase: ps.coordinatedPhase,
+            phase,
             offsetS: ps.offsetS,
             cycleMismatch,
           };

@@ -38,6 +38,33 @@ is the whole reason this package is free-standing: handedness is the only
 piece of agency context the diagram needs, and the host app supplies it. In
 GTSS Builder that call is `isLhtForSignalId(signalId)`.
 
+## PreemptDiagram
+
+A small chart of one preempt channel: the intersection's legs, and an arrow for
+each movement the channel brings up. It shares `PhaseDiagram`'s colors and its
+reading of movement types (`movementShape`), and leaves out the title, legend,
+lanes and crosswalks, so a signal's channels can sit side by side.
+
+```tsx
+import { PreemptDiagram } from "gtss-diagram";
+
+<PreemptDiagram
+  phases={[
+    { phase: 1, approachId: "A2", movementType: "Left Turn" },
+    { phase: 6, approachId: "A2", movementType: "Through" },
+  ]}
+  approaches={[
+    { approachId: "A1", compassBearing: 23 },
+    { approachId: "A2", compassBearing: 120 },
+  ]}
+  isLht={false}
+  label="Channel 3: phase 1 eastbound left, phase 6 eastbound through"
+/>;
+```
+
+A movement with no approach bearing, or a pedestrian-only one, draws no arrow,
+so the host should say why alongside the chart.
+
 ## Exporting the diagram
 
 The renderer only draws. To save the result as an image, hand the `svgRef`

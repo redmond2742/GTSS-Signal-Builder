@@ -117,6 +117,42 @@ const packStreets = (names: string[], fontSize: number, maxWidth: number): strin
   return lines;
 };
 
+/** The shape a movement type is drawn as. */
+export type MovementShape =
+  | "straight"
+  | "left"
+  | "right"
+  | "uturn"
+  | "pedestrian"
+  | "leftThrough"
+  | "throughRight"
+  | "permissive";
+
+export const movementShape = (movementType: string): MovementShape => {
+  switch (movementType) {
+    case "Left":
+    case "Left Turn":
+    case "Left Protected-Permissive":
+    case "Flashing Yellow Arrow":
+      return "left";
+    case "Left Through Shared":
+      return "leftThrough";
+    case "Through-Right":
+      return "throughRight";
+    case "Permissive Phase":
+      return "permissive";
+    case "Right":
+    case "Right Turn":
+      return "right";
+    case "U-Turn":
+      return "uturn";
+    case "Pedestrian":
+      return "pedestrian";
+    default:
+      return "straight";
+  }
+};
+
 export const PhaseDiagram = ({
   phases,
   approaches,
@@ -163,46 +199,11 @@ export const PhaseDiagram = ({
     return approach?.compassBearing ?? null;
   };
 
-  const getMovementType = (
-    movementType: string,
-  ):
-    | "straight"
-    | "left"
-    | "right"
-    | "uturn"
-    | "pedestrian"
-    | "leftThrough"
-    | "throughRight"
-    | "permissive" => {
-    switch (movementType) {
-      case "Left":
-      case "Left Turn":
-      case "Left Protected-Permissive":
-      case "Flashing Yellow Arrow":
-        return "left";
-      case "Left Through Shared":
-        return "leftThrough";
-      case "Through-Right":
-        return "throughRight";
-      case "Permissive Phase":
-        return "permissive";
-      case "Right":
-      case "Right Turn":
-        return "right";
-      case "U-Turn":
-        return "uturn";
-      case "Pedestrian":
-        return "pedestrian";
-      default:
-        return "straight";
-    }
-  };
-
   // Count phases by approach and movement type to calculate offsets
   // With 180° bearing adjustment, perpAngle points LEFT, so positive = left
   const getPhaseOffset = (phase: PhaseDiagramPhase): number => {
     const sameApproachPhases = phases.filter((p) => p.approachId === phase.approachId);
-    const moveType = getMovementType(phase.movementType);
+    const moveType = movementShape(phase.movementType);
 
     let baseOffset = 0;
     if (moveType === "left") baseOffset = 7;
@@ -216,7 +217,7 @@ export const PhaseDiagram = ({
     else if (moveType === "permissive") baseOffset = 0;
 
     const sameTypeCount = sameApproachPhases.filter(
-      (p) => getMovementType(p.movementType) === moveType,
+      (p) => movementShape(p.movementType) === moveType,
     );
     const typeIndex = sameTypeCount.findIndex((p) => p.phase === phase.phase);
     if (sameTypeCount.length > 1) {
@@ -409,7 +410,7 @@ export const PhaseDiagram = ({
     const bearing = getApproachBearing(phase.approachId);
     if (bearing === null) return null;
 
-    const moveType = getMovementType(phase.movementType);
+    const moveType = movementShape(phase.movementType);
     if (moveType === "pedestrian") return null;
 
     const color = phaseColors[phase.phase] || "#6b7280";

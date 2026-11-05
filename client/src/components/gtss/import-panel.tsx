@@ -32,15 +32,20 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import type { CoordinationKey, LibraryEntry, ParsedCoordination } from "gtss";
+import type { CoordinationKey, LibraryEntry, ParsedCoordination, PreemptRow } from "gtss";
 import {
   COORDINATION_ENTITIES,
   detectCoordinationFile,
+  foldLegacyCoordinatedPhases,
   foldLegacyCoordination,
   isCoordinationEnabled,
   isLegacyCoordinationFile,
+  isPreemptFile,
+  isPreemptionEnabled,
   isLegacyScheduleHeader,
+  parseLegacyCoordinatedPhases,
   parseLegacyCoordination,
+  parsePreemptTXT,
   flattenLibraryEntries,
   getLibrarySourceUrls,
   isDemoEnabled,
@@ -73,12 +78,17 @@ type FileKind =
   | "legacy_coordination"
   /** The converter's warnings.txt: notes about the data, not data. */
   | "converter_notes"
+  | "preempts"
+  /** A preempt file while the Preemption beta is off. */
+  | "preempt_skipped"
   | "unknown";
 
 /** Labels for kinds whose key doesn't read well as one. */
 const FILE_KIND_LABEL: Partial<Record<FileKind, string>> = {
   legacy_coordination: "Old Coordination.txt",
   converter_notes: "Converter notes",
+  preempts: "Preempt channels",
+  preempt_skipped: "Skipped: Preemption beta is off",
 };
 
 type FileData = {
@@ -94,6 +104,7 @@ type ParsedData = {
   phases?: Phase[];
   detectors?: Detector[];
   basicTimings?: BasicTiming[];
+  preempts?: PreemptRow[];
 } & ParsedCoordination;
 
 type ValidationError = {
@@ -149,6 +160,7 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
   const { agencyDefaults } = useGTSSStore();
   const showDemo = isDemoEnabled(agencyDefaults);
   const coordinationEnabled = isCoordinationEnabled(agencyDefaults);
+  const preemptionEnabled = isPreemptionEnabled(agencyDefaults);
   const { import: runImport } = useImportData();
   const [uploadedFiles, setUploadedFiles] = useState<FileData[]>([]);
   const [importMode, setImportMode] = useState<"replace" | "merge">("replace");
@@ -219,6 +231,7 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
 
   const detectFileType = (filename: string): FileKind => {
     const lower = filename.toLowerCase();
+    if (isPreemptFile(filename)) return preemptionEnabled ? "preempts" : "preempt_skipped";
     // Registry first: the substring chain below would mis-claim three
     // coordination files ("signal" catches corridorSignals and PatternSignals,
     // "phase" catches PhaseSequence).
@@ -299,6 +312,7 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
     const errors: ValidationError[] = [];
     const notes: string[] = [];
     let legacyPlans: ReturnType<typeof parseLegacyCoordination> | null = null;
+    let legacyPhases: NonNullable<ReturnType<typeof parseLegacyCoordinatedPhases>> | null = null;
 
     files.forEach((file) => {
       try {
@@ -312,6 +326,16 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
           }
           case "legacy_coordination": {
             legacyPlans = [...(legacyPlans ?? []), ...parseLegacyCoordination(file.content)];
+            break;
+          }
+          case "preempts": {
+            parsed.preempts = [...(parsed.preempts ?? []), ...parsePreemptTXT(file.content)];
+            break;
+          }
+          case "preempt_skipped": {
+            notes.push(
+              `${file.name} was skipped: the Preemption beta is off. Turn it on under Configuration to import it.`,
+            );
             break;
           }
           case "agency": {
@@ -351,6 +375,10 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
             const entity = COORDINATION_ENTITIES.find((e) => e.key === file.type);
             if (entity) {
               entity.parseInto(file.content, parsed);
+              if (entity.key === "patternSignals") {
+                const phases = parseLegacyCoordinatedPhases(file.content);
+                if (phases) legacyPhases = [...(legacyPhases ?? []), ...phases];
+              }
               if (entity.key === "schedule" && isLegacyScheduleHeader(file.content)) {
                 notes.push(
                   `${file.name} is in the older layout (coordination_id, not corridor_id), so each row takes its pattern's corridor.`,
@@ -376,6 +404,8 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
 
     // After every file, so the corridors are there to take the old plan's clock.
     if (legacyPlans) notes.push(foldLegacyCoordination(parsed, legacyPlans));
+    // Likewise, so the splits are there to take the old coordinated phases.
+    if (legacyPhases) notes.push(foldLegacyCoordinatedPhases(parsed, legacyPhases));
     setImportNotes(notes);
 
     setParsedData(parsed);
@@ -468,6 +498,7 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
       if (parsedData.phases) payload.phases = filteredPhases;
       if (parsedData.detectors) payload.detectors = filteredDetectors;
       if (parsedData.basicTimings) payload.basicTimings = filteredBasicTimings;
+      if (parsedData.preempts) payload.preempts = parsedData.preempts;
 
       COORDINATION_ENTITIES.forEach((entity) => {
         const rows = parsedData[entity.key];
@@ -488,6 +519,7 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
           (sum, entity) => sum + entity.countIn(parsedData),
           0,
         ),
+        preempts: parsedData.preempts?.length ?? 0,
       };
 
       const importedItems = [
@@ -498,6 +530,7 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
         stats.detectors > 0 ? `${stats.detectors} detectors` : null,
         stats.basicTimings > 0 ? `${stats.basicTimings} timings` : null,
         stats.coordination > 0 ? `${stats.coordination} coordination rows` : null,
+        stats.preempts > 0 ? `${stats.preempts} preempt rows` : null,
       ]
         .filter(Boolean)
         .join(", ");
@@ -943,6 +976,12 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
                           {parsedData.basicTimings.length !== 1 ? "s" : ""}
                         </li>
                       )}
+                      {parsedData.preempts && parsedData.preempts.length > 0 && (
+                        <li data-testid="preview-preempts">
+                          ✓ {parsedData.preempts.length} Preempt row
+                          {parsedData.preempts.length !== 1 ? "s" : ""}
+                        </li>
+                      )}
                       {COORDINATION_ENTITIES.map((entity) => {
                         const n = entity.countIn(parsedData);
                         return n > 0 ? (
@@ -1116,6 +1155,12 @@ export function ImportPanel({ onImportComplete }: { onImportComplete?: () => voi
                   <li data-testid="preview-basicTimings">
                     ✓ {parsedData.basicTimings.length} Basic Timing
                     {parsedData.basicTimings.length !== 1 ? "s" : ""}
+                  </li>
+                )}
+                {parsedData.preempts && parsedData.preempts.length > 0 && (
+                  <li data-testid="preview-preempts">
+                    ✓ {parsedData.preempts.length} Preempt row
+                    {parsedData.preempts.length !== 1 ? "s" : ""}
                   </li>
                 )}
                 {COORDINATION_ENTITIES.map((entity) => {
